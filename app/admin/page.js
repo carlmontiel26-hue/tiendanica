@@ -16,7 +16,7 @@ export default function Admin(){
   const loadStores = async()=>{
     const { data, error } = await supabase.from('stores').select('*').order('created_at', {ascending:false})
     if(error) setLog('ERROR: '+error.message)
-    else { setStores(data||[]); setLog('Conectado OK - '+data.length+' tiendas'); if(data?.[0] &&!selectedStore) setSelectedStore(data[0]) }
+    else { setStores(data||[]); setLog('Conectado OK - '+data.length+' tiendas'); if(data?.[0] && !selectedStore) setSelectedStore(data[0]) }
   }
   const loadProducts = async(storeId)=>{
     if(!storeId) return
@@ -37,11 +37,9 @@ export default function Admin(){
   const createProduct = async(e)=>{
     e.preventDefault()
     if(!selectedStore) return alert('Selecciona una tienda primero')
-    if(!imageFile &&!pform.image_url) return alert('Sube una foto o pega una URL')
-
+    if(!imageFile && !pform.image_url) return alert('Sube una foto')
     setUploading(true)
     let finalUrl = pform.image_url
-
     try {
       if(imageFile){
         const fileName = `${Date.now()}-${imageFile.name.replace(/\s/g,'-')}`
@@ -50,10 +48,8 @@ export default function Admin(){
         const { data: {publicUrl} } = supabase.storage.from('product-images').getPublicUrl(fileName)
         finalUrl = publicUrl
       }
-
       const { error } = await supabase.from('products').insert({ store_id:selectedStore.id, name:pform.name, price: parseFloat(pform.price), image_url:finalUrl, is_active:true }).select()
       if(error) throw error
-
       setPform({name:'',price:'',image_url:''})
       setImageFile(null)
       loadProducts(selectedStore.id)
@@ -71,7 +67,6 @@ export default function Admin(){
           <img src="/logo.png" className="h-8"/>
           <div className="bg-black text-green-400 text-xs px-3 py-1 rounded-full">{log}</div>
         </div>
-
         <div className="grid lg:grid-cols-3 gap-6 mt-8">
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white border rounded-2xl p-5">
@@ -84,7 +79,6 @@ export default function Admin(){
                 <button className="w-full bg-black text-white py-3 rounded-full font-bold">Crear Tienda</button>
               </form>
             </div>
-
             <div className="bg-white border rounded-2xl p-5">
               <h3 className="font-bold">Mis Tiendas ({stores.length})</h3>
               <div className="mt-3 space-y-2">
@@ -97,7 +91,6 @@ export default function Admin(){
               </div>
             </div>
           </div>
-
           <div className="lg:col-span-2">
             <div className="bg-white border rounded-2xl p-6">
               <h2 className="font-black text-lg">Productos {selectedStore? 'de '+selectedStore.name : ''}</h2>
@@ -106,19 +99,12 @@ export default function Admin(){
                 <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
                   <input className="border rounded-xl px-3 py-2" placeholder="Nombre producto" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
                   <input className="border rounded-xl px-3 py-2" placeholder="Precio C$" type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
-
                   <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer hover:bg-gray-100">
-                    <span className="text-sm font-bold">
-                      {imageFile? `✅ ${imageFile.name}` : '📸 Toca para subir foto desde el celular'}
-                    </span>
+                    <span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Toca para subir foto desde el celular'}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} />
                   </label>
-
-                  <button disabled={uploading} className="md:col-span-3 bg-[#00D084] text-black py-3 rounded-full font-bold disabled:opacity-50">
-                    {uploading? 'Subiendo foto...' : 'Agregar Producto'}
-                  </button>
+                  <button disabled={uploading} className="md:col-span-3 bg-[#00D084] text-black py-3 rounded-full font-bold disabled:opacity-50">{uploading? 'Subiendo foto...' : 'Agregar Producto'}</button>
                 </form>
-
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                   {products.map(p=>(
                     <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
