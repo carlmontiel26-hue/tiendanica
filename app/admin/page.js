@@ -1,4 +1,3 @@
-
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -10,12 +9,14 @@ export default function Admin(){
   const [selectedStore, setSelectedStore] = useState(null)
   const [form, setForm] = useState({name:'', slug:'', whatsapp:'', description:''})
   const [pform, setPform] = useState({name:'', price:'', image_url:''})
+  const [imageFile, setImageFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const [log, setLog] = useState('Conectando...')
 
   const loadStores = async()=>{
     const { data, error } = await supabase.from('stores').select('*').order('created_at', {ascending:false})
     if(error) setLog('ERROR: '+error.message)
-    else { setStores(data||[]); setLog('Conectado OK - '+data.length+' tiendas'); if(data?.[0] && !selectedStore) setSelectedStore(data[0]) }
+    else { setStores(data||[]); setLog('Conectado OK - '+data.length+' tiendas'); if(data?.[0] &&!selectedStore) setSelectedStore(data[0]) }
   }
   const loadProducts = async(storeId)=>{
     if(!storeId) return
@@ -32,12 +33,35 @@ export default function Admin(){
     if(error) alert(error.message)
     else { loadStores(); setSelectedStore(data); alert('Tienda creada: /'+cleanSlug) }
   }
+
   const createProduct = async(e)=>{
     e.preventDefault()
     if(!selectedStore) return alert('Selecciona una tienda primero')
-    const { error } = await supabase.from('products').insert({ store_id:selectedStore.id, name:pform.name, price: parseFloat(pform.price), image_url:pform.image_url, is_active:true }).select()
-    if(error) alert(error.message)
-    else { setPform({name:'',price:'',image_url:''}); loadProducts(selectedStore.id) }
+    if(!imageFile &&!pform.image_url) return alert('Sube una foto o pega una URL')
+
+    setUploading(true)
+    let finalUrl = pform.image_url
+
+    try {
+      if(imageFile){
+        const fileName = `${Date.now()}-${imageFile.name.replace(/\s/g,'-')}`
+        const { error: upError } = await supabase.storage.from('product-images').upload(fileName, imageFile)
+        if(upError) throw upError
+        const { data: {publicUrl} } = supabase.storage.from('product-images').getPublicUrl(fileName)
+        finalUrl = publicUrl
+      }
+
+      const { error } = await supabase.from('products').insert({ store_id:selectedStore.id, name:pform.name, price: parseFloat(pform.price), image_url:finalUrl, is_active:true }).select()
+      if(error) throw error
+
+      setPform({name:'',price:'',image_url:''})
+      setImageFile(null)
+      loadProducts(selectedStore.id)
+    } catch(err){
+      alert('Error: '+err.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -81,9 +105,18 @@ export default function Admin(){
               {selectedStore && <>
                 <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
                   <input className="border rounded-xl px-3 py-2" placeholder="Nombre producto" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
-                  <input className="border rounded-xl px-3 py-2" placeholder="Precio C$" type="number" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
-                  <input className="border rounded-xl px-3 py-2 md:col-span-3" placeholder="URL Imagen (https://...)" value={pform.image_url} onChange={e=>setPform({...pform,image_url:e.target.value})}/>
-                  <button className="md:col-span-3 bg-[#00D084] text-black py-2 rounded-full font-bold">Agregar Producto</button>
+                  <input className="border rounded-xl px-3 py-2" placeholder="Precio C$" type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
+
+                  <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer hover:bg-gray-100">
+                    <span className="text-sm font-bold">
+                      {imageFile? `✅ ${imageFile.name}` : '📸 Toca para subir foto desde el celular'}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} />
+                  </label>
+
+                  <button disabled={uploading} className="md:col-span-3 bg-[#00D084] text-black py-3 rounded-full font-bold disabled:opacity-50">
+                    {uploading? 'Subiendo foto...' : 'Agregar Producto'}
+                  </button>
                 </form>
 
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
@@ -93,7 +126,7 @@ export default function Admin(){
                       <div className="p-3"><p className="font-bold text-sm">{p.name}</p><p className="text-sm text-gray-500">C$ {p.price}</p></div>
                     </div>
                   ))}
-                  {products.length===0 && <p className="text-gray-400 text-sm">Aún no hay productos. Agrega el primero arriba.</p>}
+                  {products.length===0 && <p className="text-gray-400 text-sm col-span-3">Aún no hay productos. Agrega el primero arriba.</p>}
                 </div>
                 <div className="mt-6">
                   <a href={'/'+selectedStore.slug} target="_blank" className="px-5 py-2 bg-black text-white rounded-full text-sm">Ver tienda /{selectedStore.slug} →</a>
