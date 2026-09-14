@@ -2,6 +2,9 @@
 import Link from 'next/link'
 
 export default function Home(){
+  const adminWhatsapp = "50588888888" // CAMBIA ESTE NUMERO POR EL TUYO
+  const waLink = `https://wa.me/${adminWhatsapp}?text=Hola! Quiero solicitar mi tienda en Tienda Nica. Mi negocio es: `
+
   return (
     <main className="min-h-screen bg-white text-black">
       <header className="border-b">
@@ -11,15 +14,9 @@ export default function Home(){
             <span className="text-xs bg-gray-100 px-3 py-1 rounded-full">NICARAGUA • LATAM</span>
           </div>
           <div className="flex gap-3">
-            <Link href="/admin" className="px-4 py-2 text-sm">Iniciar sesión</Link>
-            <Link href="/admin" className="px-5 py-2 bg-black text-white rounded-full text-sm font-bold">Crear tienda</Link>
+            <a href={waLink} target="_blank" className="px-4 py-2 text-sm border rounded-full font-bold">Solicitar tienda</a>
+            <a href={waLink} target="_blank" className="px-5 py-2 bg-black text-white rounded-full text-sm font-bold">Quiero mi tienda →</a>
           </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 py-3 flex gap-2 text-sm overflow-auto">
-          <span className="px-4 py-2 bg-black text-white rounded-full">Landing Plataforma <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">Público</span></span>
-          <Link href="/cafe-dulce-aroma" className="px-4 py-2 border rounded-full text-gray-600">Tienda Ejemplo <span className="ml-1 bg-gray-100 px-2 py-0.5 rounded-full text-xs">Cliente</span></Link>
-          <Link href="/admin" className="px-4 py-2 border rounded-full text-gray-600">Panel Dueño <span className="ml-1 bg-gray-100 px-2 py-0.5 rounded-full text-xs">Dueño</span></Link>
-          <Link href="/admin" className="px-4 py-2 border rounded-full text-gray-600">Super Admin (Tú) <span className="ml-1 bg-gray-100 px-2 py-0.5 rounded-full text-xs">Admin</span></Link>
         </div>
       </header>
 
@@ -31,9 +28,10 @@ export default function Home(){
           <h1 className="text-6xl font-black leading-[0.9] tracking-tight">Crea tu tienda online<br/>en 5 minutos. Vende por <br/><span className="relative">WhatsApp.<span className="absolute -top-2 -right-16 bg-[#00D084] text-black text-base px-3 py-1 rounded-full rotate-3">Sin código</span></span></h1>
           <p className="mt-8 text-gray-600 text-lg max-w-xl">Sin programadores. Sin comisiones por venta. Sube productos, comparte tu link y recibe pedidos directo en tu WhatsApp. Cobra en C$ o USD.</p>
           <div className="mt-8 flex gap-3">
-            <Link href="/admin" className="px-7 py-3 bg-black text-white rounded-full font-bold">Crear mi tienda gratis →</Link>
+            <a href={waLink} target="_blank" className="px-7 py-3 bg-black text-white rounded-full font-bold">Solicitar mi tienda por WhatsApp →</a>
             <Link href="/cafe-dulce-aroma" className="px-7 py-3 border rounded-full font-bold">Ver tienda ejemplo</Link>
           </div>
+          <div className="mt-2 text-xs text-gray-400">Tú solicitas, nosotros la creamos y te damos acceso en 24h</div>
           <div className="mt-8 flex gap-6 text-sm text-gray-500">
             <span>✅ Pagos por transferencia</span><span>✅ Entrega en todo NI</span><span>✅ Dominio .com.ni</span>
           </div>

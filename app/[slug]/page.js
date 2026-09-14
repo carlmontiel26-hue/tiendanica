@@ -1,75 +1,63 @@
+
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+const ADMIN_WA = "50581732620"
 
 export default async function StorePage({ params }){
   const { data: store } = await supabase.from('stores').select('*').eq('slug', params.slug).single()
   if(!store) return notFound()
-  const { data: products } = await supabase.from('products').select('*').eq('store_id', store.id).eq('is_active', true)
+  const { data: products } = await supabase.from('products').select('*').eq('store_id', store.id).eq('is_active', true).order('created_at', {ascending:false})
+  const waSolicitar = `https://wa.me/${ADMIN_WA}?text=Hola! Vi la tienda ${store.name} en Tienda Nica y quiero solicitar mi propia tienda. Mi negocio es: `
 
   return (
     <main className="min-h-screen bg-[#fafaf9]">
       <header className="bg-white border-b px-6 py-4 flex justify-between items-center">
-        <img src="/logo.png" className="h-7"/>
-        <a href={'https://wa.me/'+store.whatsapp+'?text=Hola! Vi tu tienda '+store.name} className="bg-[#25D366] text-white px-5 py-2 rounded-full text-sm font-bold">WhatsApp</a>
+        <img src="/logo.png" className="h-8 object-contain"/>
+        <a href={'https://wa.me/'+store.whatsapp+'?text=Hola! Vi tu tienda '+store.name+' y quiero hacer un pedido'} target="_blank" className="bg-[#25D366] text-white px-5 py-2 rounded-full text-sm font-bold">WhatsApp Tienda</a>
       </header>
 
       {store.cover_image ? (
-        <div className="relative h-[320px] w-full overflow-hidden">
+        <div className="relative h-[380px] w-full overflow-hidden">
           <img src={store.cover_image} className="w-full h-full object-cover"/>
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
             <div className="max-w-6xl mx-auto">
-              <h1 className="text-4xl md:text-5xl font-black text-white drop-shadow-lg">{store.name}</h1>
-              <p className="text-white/80 mt-2 text-lg max-w-2xl">{store.description || 'Mi tienda Nica'}</p>
-              <div className="mt-4 flex gap-2">
-                <span className="bg-white text-black text-xs px-3 py-1 rounded-full font-bold">✅ Abierto</span>
-                <span className="bg-[#00D084] text-black text-xs px-3 py-1 rounded-full font-bold">Envíos en Nicaragua</span>
-              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-white drop-shadow-lg">{store.name}</h1>
+              <p className="text-white/80 mt-3 text-lg max-w-2xl">{store.description || 'Bienvenido a mi tienda'}</p>
             </div>
           </div>
         </div>
       ) : (
         <div className="max-w-6xl mx-auto px-6 pt-10">
           <h1 className="text-4xl font-black">{store.name}</h1>
-          <p className="text-gray-600 mt-2">{store.description || 'Mi tienda Nica'}</p>
+          <p className="text-gray-600 mt-2">{store.description}</p>
         </div>
       )}
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex justify-between items-center">
-          <h2 className="font-bold">Productos ({products?.length || 0})</h2>
-          <div className="flex gap-2">
-            <a href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://tiendanica.vercel.app/${store.slug}`} target="_blank" className="text-xs border px-3 py-1 rounded-full bg-white">Ver QR</a>
-            <span className="text-xs bg-gray-100 px-3 py-1 rounded-full">{store.slug}</span>
-          </div>
-        </div>
-
+        <h2 className="font-black text-xl">Productos disponibles</h2>
         <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
-          {(products?.length? products : [
-            {id:1,name:'Café Bourbon Lavado 250g',price:180,image_url:'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400'},
-            {id:2,name:'Café Pacamara Honey 500g',price:320,image_url:'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400'},
-            {id:3,name:'Cold Brew La Bruma',price:95,image_url:'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400'},
-            {id:4,name:'Café Catuai Natural 1kg',price:550,image_url:'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400'},
-          ]).map(p=>(
+          {(products||[]).map(p=>(
             <div key={p.id} className="bg-white rounded-2xl overflow-hidden border hover:shadow-lg transition">
-              <img src={p.image_url} className="h-44 w-full object-cover"/>
+              <img src={p.image_url} className="h-48 w-full object-cover"/>
               <div className="p-4">
                 <h3 className="font-bold text-sm">{p.name}</h3>
                 <p className="text-gray-500 text-sm mt-1">C$ {p.price}</p>
-                <a href={'https://wa.me/'+store.whatsapp+'?text=Quiero pedir: '+p.name+' - C$ '+p.price} className="mt-3 block text-center bg-black text-white py-2 rounded-full text-sm font-bold">Pedir por WhatsApp</a>
+                <a href={'https://wa.me/'+store.whatsapp+'?text=Hola! Quiero pedir: '+encodeURIComponent(p.name)+' - C$ '+p.price} target="_blank" className="mt-3 block text-center bg-black text-white py-2.5 rounded-full text-sm font-bold">Pedir por WhatsApp</a>
               </div>
             </div>
           ))}
+          {(!products || products.length===0) && <div className="col-span-4 bg-white border rounded-2xl p-8 text-center text-gray-400">El dueño aún está agregando productos. ¡Vuelve pronto!</div>}
         </div>
 
-        <div className="mt-12 bg-black text-white rounded-[24px] p-6 flex justify-between items-center">
+        <div className="mt-12 bg-black text-white rounded-[24px] p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
-            <p className="text-xs text-gray-400">TIENDA NICA</p>
-            <p className="font-bold">¿Te gustó esta tienda? Crea la tuya gratis en 5 minutos</p>
+            <p className="text-xs text-gray-400">¿TE GUSTÓ ESTA TIENDA?</p>
+            <p className="font-bold text-lg">Nosotros creamos la tuya por ti, en 24 horas</p>
+            <p className="text-sm text-gray-400">Solicita por WhatsApp al {ADMIN_WA}</p>
           </div>
-          <a href="/" className="bg-[#00D084] text-black px-5 py-2 rounded-full text-sm font-bold">Crear mi tienda →</a>
+          <a href={waSolicitar} target="_blank" className="bg-[#00D084] text-black px-7 py-3 rounded-full text-sm font-bold whitespace-nowrap">Solicitar mi tienda →</a>
         </div>
       </div>
     </main>
