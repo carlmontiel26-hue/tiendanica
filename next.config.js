@@ -1,1 +1,1 @@
-module.exports = { reactStrictMode: true }
+module.exports = { images: { domains: ['images.unsplash.com','via.placeholder.com'] } }
