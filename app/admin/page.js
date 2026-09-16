@@ -2,6 +2,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { KitBanner } from '../components/KitBanner'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 const ADMIN_PASSWORD = "NicaAdmin2025"
 const ADMIN_WA = "50581732620"
@@ -106,7 +107,7 @@ export default function Admin(){
     loadProducts(selectedStore.id)
   }
 
-  const getQR = (slug)=> `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://tiendanica.vercel.app/${slug}`
+  const getQR = (slug)=> `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://tiendanica.store/${slug}`
 
   if(!isAuth){
     return (
@@ -186,8 +187,8 @@ export default function Admin(){
                   <img src={getQR(selectedStore.slug)} className="w-20 h-20 border rounded-xl bg-white"/>
                   <div className="text-xs">
                     <p className="font-bold">Para entregar al dueño:</p>
-                    <p>Tienda: tiendanica.vercel.app/{selectedStore.slug}</p>
-                    <p>Panel dueño: tiendanica.vercel.app/{selectedStore.slug}/admin</p>
+                    <p>Tienda: tiendanica.store/{selectedStore.slug}</p>
+                    <p>Panel dueño: tiendanica.store/{selectedStore.slug}/admin</p>
                     <p>WhatsApp dueño: {selectedStore.whatsapp}</p>
                   </div>
                 </div>
@@ -220,6 +221,7 @@ export default function Admin(){
                     </div>
                   ))}
                 </div>
+                {selectedStore && <KitBanner store={selectedStore} />}
               </>}
             </div>
           </div>

@@ -2,6 +2,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { KitBanner } from '../../components/KitBanner'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 const MASTER_PASSWORD = "NicaAdmin2025"
 
@@ -161,6 +162,7 @@ export default function OwnerAdmin({ params }){
             ))}
           </div>
         </div>
+        <KitBanner store={store} />
       </div>
     </main>
   )
