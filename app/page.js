@@ -2,7 +2,7 @@
 import Link from 'next/link'
 
 export default function Home(){
-  const adminWhatsapp = "50588888888" // CAMBIA ESTE NUMERO POR EL TUYO
+  const adminWhatsapp = "50581732620" // CAMBIA ESTE NUMERO POR EL TUYO
   const waLink = `https://wa.me/${adminWhatsapp}?text=Hola! Quiero solicitar mi tienda en Tienda Nica. Mi negocio es: `
 
   return (
