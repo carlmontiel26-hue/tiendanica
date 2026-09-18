@@ -16,8 +16,9 @@ export default function Admin(){
   const [editing, setEditing] = useState(false)
 
   const loadStores = async()=>{
-    const { data } = await supabase.from('stores').select('*').order('created_at', {ascending:false})
-    setStores(data||[]); setLog('Conectado OK - '+(data?.length||0)+' tiendas'); if(data?.[0]) setSelectedStore(data[0])
+    const { data } = await supabase.from('stores').select('*').order('created_at',{ascending:false})
+    setStores(data||[]); setLog('Conectado OK - '+(data?.length||0)+' tiendas')
+    if(data?.[0] &&!selectedStore) setSelectedStore(data[0])
   }
   const loadProducts = async(id)=>{
     const { data } = await supabase.from('products').select('*').eq('store_id', id).order('created_at',{ascending:false})
@@ -39,7 +40,7 @@ export default function Admin(){
     setUploading(true)
     try{
       const cleanSlug = form.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g,'-').replace(/--+/g,'-')
-      // FIX: SOLO columnas que existen - sin banner_url
+      // 1. Crea tienda SOLO con columnas que existen (no falla)
       const { data, error } = await supabase.from('stores').insert({
         name: form.name,
         slug: cleanSlug,
@@ -48,6 +49,16 @@ export default function Admin(){
         is_active: true
       }).select().single()
       if(error) throw error
+
+      // 2. Portada opcional - intenta guardarla pero si no existe columna, no rompe
+      if(coverFile){
+        try{
+          const coverUrl = await uploadToBucket(coverFile)
+          // Intenta actualizar cover_image si tu Supabase ya tiene esa columna, si no, lo ignora
+          await supabase.from('stores').update({ cover_image: coverUrl }).eq('id', data.id)
+        }catch(err){ console.log('Portada subida pero columna cover_image no existe aún:', err.message) }
+      }
+
       setForm({name:'', slug:'', whatsapp:'', description:''}); setCoverFile(null)
       await loadStores(); setSelectedStore(data); alert('Tienda creada: /'+cleanSlug)
     }catch(err){ alert('Error: '+err.message) } finally{ setUploading(false) }
@@ -60,7 +71,7 @@ export default function Admin(){
     setUploading(true)
     let finalUrl = pform.image_url
     try {
-      if(imageFile){ finalUrl = await uploadToBucket(imageFile) }
+      if(imageFile) finalUrl = await uploadToBucket(imageFile)
       if(editing && pform.id){
         await supabase.from('products').update({ name:pform.name, price: parseFloat(pform.price), image_url:finalUrl }).eq('id', pform.id)
       } else {
@@ -79,9 +90,9 @@ export default function Admin(){
   return (
     <main className="min-h-screen bg-[#fafaf9] p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center"><img src="/logo.png" className="h-8"/><div className="bg-black text-green-400 text-xs px-3 py-1 rounded-full">{log}</div></div>
+        <div className="flex justify-between"><img src="/logo.png" className="h-8"/><div className="bg-black text-green-400 text-xs px-3 py-1 rounded-full">{log}</div></div>
         <div className="grid lg:grid-cols-3 gap-6 mt-8">
-          <div className="lg:col-span-1 space-y-6">
+          <div className="space-y-6">
             <div className="bg-white border rounded-2xl p-5">
               <h2 className="font-black">Crear Tienda</h2>
               <form onSubmit={createStore} className="mt-4 space-y-3">
@@ -89,6 +100,12 @@ export default function Admin(){
                 <input className="w-full border rounded-xl px-4 py-2" placeholder="slug" value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} required/>
                 <input className="w-full border rounded-xl px-4 py-2" placeholder="WhatsApp 505..." value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} required/>
                 <input className="w-full border rounded-xl px-4 py-2" placeholder="Descripcion" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+                {/* PORTADA RESTAURADA */}
+                <label className="w-full border-2 border-dashed border-black rounded-xl px-3 py-3 text-center bg-yellow-50 cursor-pointer block">
+                  <span className="text-xs font-black">{coverFile? `✅ Portada: ${coverFile.name}` : '🖼️ Foto de PORTADA (toca para subir desde celular)'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={e=> setCoverFile(e.target.files[0])} />
+                </label>
+                {coverFile && <img src={URL.createObjectURL(coverFile)} className="w-full h-24 object-cover rounded-xl"/>}
                 <button disabled={uploading} className="w-full bg-black text-white py-3 rounded-full font-bold">{uploading?'Creando...':'Crear Tienda'}</button>
               </form>
             </div>
@@ -111,7 +128,6 @@ export default function Admin(){
                   <div className="flex-1">
                     <p className="text- font-bold">Tienda:</p><a href={`https://tiendanica.store/${selectedStore.slug}`} target="_blank" className="text- text-blue-600 underline break-all">tiendanica.store/{selectedStore.slug}</a>
                     <p className="text- font-bold mt-2">Admin:</p><a href={`https://tiendanica.store/${selectedStore.slug}/admin`} target="_blank" className="text- text-blue-600 underline break-all">tiendanica.store/{selectedStore.slug}/admin</a>
-                    <p className="text- text-gray-500">Pass: {selectedStore.whatsapp}</p>
                   </div>
                 </div>
                 <div className="mt-4 bg-black text-white rounded-xl p-4">
@@ -128,7 +144,7 @@ export default function Admin(){
                 <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
                   <input className="border rounded-xl px-3 py-2" placeholder="Nombre" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
                   <input className="border rounded-xl px-3 py-2" placeholder="Precio C$" type="number" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
-                  <label className="md:col-span-3 border-2 border-dashed rounded-xl px-3 py-4 text-center bg-white cursor-pointer"><span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Subir foto'}</span><input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} /></label>
+                  <label className="md:col-span-3 border-2 border-dashed rounded-xl px-3 py-4 text-center bg-white cursor-pointer"><span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Subir foto producto'}</span><input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} /></label>
                   <div className="md:col-span-3 flex gap-2"><button className="flex-1 bg-[#00D084] py-3 rounded-full font-bold">{editing?'Guardar':'Agregar'}</button>{editing && <button type="button" onClick={cancelEdit} className="flex-1 border-2 border-black py-3 rounded-full font-bold">Cancelar</button>}</div>
                 </form>
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
