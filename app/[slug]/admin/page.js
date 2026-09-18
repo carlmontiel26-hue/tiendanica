@@ -2,23 +2,128 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-export default function StorePage({ params }){
-  const [store,setStore]=useState(null);const[products,setProducts]=useState([]);const[cart,setCart]=useState([]);const[showCart,setShowCart]=useState(false);const[previewProduct,setPreviewProduct]=useState(null);const slug=params.slug
-  useEffect(()=>{async function load(){const{data:s}=await supabase.from('stores').select('*').eq('slug',slug).single();if(s){setStore(s);const{data:prods}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false});setProducts(prods||[])} }load()},[slug])
-  const addToCart=(p)=>{const ex=cart.find(c=>c.id===p.id);if(ex){setCart(cart.map(c=>c.id===p.id?{...c,qty:c.qty+1}:c))}else{setCart([...cart,{...p,qty:1}])} }
-  const removeFromCart=(id)=>setCart(cart.filter(c=>c.id!==id))
-  const updateQty=(id,q)=>{if(q<=0)removeFromCart(id);else setCart(cart.map(c=>c.id===id?{...c,qty:q}:c))}
-  const total=cart.reduce((s,c)=>s+parseFloat(c.price)*c.qty,0);const totalItems=cart.reduce((s,c)=>s+c.qty,0)
-  const checkout=()=>{let msg=`Hola ${store.name}! Quiero pedir:%0A`;cart.forEach(c=>{msg+=`- ${c.name} x${c.qty} = C$ ${c.price*c.qty}%0A`});msg+=`%0ATotal: C$ ${total}%0A`;window.open(`https://wa.me/${store.whatsapp}?text=${msg}`,'_blank')}
-  const pedirSolo=(p)=>{const msg=`Hola ${store.name}! Quiero ${p.name} - C$ ${p.price}`;window.open(`https://wa.me/${store.whatsapp}?text=${msg}`,'_blank')}
-  if(!store)return<div className='p-10 text-center'>Cargando tienda...</div>
-  return(<main className='min-h-screen bg-white'>
-  <div className='sticky top-0 z-30 bg-white border-b shadow-sm'><div className='max-w-5xl mx-auto px-6 py-3 flex justify-between items-center'><div className='flex items-center gap-3'><div className='w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black text-sm'>{store.name[0]}</div><p className='font-black text-sm hidden md:block'>{store.name}</p></div><button onClick={()=>setShowCart(true)} className='relative bg-black text-white rounded-full px-5 py-2.5 font-bold text-sm flex items-center gap-2'><span>🛒</span> Carrito {totalItems>0&&<span className='bg-green-500 text-black text-[11px] font-black w-6 h-6 rounded-full flex items-center justify-center'>{totalItems}</span>}</button></div></div>
-  <div className='w-full h-[260px] md:h-[360px] bg-black relative overflow-hidden'>{store.cover_image?<img src={store.cover_image} className='w-full h-full object-cover object-center'/>:<div className='w-full h-full bg-gradient-to-br from-green-500 to-black'/>}<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-6'><div className='max-w-5xl mx-auto w-full'><h1 className='text-white font-black text-3xl md:text-5xl uppercase'>{store.name}</h1><p className='text-white/90 text-sm mt-2 max-w-xl'>{store.description}</p><a href={`https://wa.me/${store.whatsapp}`} target='_blank' className='inline-block mt-3 bg-green-500 text-black font-bold px-5 py-2 rounded-full text-sm'>WhatsApp</a></div></div></div>
-  <div className='bg-[#0a0a0a] text-white border-y border-white/10'><div className='max-w-5xl mx-auto px-6 py-3 flex flex-wrap gap-2 items-center'><div className='bg-[#00ff88] text-black rounded-full px-4 py-2 text-[11px] font-black flex items-center gap-2'><span className='bg-black text-[#00ff88] px-2 py-0.5 rounded-full text-[9px]'>KIT BANNER</span> Envio rapido Paiwas - Paga al recibir</div><div className='bg-white text-black rounded-full px-4 py-2 text-[11px] font-bold'>Abierto hoy 8am-9pm</div><div className='bg-white/10 border border-white/20 rounded-full px-4 py-2 text-[11px]'>Entrega 30 min</div></div></div>
-  <div className='max-w-5xl mx-auto p-6 bg-white'><h2 className='font-black text-xl'>Productos disponibles</h2><p className='text-xs text-gray-500'>Toca la imagen para ver completa - agrega al carrito y luego ve a 🛒 arriba</p><div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mt-5'>{products.map(p=>(<div key={p.id} className='bg-white border rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition'><div className='h-[200px] bg-gray-100 overflow-hidden cursor-pointer' onClick={()=>setPreviewProduct(p)}><img src={p.image_url} className='w-full h-full object-cover object-center hover:scale-105 transition duration-300'/></div><div className='p-3 flex-1 flex flex-col'><h3 className='font-bold'>{p.name}</h3><p className='text-sm text-gray-600'>C$ {p.price}</p><div className='mt-auto flex gap-2 pt-3'><button onClick={()=>addToCart(p)} className='flex-1 border-2 border-black rounded-full py-2.5 text-sm font-bold hover:bg-black hover:text-white transition'>+ Carrito</button><button onClick={()=>pedirSolo(p)} className='flex-1 bg-black text-white rounded-full py-2.5 text-sm font-bold'>Pedir</button></div></div></div>))}</div></div>
-  {previewProduct&&(<div className='fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4' onClick={()=>setPreviewProduct(null)}><div className='bg-white rounded-[24px] max-w-md w-full overflow-hidden shadow-2xl' onClick={e=>e.stopPropagation()}><div className='bg-white p-2'><div className='w-full h-[380px] bg-white rounded-2xl overflow-hidden flex items-center justify-center'><img src={previewProduct.image_url} className='w-full h-full object-contain'/></div></div><div className='p-5 bg-white'><h3 className='font-black text-xl'>{previewProduct.name}</h3><p className='text-gray-600 mt-1'>C$ {previewProduct.price}</p><div className='flex gap-2 mt-4'><button onClick={()=>{addToCart(previewProduct); setPreviewProduct(null)}} className='flex-1 border-2 border-black rounded-full py-3 font-bold'>+ Carrito</button><button onClick={()=>{pedirSolo(previewProduct); setPreviewProduct(null)}} className='flex-1 bg-black text-white rounded-full py-3 font-bold'>Pedir por WhatsApp</button></div><button onClick={()=>setPreviewProduct(null)} className='w-full mt-3 text-xs text-gray-400'>Cerrar</button></div></div></div>)}
-  {showCart&&(<div className='fixed inset-0 bg-black/60 z-50 flex justify-end'><div className='bg-white w-full md:max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right'><div className='p-5 bg-black text-white flex justify-between items-center'><h3 className='font-black text-lg'>🛒 Tu carrito ({totalItems})</h3><button onClick={()=>setShowCart(false)} className='bg-white text-black rounded-full w-8 h-8 flex items-center justify-center font-bold'>X</button></div><div className='flex-1 overflow-auto p-5 space-y-3 bg-white'>{cart.length===0?<div className='text-center mt-24'><p className='text-5xl'>🛒</p><p className='text-gray-400 mt-4 font-bold'>Tu carrito esta vacio</p><p className='text-xs text-gray-400 mt-1'>Agrega productos con + Carrito y luego ven aqui a revisarlos</p><button onClick={()=>setShowCart(false)} className='mt-6 border border-black rounded-full px-6 py-2 text-sm font-bold'>Seguir comprando</button></div>:cart.map(c=>(<div key={c.id} className='flex gap-3 items-center border rounded-xl p-3 bg-white'><img src={c.image_url} className='w-16 h-16 object-cover rounded-lg bg-gray-100'/><div className='flex-1'><p className='font-bold text-sm'>{c.name}</p><p className='text-xs text-gray-500'>C$ {c.price} x {c.qty} = C$ {c.price*c.qty}</p><div className='flex gap-2 mt-2 items-center'><button onClick={()=>updateQty(c.id,c.qty-1)} className='w-8 h-8 border-2 rounded-full font-bold hover:bg-black hover:text-white'>-</button><span className='text-sm font-bold w-6 text-center'>{c.qty}</span><button onClick={()=>updateQty(c.id,c.qty+1)} className='w-8 h-8 border-2 rounded-full font-bold hover:bg-black hover:text-white'>+</button></div></div><button onClick={()=>removeFromCart(c.id)} className='text-xs text-red-500 border border-red-200 px-3 py-1 rounded-full hover:bg-red-500 hover:text-white'>Quitar</button></div>))}</div><div className='p-5 border-t bg-gray-50'><div className='flex justify-between font-black text-xl'><span>Total</span><span>C$ {total}</span></div><p className='text-[11px] text-gray-500 mt-1'>Revisa tu pedido antes de enviarlo - como tienda grande</p><button onClick={checkout} disabled={cart.length===0} className='w-full mt-4 bg-[#00ff88] disabled:opacity-30 text-black font-black py-4 rounded-full text-base hover:bg-green-400 transition'>Enviar por WhatsApp →</button><button onClick={()=>setShowCart(false)} className='w-full mt-2 border-2 border-black py-3 rounded-full font-bold text-sm'>Seguir comprando</button></div></div></div>)}
-  {cart.length>0&&!showCart&&(<div className='fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.1)]'><div className='max-w-5xl mx-auto flex justify-between items-center'><div className='flex items-center gap-3'><div className='bg-black text-white rounded-full w-9 h-9 flex items-center justify-center text-xs font-bold'>{totalItems}</div><div><p className='font-bold text-sm'>C$ {total}</p><p className='text-[10px] text-gray-500'>{totalItems} productos en carrito</p></div></div><button onClick={()=>setShowCart(true)} className='bg-black text-white font-bold px-6 py-3 rounded-full text-sm flex items-center gap-2'>Ver carrito 🛒</button></div></div>)}
-  </main>)
+
+export default function OwnerAdmin({ params }){
+  const slug=params.slug
+  const [store,setStore]=useState(null)
+  const [isAuth,setIsAuth]=useState(false)
+  const [passInput,setPassInput]=useState('')
+  const [products,setProducts]=useState([])
+  const [form,setForm]=useState({name:'',price:'',image_url:'',id:null})
+  const [editing,setEditing]=useState(false)
+
+  useEffect(()=>{
+    async function load(){
+      const {data} = await supabase.from('stores').select('*').eq('slug',slug).single()
+      if(data){
+        setStore(data)
+        const {data:prods}=await supabase.from('products').select('*').eq('store_id',data.id).order('created_at',{ascending:false})
+        setProducts(prods||[])
+        const saved=localStorage.getItem('tn_owner_'+data.slug)
+        if(saved && saved===data.whatsapp) setIsAuth(true)
+      }
+    }
+    load()
+  },[slug])
+
+  const handleLogin=(e)=>{
+    e.preventDefault()
+    if(passInput===store.whatsapp || passInput===store.owner_password){
+      localStorage.setItem('tn_owner_'+store.slug, store.whatsapp)
+      setIsAuth(true)
+    } else alert('Usa tu WhatsApp: '+store.whatsapp)
+  }
+
+  const uploadImage=async(file)=>{
+    const name=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9.]/g,'-')
+    const {error}=await supabase.storage.from('tienda-images').upload(name,file)
+    if(error){alert(error.message);return null}
+    const {data}=supabase.storage.from('tienda-images').getPublicUrl(name)
+    return data.publicUrl
+  }
+
+  const saveProduct=async(e)=>{
+    e.preventDefault()
+    let imageUrl=form.image_url
+    const inp=document.getElementById('prod-file')
+    if(inp && inp.files[0]){
+      const up=await uploadImage(inp.files[0])
+      if(up) imageUrl=up
+    }
+    if(editing){
+      await supabase.from('products').update({name:form.name,price:parseFloat(form.price),image_url:imageUrl}).eq('id',form.id)
+    } else {
+      await supabase.from('products').insert({store_id:store.id,name:form.name,price:parseFloat(form.price),image_url:imageUrl,is_active:true})
+    }
+    setForm({name:'',price:'',image_url:'',id:null})
+    setEditing(false)
+    const {data}=await supabase.from('products').select('*').eq('store_id',store.id).order('created_at',{ascending:false})
+    setProducts(data||[])
+  }
+
+  const startEdit=(p)=>{setForm({name:p.name,price:p.price,image_url:p.image_url||'',id:p.id});setEditing(true)}
+  const deleteProduct=async(id)=>{if(!confirm('¿Borrar?'))return;await supabase.from('products').delete().eq('id',id);const {data}=await supabase.from('products').select('*').eq('store_id',store.id).order('created_at',{ascending:false});setProducts(data||[])}
+
+  if(!store) return <div className='p-10 text-center'>Cargando...</div>
+
+  if(!isAuth){
+    return(
+      <main className='min-h-screen bg-black flex items-center justify-center p-6'>
+        <div className='bg-white rounded- p-8 max-w-sm w-full text-center'>
+          <h1 className='font-black text-xl'>Panel Dueño Seguro 🔒</h1>
+          <p className='text-xs mt-2'>Tienda: {store.name}</p>
+          <p className='text- bg-yellow-100 border rounded-full px-3 py-1 mt-2'>Contraseña = tu WhatsApp</p>
+          <form onSubmit={handleLogin} className='mt-6 space-y-3'>
+            <input type='password' className='w-full border-2 border-black rounded-xl px-4 py-3 text-center font-bold' placeholder={store.whatsapp} value={passInput} onChange={e=>setPassInput(e.target.value)} required/>
+            <button className='w-full bg-black text-white py-3 rounded-full font-bold'>Entrar</button>
+          </form>
+        </div>
+      </main>
+    )
+  }
+
+  return(
+    <main className='min-h-screen bg-[#fafaf9] p-6'>
+      <div className='max-w-5xl mx-auto'>
+        <div className='flex justify-between items-center'>
+          <h1 className='font-black'>Panel {store.name} - 🔒 Protegido</h1>
+          <button onClick={()=>{localStorage.removeItem('tn_owner_'+store.slug);setIsAuth(false)}} className='text-xs bg-black text-white px-4 py-2 rounded-full'>Salir</button>
+        </div>
+        <div className='grid md:grid-cols-3 gap-6 mt-6'>
+          <div className='bg-white border-2 border-black rounded-2xl p-5'>
+            <h2 className='font-black'>Mi tienda</h2>
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://tiendanica.store/${store.slug}`} className='w-full mt-4 border-2 rounded-xl'/>
+          </div>
+          <div className='md:col-span-2 space-y-6'>
+            <div className='bg-white border-2 border-black rounded-2xl p-5'>
+              <h2 className='font-black'>{editing?'Editar':'Agregar'} producto</h2>
+              <form onSubmit={saveProduct} className='mt-3 space-y-3'>
+                <input className='w-full border-2 border-black rounded-xl px-4 py-3 font-bold' placeholder='Nombre' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
+                <input className='w-full border-2 border-black rounded-xl px-4 py-3' placeholder='Precio' value={form.price} onChange={e=>setForm({...form,price:e.target.value})} required/>
+                <input id='prod-file' type='file' accept='image/*' className='w-full text-sm'/>
+                <input className='w-full border rounded-xl px-4 py-2' placeholder='O URL' value={form.image_url} onChange={e=>setForm({...form,image_url:e.target.value})}/>
+                <div className='flex gap-2'>
+                  <button className='flex-1 bg-[#00ff88] border-2 border-black py-3 rounded-full font-black'>{editing?'Guardar cambios':'Agregar'}</button>
+                  {editing && <button type='button' onClick={()=>{setEditing(false);setForm({name:'',price:'',image_url:'',id:null})}} className='flex-1 border-2 border-black py-3 rounded-full font-bold'>Cancelar</button>}
+                </div>
+              </form>
+            </div>
+            <div className='bg-white border-2 border-black rounded-2xl p-5'>
+              <h2 className='font-black'>Productos ({products.length}) - Editar y Borrar</h2>
+              <div className='mt-3 space-y-2'>
+                {products.map(p=>(
+                  <div key={p.id} className='flex gap-3 border-2 border-black rounded-xl p-2 items-center'>
+                    <img src={p.image_url} className='w-14 h-14 object-cover rounded-lg border'/>
+                    <div className='flex-1'><p className='font-bold text-sm'>{p.name}</p><p className='text-xs'>C$ {p.price}</p></div>
+                    <button onClick={()=>startEdit(p)} className='bg-black text-white text-xs px-4 py-2 rounded-full'>Editar</button>
+                    <button onClick={()=>deleteProduct(p.id)} className='bg-red-500 text-white text-xs px-4 py-2 rounded-full'>Borrar</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  )
 }
