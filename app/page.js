@@ -1,67 +1,22 @@
-
-import Link from 'next/link'
-
-export default function Home(){
-  const adminWhatsapp = "50588888888" // CAMBIA ESTE NUMERO POR EL TUYO
-  const waLink = `https://wa.me/${adminWhatsapp}?text=Hola! Quiero solicitar mi tienda en Tienda Nica. Mi negocio es: `
-
-  return (
-    <main className="min-h-screen bg-white text-black">
-      <header className="border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" className="h-8" alt="Tienda Nica"/>
-            <span className="text-xs bg-gray-100 px-3 py-1 rounded-full">NICARAGUA • LATAM</span>
-          </div>
-          <div className="flex gap-3">
-            <a href={waLink} target="_blank" className="px-4 py-2 text-sm border rounded-full font-bold">Solicitar tienda</a>
-            <a href={waLink} target="_blank" className="px-5 py-2 bg-black text-white rounded-full text-sm font-bold">Quiero mi tienda →</a>
-          </div>
-        </div>
-      </header>
-
-      <section className="max-w-7xl mx-auto px-6 py-16 grid lg:grid-cols-2 gap-10 items-center">
-        <div>
-          <div className="inline-flex items-center gap-2 bg-gray-50 border px-3 py-1 rounded-full text-xs mb-6">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> 32 tiendas activas hoy • hecho para Nicaragua
-          </div>
-          <h1 className="text-6xl font-black leading-[0.9] tracking-tight">Crea tu tienda online<br/>en 5 minutos. Vende por <br/><span className="relative">WhatsApp.<span className="absolute -top-2 -right-16 bg-[#00D084] text-black text-base px-3 py-1 rounded-full rotate-3">Sin código</span></span></h1>
-          <p className="mt-8 text-gray-600 text-lg max-w-xl">Sin programadores. Sin comisiones por venta. Sube productos, comparte tu link y recibe pedidos directo en tu WhatsApp. Cobra en C$ o USD.</p>
-          <div className="mt-8 flex gap-3">
-            <a href={waLink} target="_blank" className="px-7 py-3 bg-black text-white rounded-full font-bold">Solicitar mi tienda por WhatsApp →</a>
-            <Link href="/cafe-dulce-aroma" className="px-7 py-3 border rounded-full font-bold">Ver tienda ejemplo</Link>
-          </div>
-          <div className="mt-2 text-xs text-gray-400">Tú solicitas, nosotros la creamos y te damos acceso en 24h</div>
-          <div className="mt-8 flex gap-6 text-sm text-gray-500">
-            <span>✅ Pagos por transferencia</span><span>✅ Entrega en todo NI</span><span>✅ Dominio .com.ni</span>
-          </div>
-        </div>
-
-        <div className="bg-white border rounded-[20px] p-4 shadow-xl">
-          <div className="flex justify-between items-center text-xs text-gray-400 mb-4">
-            <span className="flex gap-1"><span className="w-3 h-3 bg-gray-200 rounded-full"></span><span className="w-3 h-3 bg-gray-200 rounded-full"></span><span className="w-3 h-3 bg-gray-200 rounded-full"></span></span>
-            <span>tiendanica.com/cafelabruna • en vivo</span>
-            <span className="bg-[#00D084] text-black px-2 py-0.5 rounded-full font-bold">LIVE</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {n:'Café Bourbon Lavado 250g', p:'C$ 180', img:'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400'},
-              {n:'Café Pacamara Honey 500g', p:'C$ 320', img:'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400'},
-              {n:'Cold Brew La Bruma', p:'C$ 95', img:'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400'},
-              {n:'Café Catuai Natural 1kg', p:'C$ 550', img:'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400'},
-            ].map(it=>(
-              <div key={it.n} className="border rounded-2xl overflow-hidden">
-                <img src={it.img} className="h-32 w-full object-cover"/>
-                <div className="p-3"><p className="text-sm font-bold">{it.n}</p><p className="text-sm text-gray-500">{it.p}</p></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 bg-black text-white rounded-2xl p-4 flex justify-between items-center">
-            <div><p className="text-xs text-gray-400">PEDIDOS HOY</p><p className="text-xl font-bold">C$ 2,340 • 7 pedidos</p></div>
-            <div className="w-10 h-10 bg-[#00D084] rounded-full flex items-center justify-center text-black">↗</div>
-          </div>
-        </div>
-      </section>
-    </main>
-  )
+'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+export default function StorePage({ params }){
+  const [store,setStore]=useState(null);const[products,setProducts]=useState([]);const[cart,setCart]=useState([]);const[loading,setLoading]=useState(true);const[showCart,setShowCart]=useState(false);const[previewProduct,setPreviewProduct]=useState(null);const slug=params.slug
+  useEffect(()=>{async function load(){const{data:s}=await supabase.from('stores').select('*').eq('slug',slug).single();if(s){setStore(s);const{data:prods}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false});setProducts(prods||[])}setLoading(false)}load()},[slug])
+  const addToCart=(p)=>{const ex=cart.find(c=>c.id===p.id);if(ex)setCart(cart.map(c=>c.id===p.id?{...c,qty:c.qty+1}:c));else setCart([...cart,{...p,qty:1}]);setShowCart(true)}
+  const removeFromCart=(id)=>setCart(cart.filter(c=>c.id!==id))
+  const updateQty=(id,qty)=>{if(qty<=0)removeFromCart(id);else setCart(cart.map(c=>c.id===id?{...c,qty}:c))}
+  const total=cart.reduce((s,c)=>s+parseFloat(c.price)*c.qty,0)
+  const checkout=()=>{let msg=`Hola ${store.name}! Quiero pedir:%0A`;cart.forEach(c=>{msg+=`- ${c.name} x${c.qty} = C$ ${c.price*c.qty}%0A`});msg+=`%0ATotal: C$ ${total}%0A`;window.open(`https://wa.me/${store.whatsapp}?text=${msg}`,'_blank')}
+  const pedirSolo=(p)=>{const msg=`Hola ${store.name}! Quiero ${p.name} - C$ ${p.price}`;window.open(`https://wa.me/${store.whatsapp}?text=${msg}`,'_blank')}
+  if(loading)return<div className='p-10 text-center'>Cargando...</div>
+  if(!store)return<div className='p-10 text-center'>Tienda no encontrada</div>
+  return(<main className='min-h-screen bg-[#fafaf9]'>
+  <div className='w-full h-[260px] md:h-[360px] bg-black relative overflow-hidden'>{store.cover_image?<img src={store.cover_image} className='w-full h-full object-cover object-center'/>:<div className='w-full h-full bg-gradient-to-br from-green-500 to-black'/>}<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-6'><div className='max-w-5xl mx-auto w-full'><h1 className='text-white font-black text-3xl md:text-5xl uppercase'>{store.name}</h1><p className='text-white/90 text-sm mt-2'>{store.description}</p><a href={`https://wa.me/${store.whatsapp}`} target='_blank' className='inline-block mt-3 bg-green-500 text-black font-bold px-5 py-2 rounded-full text-sm'>WhatsApp</a></div></div></div>
+  <div className='max-w-5xl mx-auto px-6 pt-4'><div className='bg-black text-white rounded-full px-4 py-2 text-[11px] w-fit'><span className='bg-green-500 text-black font-bold px-2 py-0.5 rounded-full mr-2'>NUEVO</span>Envio rapido Paiwas - Paga al recibir</div></div>
+  <div className='max-w-5xl mx-auto p-6'><h2 className='font-black text-xl mt-2'>Productos disponibles</h2><p className='text-xs text-gray-500'>Toca la imagen para ver vista previa completa</p><div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mt-5'>{products.map(p=>(<div key={p.id} className='bg-white border rounded-2xl overflow-hidden flex flex-col'><div className='h-[200px] bg-gray-100 overflow-hidden cursor-pointer' onClick={()=>setPreviewProduct(p)}><img src={p.image_url} className='w-full h-full object-cover object-center hover:scale-105 transition duration-300'/></div><div className='p-3 flex-1 flex flex-col'><h3 className='font-bold'>{p.name}</h3><p className='text-sm'>C$ {p.price}</p><div className='mt-auto flex gap-2 pt-3'><button onClick={()=>addToCart(p)} className='flex-1 border border-black rounded-full py-2 text-sm font-bold'>+ Carrito</button><button onClick={()=>pedirSolo(p)} className='flex-1 bg-black text-white rounded-full py-2 text-sm font-bold'>Pedir</button></div></div></div>))}</div></div>
+  {previewProduct&&(<div className='fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-6' onClick={()=>setPreviewProduct(null)}><div className='bg-white rounded-2xl max-w-lg w-full overflow-hidden'><div className='h-[350px] bg-black'><img src={previewProduct.image_url} className='w-full h-full object-contain'/></div><div className='p-5'><h3 className='font-black text-xl'>{previewProduct.name}</h3><p className='text-gray-600'>C$ {previewProduct.price}</p><div className='flex gap-2 mt-4'><button onClick={()=>{addToCart(previewProduct); setPreviewProduct(null)}} className='flex-1 border border-black rounded-full py-3 font-bold'>+ Carrito</button><button onClick={()=>{pedirSolo(previewProduct); setPreviewProduct(null)}} className='flex-1 bg-black text-white rounded-full py-3 font-bold'>Pedir por WhatsApp</button></div></div></div></div>)}
+  {cart.length>0&&(<><div className='fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-40'><div className='max-w-5xl mx-auto flex justify-between items-center'><button onClick={()=>setShowCart(true)} className='bg-black text-white rounded-full px-4 py-2 text-sm font-bold'>{cart.reduce((s,c)=>s+c.qty,0)} prod - C$ {total}</button><button onClick={()=>setShowCart(true)} className='bg-green-500 text-black font-black px-6 py-3 rounded-full'>Ver carrito</button></div></div>{showCart&&(<div className='fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-6'><div className='bg-white w-full md:max-w-lg rounded-t-[24px] md:rounded-[24px] max-h-[85vh] flex flex-col overflow-hidden'><div className='p-5 border-b flex justify-between items-center'><h3 className='font-black'>Tu pedido ({cart.reduce((s,c)=>s+c.qty,0)})</h3><button onClick={()=>setShowCart(false)} className='border rounded-full px-3 py-1 text-sm'>Cerrar</button></div><div className='flex-1 overflow-auto p-5 space-y-3'>{cart.map(c=>(<div key={c.id} className='flex gap-3 items-center border rounded-xl p-2'><img src={c.image_url} className='w-16 h-16 object-cover rounded-lg'/><div className='flex-1'><p className='font-bold text-sm'>{c.name}</p><p className='text-xs'>C$ {c.price} x {c.qty} = C$ {c.price*c.qty}</p><div className='flex gap-2 mt-1'><button onClick={()=>updateQty(c.id,c.qty-1)} className='w-6 h-6 border rounded-full'>-</button><span>{c.qty}</span><button onClick={()=>updateQty(c.id,c.qty+1)} className='w-6 h-6 border rounded-full'>+</button></div></div><button onClick={()=>removeFromCart(c.id)} className='text-xs text-red-500 border px-2 py-1 rounded-full'>Quitar</button></div>))}</div><div className='p-5 border-t bg-gray-50'><div className='flex justify-between font-black text-lg'><span>Total</span><span>C$ {total}</span></div><button onClick={checkout} className='w-full mt-4 bg-green-500 text-black font-black py-4 rounded-full'>Enviar por WhatsApp</button></div></div></div>)}</>)}</main>)
 }
