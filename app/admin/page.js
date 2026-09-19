@@ -56,7 +56,6 @@ export default function Admin(){
         const { data: d2, error: e2 } = await supabase.from('stores').insert({ name:form.name, slug:cleanSlug, whatsapp:form.whatsapp, description:form.description, is_active:true }).select().single()
         if(e2) throw e2
         data = d2
-        alert('Creada! Ejecuta en Supabase: ALTER TABLE stores ADD COLUMN tipo_tienda TEXT DEFAULT \'comida\'')
       } else if(error) throw error
       if(coverFile){
         try{ const url = await upload(coverFile); await supabase.from('stores').update({ cover_image: url }).eq('id', data.id) }catch{}
@@ -86,11 +85,10 @@ export default function Admin(){
     }catch(err){ alert('Error: '+err.message) } finally{ setUploading(false) }
   }
 
-  const startEdit=(p)=>{ setPform({name:p.name, price:p.price, image_url:p.image_url||'', id:p.id}); setEditing(true); window.scrollTo({top:0, behavior:'smooth'}) }
+  const startEdit=(p)=>{ setPform({name:p.name, price:p.price, image_url:p.image_url||'', id:p.id}); setEditing(true) }
   const cancelEdit=()=>{ setPform({name:'',price:'',image_url:'',id:null}); setEditing(false); setImageFile(null) }
   const deleteStore=async(id)=>{ if(!confirm('Eliminar tienda y productos?'))return; await supabase.from('products').delete().eq('store_id',id); await supabase.from('stores').delete().eq('id',id); setSelectedStore(null); loadStores() }
   const deleteProduct=async(id)=>{ if(!confirm('Borrar producto?'))return; await supabase.from('products').delete().eq('id',id); loadProducts(selectedStore.id) }
-
   const tipoInfo = (id)=> TIPOS.find(t=>t.id===id) || TIPOS[0]
 
   return (
@@ -106,7 +104,6 @@ export default function Admin(){
           <div className="space-y-5">
             <div className="glass-strong rounded-[24px] p-5">
               <h2 className="font-black text-lg">Crear Tienda - 3 tipos</h2>
-              <p className="text-white/50 text-xs mt-1">Elige tipo, cada una se ve diferente pero mismo sistema</p>
               <div className="mt-4 grid gap-2">
                 {TIPOS.map(t=>(
                   <button key={t.id} type="button" onClick={()=>setTipo(t.id)} className={`text-left rounded-2xl p-3 border ${tipo===t.id?'bg-white text-black border-white':'glass'}`}>
@@ -115,23 +112,23 @@ export default function Admin(){
                 ))}
               </div>
               <form onSubmit={createStore} className="mt-5 space-y-3">
-                <input className="w-full bg-white text-black rounded-full px-4 py-3 text-sm" placeholder={`Nombre ej: ${TIPOS.find(t=>t.id===tipo).label}`} value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
+                <input className="w-full bg-white text-black rounded-full px-4 py-3 text-sm" placeholder="Nombre" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
                 <input className="w-full glass rounded-full px-4 py-3 text-sm placeholder:text-white/40" placeholder="slug ej: atelier-nica-madrid" value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} required/>
                 <input className="w-full glass rounded-full px-4 py-3 text-sm placeholder:text-white/40" placeholder="WhatsApp 505..." value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} required/>
                 <input className="w-full glass rounded-full px-4 py-3 text-sm placeholder:text-white/40" placeholder="Descripcion" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-                <label className="w-full glass rounded-2xl px-4 py-4 text-center cursor-pointer block text-xs font-bold hover:bg-white/10">{coverFile? `✅ Portada: ${coverFile.name}` : '🖼️ Foto de PORTADA (hero) - como antes'}<input type="file" accept="image/*" className="hidden" onChange={e=>setCoverFile(e.target.files[0])}/></label>
+                <label className="w-full glass rounded-2xl px-4 py-4 text-center cursor-pointer block text-xs font-bold hover:bg-white/10">{coverFile? `✅ Portada: ${coverFile.name}` : '🖼️ Foto de PORTADA'}<input type="file" accept="image/*" className="hidden" onChange={e=>setCoverFile(e.target.files[0])}/></label>
                 <button disabled={uploading} className="w-full bg-[#00E676] text-black py-4 rounded-full font-black text-sm">{uploading?'Creando...':`Crear Tienda ${TIPOS.find(t=>t.id===tipo).label} →`}</button>
               </form>
             </div>
 
             <div className="glass rounded-[24px] p-5">
-              <h3 className="font-bold text-sm">Mis Tiendas ({stores.length}) - 3 tipos a la vez</h3>
+              <h3 className="font-bold text-sm">Mis Tiendas ({stores.length})</h3>
               <div className="mt-3 space-y-2">
                 {stores.map(s=>{
                   const t = tipoInfo(s.tipo_tienda||'comida')
                   return (
                     <div key={s.id} className={`rounded-2xl p-3 border flex justify-between items-center ${selectedStore?.id===s.id?'bg-white text-black border-white':'glass'}`}>
-                      <button onClick={()=>setSelectedStore(s)} className="text-left flex-1"><span className="text-[10px] bg-black text-white px-2 py-1 rounded-full">{t.label}</span><div className="mt-1"><b className="text-sm">{s.name}</b><br/><span className="text-[11px] opacity-60">/{s.slug} • {s.tipo_tienda||'comida'}</span></div></button>
+                      <button onClick={()=>setSelectedStore(s)} className="text-left flex-1"><span className="text-[10px] bg-black text-white px-2 py-1 rounded-full">{t.label}</span><div className="mt-1"><b className="text-sm">{s.name}</b><br/><span className="text-[11px] opacity-60">/{s.slug}</span></div></button>
                       <div className="flex flex-col gap-1 ml-2">
                         <a href={'/'+s.slug} target="_blank" className="text-[10px] bg-black text-white px-3 py-1.5 rounded-full text-center font-bold border border-white/20">Ver</a>
                         <button onClick={()=>deleteStore(s.id)} className="text-[10px] bg-red-500 text-white px-3 py-1 rounded-full">Eliminar</button>
@@ -144,19 +141,12 @@ export default function Admin(){
 
             {selectedStore && (
               <div className="glass-strong rounded-[24px] p-5">
-                <h3 className="font-black text-sm">Links y QR - {selectedStore.name} ({tipoInfo(selectedStore.tipo_tienda||'comida').label})</h3>
+                <h3 className="font-black text-sm">Links y QR - {selectedStore.name}</h3>
                 <div className="mt-3 flex gap-3">
                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://tiendanica.store/${selectedStore.slug}`} className="w-20 h-20 border rounded-xl bg-white p-1"/>
                   <div className="flex-1">
                     <p className="text-[10px] font-black text-white/50">Tienda:</p><a href={`https://tiendanica.store/${selectedStore.slug}`} target="_blank" className="text-[11px] text-[#00E676] underline break-all">tiendanica.store/{selectedStore.slug}</a>
                     <p className="text-[10px] font-black text-white/50 mt-2">Admin dueno:</p><a href={`https://tiendanica.store/${selectedStore.slug}/admin`} target="_blank" className="text-[11px] text-white underline break-all">.../{selectedStore.slug}/admin</a>
-                  </div>
-                </div>
-                <div className="mt-4 bg-black rounded-xl p-3">
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=https://tiendanica.store/${selectedStore.slug}`} className="w-full max-w-[240px] mx-auto bg-white rounded-xl p-2"/>
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <a href={`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=https://tiendanica.store/${selectedStore.slug}`} target="_blank" className="bg-[#00ff88] text-black text-center py-2 rounded-full font-black text-xs">HD 1000px</a>
-                    <button onClick={()=>{navigator.clipboard.writeText(`https://tiendanica.store/${selectedStore.slug}`); alert('Copiado')}} className="bg-white text-black text-center py-2 rounded-full font-bold text-xs">Copiar link</button>
                   </div>
                 </div>
               </div>
@@ -165,14 +155,13 @@ export default function Admin(){
 
           <div className="lg:col-span-2 space-y-5">
             <div className="bg-white text-black rounded-[24px] p-6">
-              <h2 className="font-black text-lg">Productos {selectedStore? `de ${selectedStore.name} - ${tipoInfo(selectedStore.tipo_tienda||'comida').label}` : ''} {editing && <span className="text-[#00D084]">- Editando</span>}</h2>
-              {!selectedStore && <p className="text-gray-500 mt-4 text-sm">Selecciona una tienda. Ahora puedes tener comida, boutique y electro a la vez. Cada dueno ve solo su tienda. Tu ves todas.</p>}
+              <h2 className="font-black text-lg">Productos {selectedStore? `de ${selectedStore.name}` : ''} {editing && <span className="text-[#00D084]">- Editando</span>}</h2>
               {selectedStore && (
                 <>
                   <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder={selectedStore.tipo_tienda==='boutique'?'Nombre ej: Vestido Lino M':'Nombre producto'} value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder={selectedStore.tipo_tienda==='boutique'?'Precio €':'Precio C$'} type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
-                    <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer hover:bg-gray-100"><span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Sube foto producto'} - como antes</span><input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} /></label>
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Nombre producto" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Precio" type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
+                    <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer"><span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Sube foto producto'}</span><input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} /></label>
                     <div className="md:col-span-3 flex gap-2">
                       <button disabled={uploading} className="flex-1 bg-[#00D084] text-black py-3 rounded-full font-bold text-sm">{uploading? 'Subiendo...' : editing?'Guardar cambios':'Agregar Producto'}</button>
                       {editing && <button type="button" onClick={cancelEdit} className="flex-1 border-2 border-black py-3 rounded-full font-bold text-sm">Cancelar</button>}
@@ -182,15 +171,14 @@ export default function Admin(){
                     {products.map(p=>(
                       <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
                         <img src={p.image_url} className="h-32 w-full object-cover"/>
-                        <div className="p-3"><p className="font-bold text-sm truncate">{p.name}</p><p className="text-sm text-gray-500">{(selectedStore.tipo_tienda==='boutique'?'€':'C$')} {p.price}</p>
+                        <div className="p-3"><p className="font-bold text-sm truncate">{p.name}</p><p className="text-sm text-gray-500">C$ {p.price}</p>
                           <div className="flex gap-1 mt-2">
                             <button onClick={()=>startEdit(p)} className="flex-1 bg-black text-white text-[10px] py-2 rounded-full font-bold">Editar</button>
-                            <button onClick={()=>{if(confirm('Borrar?')){deleteProduct(p.id)}}} className="flex-1 bg-red-500 text-white text-[10px] py-2 rounded-full font-bold">Borrar</button>
+                            <button onClick={()=>deleteProduct(p.id)} className="flex-1 bg-red-500 text-white text-[10px] py-2 rounded-full font-bold">Borrar</button>
                           </div>
                         </div>
                       </div>
                     ))}
-                    {products.length===0 && <p className="text-gray-400 text-sm col-span-3">Aun no hay productos. Agrega el primero.</p>}
                   </div>
                   <div className="mt-6 flex flex-wrap gap-2">
                     <a href={'/'+selectedStore.slug} target="_blank" className="px-5 py-3 bg-black text-white rounded-full text-xs font-black">Ver tienda /{selectedStore.slug} →</a>
@@ -198,10 +186,6 @@ export default function Admin(){
                   </div>
                 </>
               )}
-            </div>
-            <div className="glass rounded-[24px] p-4">
-              <p className="text-[11px] text-white/50">SQL para activar 3 tipos (1 vez):</p><pre className="mt-2 bg-black rounded-xl p-3 text-[11px] text-[#00E676]">ALTER TABLE stores ADD COLUMN IF NOT EXISTS tipo_tienda TEXT DEFAULT 'comida';
-ALTER TABLE stores ADD COLUMN IF NOT EXISTS cover_image TEXT;</pre>
             </div>
           </div>
         </div>
