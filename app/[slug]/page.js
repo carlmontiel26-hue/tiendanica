@@ -5,7 +5,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.
 
 const CFG = {
   comida: { label:'🍔 Comida', badge:'Entrega 30 min', cta:'Añadir', prefix:'C$', pills:['NUEVO','Envio rapido','Abierto hoy 8am-9pm'] },
-  boutique: { label:'👗 Boutique', badge:'Nueva Coleccion • ES', cta:'Añadir a bolsa', prefix:'€', pills:['NUEVA','Envio Gratis ES','Tallas S M L'] },
+  boutique: { label:'👗 Boutique', badge:'Nueva Coleccion • ES', cta:'Añadir a bolsa', prefix:'C$', pills:['NUEVA','Envio Gratis ES','Tallas S M L'] },
   electro: { label:'📱 Electro', badge:'12 Cuotas • Garantia', cta:'Añadir', prefix:'C$', pills:['NUEVO','12 Cuotas','Garantia 1 año'] }
 }
 
