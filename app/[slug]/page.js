@@ -1,33 +1,91 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-export default function StorePage({ params }){
-  const [store,setStore]=useState(null);const[products,setProducts]=useState([]);const[cart,setCart]=useState([]);const[loading,setLoading]=useState(true);const[showCart,setShowCart]=useState(false);const[previewProduct,setPreviewProduct]=useState(null);const slug=params.slug
-  useEffect(()=>{async function load(){const{data:s}=await supabase.from('stores').select('*').eq('slug',slug).single();if(s){setStore(s);const{data:prods}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false});setProducts(prods||[])}setLoading(false)}load()},[slug])
-  const addToCart=(p)=>{const ex=cart.find(c=>c.id===p.id);if(ex)setCart(cart.map(c=>c.id===p.id?{...c,qty:c.qty+1}:c));else setCart([...cart,{...p,qty:1}]);setShowCart(true)}
-  const removeFromCart=(id)=>setCart(cart.filter(c=>c.id!==id))
-  const updateQty=(id,qty)=>{if(qty<=0)removeFromCart(id);else setCart(cart.map(c=>c.id===id?{...c,qty}:c))}
-  const total=cart.reduce((s,c)=>s+parseFloat(c.price)*c.qty,0)
-  const totalItems=cart.reduce((s,c)=>s+c.qty,0)
-  const checkout=()=>{let msg=`Hola ${store.name}! Quiero pedir:%0A`;cart.forEach(c=>{msg+=`- ${c.name} x${c.qty} = C$ ${c.price*c.qty}%0A`});msg+=`%0ATotal: C$ ${total}%0A`;window.open(`https://wa.me/${store.whatsapp}?text=${msg}`,'_blank')}
-  const pedirSolo=(p)=>{const msg=`Hola ${store.name}! Quiero ${p.name} - C$ ${p.price}`;window.open(`https://wa.me/${store.whatsapp}?text=${msg}`,'_blank')}
-  if(loading)return<div className='p-10 text-center'>Cargando...</div>
-  if(!store)return<div className='p-10 text-center'>Tienda no encontrada</div>
-  return(<main className='min-h-screen bg-white'>
-  <div className='w-full h-[260px] md:h-[360px] bg-black relative overflow-hidden'>{store.cover_image?<img src={store.cover_image} className='w-full h-full object-cover object-center'/>:<div className='w-full h-full bg-gradient-to-br from-green-500 to-black'/>}<div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-6'><div className='max-w-5xl mx-auto w-full'><h1 className='text-white font-black text-3xl md:text-5xl uppercase'>{store.name}</h1><p className='text-white/90 text-sm mt-2'>{store.description}</p><a href={`https://wa.me/${store.whatsapp}`} target='_blank' className='inline-block mt-3 bg-green-500 text-black font-bold px-5 py-2 rounded-full text-sm'>WhatsApp</a></div></div></div>
-  
-  <div className='bg-[#f6f6f3] border-b'>
-    <div className='max-w-5xl mx-auto px-6 py-3 flex flex-wrap gap-2 items-center'>
-      <div className='bg-black text-white rounded-full px-4 py-2 text-[11px] flex items-center gap-2'><span className='bg-green-500 text-black font-bold px-2 py-0.5 rounded-full'>NUEVO</span>Envio rapido Paiwas - Paga al recibir</div>
-      <div className='bg-white border rounded-full px-4 py-2 text-[11px]'>⏰ Abierto hoy 8am - 9pm</div>
-      <div className='bg-white border rounded-full px-4 py-2 text-[11px]'>📦 Entrega en 30 min</div>
-    </div>
-  </div>
 
-  <div className='max-w-5xl mx-auto p-6 bg-white'><h2 className='font-black text-xl'>Productos disponibles</h2><p className='text-xs text-gray-500'>Toca la imagen para ver completa</p><div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mt-5'>{products.map(p=>(<div key={p.id} className='bg-white border rounded-2xl overflow-hidden flex flex-col shadow-sm'><div className='h-[200px] bg-gray-100 overflow-hidden cursor-pointer' onClick={()=>setPreviewProduct(p)}><img src={p.image_url} className='w-full h-full object-cover object-center hover:scale-105 transition'/></div><div className='p-3 flex-1 flex flex-col'><h3 className='font-bold'>{p.name}</h3><p className='text-sm'>C$ {p.price}</p><div className='mt-auto flex gap-2 pt-3'><button onClick={()=>addToCart(p)} className='flex-1 border border-black rounded-full py-2 text-sm font-bold'>+ Carrito</button><button onClick={()=>pedirSolo(p)} className='flex-1 bg-black text-white rounded-full py-2 text-sm font-bold'>Pedir</button></div></div></div>))}</div></div>
+const T = {
+  comida: { label: '🍔 Comida', badge: 'Entrega 30 min', cta: 'Pedir por WhatsApp', color: '#00E676', prefix: 'C$', pills: ['NUEVO','Envio rapido','Abierto hoy 8am-9pm','Entrega 30 min'] },
+  boutique: { label: '👗 Boutique', badge: 'Nueva Coleccion • Envio 24h España', cta: 'Añadir a bolsa', color: '#FF2D78', prefix: '€', pills: ['NUEVA','Envio Gratis ES','Tallas S M L','Devolucion 30 dias'] },
+  electro: { label: '📱 Electro', badge: '12 Cuotas • Garantia 1 año', cta: 'Comprar ahora', color: '#7C4DFF', prefix: 'C$', pills: ['NUEVO','12 Cuotas','Garantia 1 año','Envio Gratis'] }
+}
 
-  {previewProduct&&(<div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4' onClick={()=>setPreviewProduct(null)}><div className='bg-white rounded-[24px] max-w-md w-full overflow-hidden shadow-2xl' onClick={e=>e.stopPropagation()}><div className='bg-white p-2'><div className='w-full h-[350px] bg-white rounded-2xl overflow-hidden flex items-center justify-center'><img src={previewProduct.image_url} className='w-full h-full object-contain'/></div></div><div className='p-5 bg-white'><h3 className='font-black text-xl'>{previewProduct.name}</h3><p className='text-gray-600'>C$ {previewProduct.price}</p><div className='flex gap-2 mt-4'><button onClick={()=>{addToCart(previewProduct); setPreviewProduct(null)}} className='flex-1 border-2 border-black rounded-full py-3 font-bold'>+ Carrito</button><button onClick={()=>{pedirSolo(previewProduct); setPreviewProduct(null)}} className='flex-1 bg-black text-white rounded-full py-3 font-bold'>Pedir por WhatsApp</button></div><button onClick={()=>setPreviewProduct(null)} className='w-full mt-3 text-xs text-gray-400'>Cerrar</button></div></div></div>)}
+export default function Tienda({ params }){
+  const slug = params?.slug
+  const [store, setStore] = useState(null)
+  const [prods, setProds] = useState([])
+  const [loading, setLoading] = useState(true)
+  useEffect(()=>{
+    (async()=>{
+      if(!slug) return
+      const { data: s } = await supabase.from('stores').select('*').eq('slug', slug).single()
+      if(!s){ setLoading(false); return }
+      setStore(s)
+      const { data: p } = await supabase.from('products').select('*').eq('store_id', s.id).eq('is_active', true).order('created_at',{ascending:false})
+      setProds(p||[])
+      setLoading(false)
+    })()
+  },[slug])
+  if(loading) return <div className="min-h-screen bg-black text-white p-10">Cargando {slug}...</div>
+  if(!store) return <div className="min-h-screen bg-black text-white p-10">Tienda no encontrada: {slug}</div>
+  const tipo = store.tipo_tienda || 'comida'
+  const cfg = T[tipo] || T.comida
+  const wa = (name='')=>`https://wa.me/${store.whatsapp}?text=${encodeURIComponent('Hola! Quiero '+name+' de '+store.name)}`
 
-  {cart.length>0&&(<><div className='fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.1)]'><div className='max-w-5xl mx-auto flex justify-between items-center'><div className='flex items-center gap-3'><div className='bg-black text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold'>{totalItems}</div><div><p className='font-bold text-sm'>C$ {total}</p><p className='text-[10px] text-gray-500'>{totalItems} productos</p></div></div><div className='flex gap-2'><button onClick={()=>setShowCart(true)} className='border border-black rounded-full px-5 py-3 text-sm font-bold'>Ver mi pedido</button><button onClick={()=>setShowCart(true)} className='bg-green-500 text-black font-black px-6 py-3 rounded-full hidden md:block'>Ver carrito</button></div></div></div>{showCart&&(<div className='fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-6'><div className='bg-white w-full md:max-w-lg rounded-t-[24px] md:rounded-[24px] max-h-[85vh] flex flex-col overflow-hidden'><div className='p-5 border-b flex justify-between items-center'><h3 className='font-black text-lg'>Tu pedido ({totalItems}) - Antes de enviar</h3><button onClick={()=>setShowCart(false)} className='border rounded-full px-3 py-1 text-sm'>Cerrar</button></div><div className='flex-1 overflow-auto p-5 space-y-3'>{cart.map(c=>(<div key={c.id} className='flex gap-3 items-center border rounded-xl p-2'><img src={c.image_url} className='w-16 h-16 object-cover rounded-lg bg-gray-100'/><div className='flex-1'><p className='font-bold text-sm'>{c.name}</p><p className='text-xs text-gray-500'>C$ {c.price} x {c.qty} = C$ {c.price*c.qty}</p><div className='flex gap-2 mt-1 items-center'><button onClick={()=>updateQty(c.id,c.qty-1)} className='w-7 h-7 border rounded-full'>-</button><span className='text-sm font-bold'>{c.qty}</span><button onClick={()=>updateQty(c.id,c.qty+1)} className='w-7 h-7 border rounded-full'>+</button></div></div><button onClick={()=>removeFromCart(c.id)} className='text-xs text-red-500 border border-red-200 px-2 py-1 rounded-full'>Quitar</button></div>))}</div><div className='p-5 border-t bg-gray-50'><div className='flex justify-between font-black text-lg'><span>Total</span><span>C$ {total}</span></div><p className='text-[11px] text-gray-500 mt-1'>Revisa tu pedido antes de enviarlo por WhatsApp</p><button onClick={checkout} className='w-full mt-4 bg-green-500 text-black font-black py-4 rounded-full'>Enviar pedido por WhatsApp a {store.name}</button></div></div></div>)}</>)}</main>)
+  return (
+    <main className="min-h-screen bg-[#0A0A0A] text-white">
+      <style>{`.glass{background:rgba(255,255,255,0.07);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.1)} .glass-strong{background:rgba(255,255,255,0.12);backdrop-filter:blur(32px);border:1px solid rgba(255,255,255,0.15)}`}</style>
+      
+      <div className="relative h-[58vh] md:h-[64vh] overflow-hidden">
+        <img src={store.cover_image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=2000'} className="absolute inset-0 w-full h-full object-cover" alt={store.name} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="glass-strong rounded-[28px] md:rounded-[36px] p-6 md:p-8 max-w-[92%] md:max-w-[68%]">
+              <div className="flex gap-2 mb-3">
+                <span className="bg-[#00E676] text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest">{cfg.badge}</span>
+                <span className="bg-white/10 border border-white/20 text-[10px] font-bold px-3 py-1 rounded-full">{cfg.label}</span>
+              </div>
+              <h1 className="text-3xl md:text-5xl font-black uppercase leading-[0.9] tracking-tight">{store.name}</h1>
+              <p className="text-white/60 text-sm mt-3">{store.description || 'Tienda creada con TiendaNica Universal'}</p>
+              <a href={wa()} target="_blank" className="mt-5 inline-block bg-white text-black px-6 py-3 rounded-full font-black text-sm">WhatsApp</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="sticky top-0 z-20 bg-[#0A0A0A]/80 backdrop-blur-xl border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-6 py-3 flex gap-2 overflow-x-auto">
+          {cfg.pills.map((p,i)=><span key={i} className={`whitespace-nowrap text-[11px] font-bold px-4 py-2 rounded-full ${i===0?'bg-[#00E676] text-black':'glass text-white/70'}`}>{p}</span>)}
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="flex justify-between items-end mb-6">
+          <div><h2 className="text-xl md:text-2xl font-black">{tipo==='boutique'?'Coleccion':'Productos disponibles'}</h2><p className="text-white/40 text-xs mt-1">Toca la imagen para ver completa • Modo {tipo}</p></div>
+          <span className="text-[11px] text-white/30">{prods.length} productos</span>
+        </div>
+
+        <div className={`grid gap-4 ${tipo==='boutique'?'grid-cols-2 md:grid-cols-3':'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+          {prods.map(pr=>{
+            const isBoutique = tipo==='boutique'
+            return (
+              <div key={pr.id} className="glass rounded-[22px] overflow-hidden group hover:bg-white/[0.09] transition">
+                <div className={`relative bg-white overflow-hidden ${isBoutique?'aspect-[3/4]':'aspect-[4/3]'}`}>
+                  <img src={pr.image_url} className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500" />
+                  {isBoutique && <span className="absolute top-3 left-3 bg-black text-white text-[9px] font-black px-2 py-1 rounded-full">NUEVO • S M L</span>}
+                </div>
+                <div className="p-4">
+                  <div className="flex justify-between items-start"><p className="font-bold text-sm leading-tight truncate pr-2">{pr.name}</p><span className="font-black text-sm">{cfg.prefix} {pr.price}</span></div>
+                  <p className="text-white/40 text-[11px] mt-1">{isBoutique?'Lino premium • Envio 24h':tipo==='electro'?'Garantia 1 año':'Hecho en casa'}</p>
+                  <a href={wa(pr.name)} target="_blank" className={`mt-4 w-full block text-center py-3 rounded-full font-black text-xs ${tipo==='boutique'?'bg-white text-black':tipo==='electro'?'bg-[#7C4DFF] text-white':'bg-[#00E676] text-black'}`}>{cfg.cta}</a>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {prods.length===0 && <div className="glass rounded-[24px] p-12 text-center text-white/30 text-sm mt-8">Esta tienda aun no tiene productos</div>}
+      </div>
+      <div className="text-center py-10 text-[11px] text-white/20 border-t border-white/10 mt-10">Potenciado por TiendaNica • Modo {tipo} • {store.slug}</div>
+    </main>
+  )
 }
