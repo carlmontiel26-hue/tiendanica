@@ -3,189 +3,205 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
-const TIPOS = [
-  { id: 'comida', label: '🍔 Comida', desc: 'Delivery 30min', color: '#00E676' },
-  { id: 'boutique', label: '👗 Boutique / Ropa', desc: 'Tallas, €, bolsa', color: '#FF2D78' },
-  { id: 'electro', label: '📱 Electro / Otros', desc: 'Cuotas, garantia', color: '#7C4DFF' },
-]
-
 export default function Admin(){
   const [stores, setStores] = useState([])
   const [products, setProducts] = useState([])
   const [selectedStore, setSelectedStore] = useState(null)
-  const [tipo, setTipo] = useState('comida')
   const [form, setForm] = useState({name:'', slug:'', whatsapp:'', description:''})
-  const [pform, setPform] = useState({name:'', price:'', image_url:'', id:null})
+  const [pform, setPform] = useState({name:'', price:'', image_url:''})
   const [imageFile, setImageFile] = useState(null)
-  const [coverFile, setCoverFile] = useState(null)
+  const [extraFile1, setExtraFile1] = useState(null)
+  const [extraFile2, setExtraFile2] = useState(null)
   const [uploading, setUploading] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const [log, setLog] = useState('Conectando...')
+  const [tallas, setTallas] = useState([])
+  const [tipoTalla, setTipoTalla] = useState('letras')
 
   const loadStores = async()=>{
-    const { data } = await supabase.from('stores').select('*').order('created_at',{ascending:false})
-    setStores(data||[]); if(data?.[0] && !selectedStore) setSelectedStore(data[0])
+    const { data, error } = await supabase.from('stores').select('*').order('created_at', {ascending:false})
+    if(error) setLog('ERROR: '+error.message)
+    else { setStores(data||[]); setLog('Conectado OK - '+data.length+' tiendas'); if(data?.[0] && !selectedStore) setSelectedStore(data[0]) }
   }
-  const loadProducts = async(id)=>{
-    const { data } = await supabase.from('products').select('*').eq('store_id', id).order('created_at',{ascending:false})
+  const loadProducts = async(storeId)=>{
+    if(!storeId) return
+    const { data } = await supabase.from('products').select('*').eq('store_id', storeId).order('created_at',{ascending:false})
     setProducts(data||[])
   }
   useEffect(()=>{ loadStores() },[])
-  useEffect(()=>{ if(selectedStore) loadProducts(selectedStore.id) },[selectedStore])
-
-  const upload = async(file)=>{
-    const name = Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9.-]/g,'-')
-    let res = await supabase.storage.from('tienda-images').upload(name, file)
-    if(res.error){
-      res = await supabase.storage.from('product-images').upload(name, file)
-      if(res.error) throw res.error
-      const { data } = supabase.storage.from('product-images').getPublicUrl(name)
-      return data.publicUrl
-    }
-    const { data } = supabase.storage.from('tienda-images').getPublicUrl(name)
-    return data.publicUrl
-  }
+  useEffect(()=>{ if(selectedStore) { loadProducts(selectedStore.id); setTallas([]); setExtraFile1(null); setExtraFile2(null) } },[selectedStore])
 
   const createStore = async(e)=>{
     e.preventDefault()
-    setUploading(true)
-    try{
-      const cleanSlug = form.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g,'-').replace(/--+/g,'-')
-      let payload = { name:form.name, slug:cleanSlug, whatsapp:form.whatsapp, description:form.description, is_active:true, tipo_tienda: tipo }
-      let { data, error } = await supabase.from('stores').insert(payload).select().single()
-      if(error && error.message.includes('tipo_tienda')){
-        const { data: d2, error: e2 } = await supabase.from('stores').insert({ name:form.name, slug:cleanSlug, whatsapp:form.whatsapp, description:form.description, is_active:true }).select().single()
-        if(e2) throw e2
-        data = d2
-      } else if(error) throw error
-      if(coverFile){
-        try{ const url = await upload(coverFile); await supabase.from('stores').update({ cover_image: url }).eq('id', data.id) }catch{}
-      }
-      setForm({name:'', slug:'', whatsapp:'', description:''}); setCoverFile(null)
-      await loadStores(); setSelectedStore(data)
-    }catch(err){ alert('Error: '+err.message) } finally{ setUploading(false) }
+    const cleanSlug = form.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g,'-').replace(/--+/g,'-')
+    const { data, error } = await supabase.from('stores').insert({ name:form.name, slug:cleanSlug, whatsapp:form.whatsapp, description:form.description, is_active:true }).select().single()
+    if(error) alert(error.message)
+    else { loadStores(); setSelectedStore(data); alert('Tienda creada: /'+cleanSlug) }
+  }
+
+  const uploadOne = async (file) => {
+    if(!file) return null
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name.replace(/\s/g,'-')}`
+    const { error: upError } = await supabase.storage.from('product-images').upload(fileName, file)
+    if(upError) throw upError
+    const { data: {publicUrl} } = supabase.storage.from('product-images').getPublicUrl(fileName)
+    return publicUrl
+  }
+
+  const toggleTalla = (t) => {
+    setTallas(prev => prev.includes(t) ? prev.filter(x=>x!==t) : [...prev, t])
   }
 
   const createProduct = async(e)=>{
     e.preventDefault()
-    if(!selectedStore) return alert('Selecciona tienda')
-    if(!imageFile && !pform.image_url && !editing) return alert('Sube foto')
+    if(!selectedStore) return alert('Selecciona una tienda primero')
+    if(!imageFile && !pform.image_url) return alert('Sube una foto principal')
+    const isBoutique = selectedStore.tipo_tienda === 'boutique'
+    if(isBoutique && tallas.length===0){
+      const ok = confirm('No has seleccionado tallas. ¿Guardar como TALLA UNICA? (OK = si, Cancel = volver a elegir tallas)')
+      if(!ok) return
+    }
     setUploading(true)
-    try{
-      let url = pform.image_url
-      if(imageFile) url = await upload(imageFile)
-      if(editing && pform.id){
-        const { error } = await supabase.from('products').update({ name:pform.name, price: parseFloat(pform.price), image_url:url }).eq('id', pform.id)
-        if(error) throw error
-      }else{
-        const { error } = await supabase.from('products').insert({ store_id:selectedStore.id, name:pform.name, price: parseFloat(pform.price), image_url:url, is_active:true }).select()
-        if(error) throw error
+    try {
+      let finalUrl = pform.image_url
+      if(imageFile){
+        finalUrl = await uploadOne(imageFile)
       }
-      setPform({name:'',price:'',image_url:'',id:null}); setImageFile(null); setEditing(false)
+      let extraUrls = []
+      if(isBoutique){
+        if(extraFile1){ const u1 = await uploadOne(extraFile1); if(u1) extraUrls.push(u1) }
+        if(extraFile2){ const u2 = await uploadOne(extraFile2); if(u2) extraUrls.push(u2) }
+      }
+
+      const payload = { 
+        store_id:selectedStore.id, 
+        name:pform.name, 
+        price: parseFloat(pform.price), 
+        image_url:finalUrl, 
+        is_active:true,
+        extra_images: isBoutique ? extraUrls : [],
+        tallas: isBoutique ? tallas : [],
+        tipo_talla: isBoutique ? tipoTalla : null
+      }
+
+      const { error } = await supabase.from('products').insert(payload).select()
+      if(error) throw error
+      setPform({name:'',price:'',image_url:''})
+      setImageFile(null)
+      setExtraFile1(null)
+      setExtraFile2(null)
+      setTallas([])
       loadProducts(selectedStore.id)
-    }catch(err){ alert('Error: '+err.message) } finally{ setUploading(false) }
+    } catch(err){
+      alert('Error: '+err.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
-  const startEdit=(p)=>{ setPform({name:p.name, price:p.price, image_url:p.image_url||'', id:p.id}); setEditing(true) }
-  const cancelEdit=()=>{ setPform({name:'',price:'',image_url:'',id:null}); setEditing(false); setImageFile(null) }
-  const deleteStore=async(id)=>{ if(!confirm('Eliminar tienda y productos?'))return; await supabase.from('products').delete().eq('store_id',id); await supabase.from('stores').delete().eq('id',id); setSelectedStore(null); loadStores() }
-  const deleteProduct=async(id)=>{ if(!confirm('Borrar producto?'))return; await supabase.from('products').delete().eq('id',id); loadProducts(selectedStore.id) }
-  const tipoInfo = (id)=> TIPOS.find(t=>t.id===id) || TIPOS[0]
+  const isBoutique = selectedStore?.tipo_tienda === 'boutique'
 
   return (
-    <main className="min-h-screen bg-[#0A0A0A] text-white p-4 md:p-6">
-      <style>{`.glass{background:rgba(255,255,255,0.07);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.1)} .glass-strong{background:rgba(255,255,255,0.11);backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.12)}`}</style>
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center glass rounded-full px-5 py-3">
-          <div className="flex items-center gap-3"><span className="font-black">TiendaNica • SUPER ADMIN UNIVERSAL</span><span className="text-[10px] bg-white text-black px-2 py-1 rounded-full font-black">3 TIPOS A LA VEZ</span></div>
-          <span className="bg-[#00E676] text-black text-xs px-3 py-1 rounded-full font-bold">{stores.length} tiendas</span>
+    <main className="min-h-screen bg-[#fafaf9] p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center">
+          <img src="/logo.png" className="h-8"/>
+          <div className="bg-black text-green-400 text-xs px-3 py-1 rounded-full">{log}</div>
         </div>
-
-        <div className="grid lg:grid-cols-3 gap-6 mt-6">
-          <div className="space-y-5">
-            <div className="glass-strong rounded-[24px] p-5">
-              <h2 className="font-black text-lg">Crear Tienda - 3 tipos</h2>
-              <div className="mt-4 grid gap-2">
-                {TIPOS.map(t=>(
-                  <button key={t.id} type="button" onClick={()=>setTipo(t.id)} className={`text-left rounded-2xl p-3 border ${tipo===t.id?'bg-white text-black border-white':'glass'}`}>
-                    <b className="text-sm">{t.label}</b><br/><span className="text-[11px] opacity-60">{t.desc}</span>{tipo===t.id && <span className="ml-2 text-[10px] bg-black text-white px-2 py-1 rounded-full">ACTIVO</span>}
+        <div className="grid lg:grid-cols-3 gap-6 mt-8">
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white border rounded-2xl p-5">
+              <h2 className="font-black text-lg">Crear Tienda</h2>
+              <form onSubmit={createStore} className="mt-4 space-y-3">
+                <input className="w-full border rounded-xl px-4 py-2" placeholder="Nombre ej: Cafe Dulce Aroma" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
+                <input className="w-full border rounded-xl px-4 py-2" placeholder="slug ej: cafe-dulce-aroma" value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} required/>
+                <input className="w-full border rounded-xl px-4 py-2" placeholder="WhatsApp 505..." value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} required/>
+                <input className="w-full border rounded-xl px-4 py-2" placeholder="Descripcion" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+                <button className="w-full bg-black text-white py-3 rounded-full font-bold">Crear Tienda</button>
+              </form>
+            </div>
+            <div className="bg-white border rounded-2xl p-5">
+              <h3 className="font-bold">Mis Tiendas ({stores.length})</h3>
+              <div className="mt-3 space-y-2">
+                {stores.map(s=>(
+                  <button key={s.id} onClick={()=>setSelectedStore(s)} className={'w-full text-left border rounded-xl px-4 py-3 flex justify-between '+(selectedStore?.id===s.id?'bg-black text-white':'bg-white')}>
+                    <span><b>{s.name}</b><br/><span className="text-xs opacity-70">/{s.slug} • {s.tipo_tienda||'comida'}</span></span>
+                    <a href={'/'+s.slug} target="_blank" className="text-xs underline">Ver</a>
                   </button>
                 ))}
               </div>
-              <form onSubmit={createStore} className="mt-5 space-y-3">
-                <input className="w-full bg-white text-black rounded-full px-4 py-3 text-sm" placeholder="Nombre" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
-                <input className="w-full glass rounded-full px-4 py-3 text-sm placeholder:text-white/40" placeholder="slug ej: atelier-nica-madrid" value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} required/>
-                <input className="w-full glass rounded-full px-4 py-3 text-sm placeholder:text-white/40" placeholder="WhatsApp 505..." value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} required/>
-                <input className="w-full glass rounded-full px-4 py-3 text-sm placeholder:text-white/40" placeholder="Descripcion" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-                <label className="w-full glass rounded-2xl px-4 py-4 text-center cursor-pointer block text-xs font-bold hover:bg-white/10">{coverFile? `✅ Portada: ${coverFile.name}` : '🖼️ Foto de PORTADA'}<input type="file" accept="image/*" className="hidden" onChange={e=>setCoverFile(e.target.files[0])}/></label>
-                <button disabled={uploading} className="w-full bg-[#00E676] text-black py-4 rounded-full font-black text-sm">{uploading?'Creando...':`Crear Tienda ${TIPOS.find(t=>t.id===tipo).label} →`}</button>
-              </form>
             </div>
-
-            <div className="glass rounded-[24px] p-5">
-              <h3 className="font-bold text-sm">Mis Tiendas ({stores.length})</h3>
-              <div className="mt-3 space-y-2">
-                {stores.map(s=>{
-                  const t = tipoInfo(s.tipo_tienda||'comida')
-                  return (
-                    <div key={s.id} className={`rounded-2xl p-3 border flex justify-between items-center ${selectedStore?.id===s.id?'bg-white text-black border-white':'glass'}`}>
-                      <button onClick={()=>setSelectedStore(s)} className="text-left flex-1"><span className="text-[10px] bg-black text-white px-2 py-1 rounded-full">{t.label}</span><div className="mt-1"><b className="text-sm">{s.name}</b><br/><span className="text-[11px] opacity-60">/{s.slug}</span></div></button>
-                      <div className="flex flex-col gap-1 ml-2">
-                        <a href={'/'+s.slug} target="_blank" className="text-[10px] bg-black text-white px-3 py-1.5 rounded-full text-center font-bold border border-white/20">Ver</a>
-                        <button onClick={()=>deleteStore(s.id)} className="text-[10px] bg-red-500 text-white px-3 py-1 rounded-full">Eliminar</button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {selectedStore && (
-              <div className="glass-strong rounded-[24px] p-5">
-                <h3 className="font-black text-sm">Links y QR - {selectedStore.name}</h3>
-                <div className="mt-3 flex gap-3">
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://tiendanica.store/${selectedStore.slug}`} className="w-20 h-20 border rounded-xl bg-white p-1"/>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black text-white/50">Tienda:</p><a href={`https://tiendanica.store/${selectedStore.slug}`} target="_blank" className="text-[11px] text-[#00E676] underline break-all">tiendanica.store/{selectedStore.slug}</a>
-                    <p className="text-[10px] font-black text-white/50 mt-2">Admin dueno:</p><a href={`https://tiendanica.store/${selectedStore.slug}/admin`} target="_blank" className="text-[11px] text-white underline break-all">.../{selectedStore.slug}/admin</a>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
+          <div className="lg:col-span-2">
+            <div className="bg-white border rounded-2xl p-6">
+              <h2 className="font-black text-lg">Productos {selectedStore? 'de '+selectedStore.name : ''} {isBoutique && <span className="bg-black text-white text-[10px] px-2 py-1 rounded-full ml-2">BOUTIQUE • CON TALLAS</span>}</h2>
+              {!selectedStore && <p className="text-gray-500 mt-4">Selecciona una tienda a la izquierda</p>}
+              {selectedStore && <>
+                <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
+                  <input className="border rounded-xl px-3 py-2" placeholder="Nombre producto" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
+                  <input className="border rounded-xl px-3 py-2" placeholder="Precio C$" type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
+                  <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer hover:bg-gray-100">
+                    <span className="text-sm font-bold">{imageFile? `✅ Principal: ${imageFile.name}` : '📸 Foto 1 FRENTE (principal) - Toca para subir'}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} />
+                  </label>
 
-          <div className="lg:col-span-2 space-y-5">
-            <div className="bg-white text-black rounded-[24px] p-6">
-              <h2 className="font-black text-lg">Productos {selectedStore? `de ${selectedStore.name}` : ''} {editing && <span className="text-[#00D084]">- Editando</span>}</h2>
-              {selectedStore && (
-                <>
-                  <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Nombre producto" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Precio" type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
-                    <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer"><span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Sube foto producto'}</span><input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} /></label>
-                    <div className="md:col-span-3 flex gap-2">
-                      <button disabled={uploading} className="flex-1 bg-[#00D084] text-black py-3 rounded-full font-bold text-sm">{uploading? 'Subiendo...' : editing?'Guardar cambios':'Agregar Producto'}</button>
-                      {editing && <button type="button" onClick={cancelEdit} className="flex-1 border-2 border-black py-3 rounded-full font-bold text-sm">Cancelar</button>}
-                    </div>
-                  </form>
-                  <div className="grid md:grid-cols-3 gap-4 mt-6">
-                    {products.map(p=>(
-                      <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
-                        <img src={p.image_url} className="h-32 w-full object-cover"/>
-                        <div className="p-3"><p className="font-bold text-sm truncate">{p.name}</p><p className="text-sm text-gray-500">C$ {p.price}</p>
-                          <div className="flex gap-1 mt-2">
-                            <button onClick={()=>startEdit(p)} className="flex-1 bg-black text-white text-[10px] py-2 rounded-full font-bold">Editar</button>
-                            <button onClick={()=>deleteProduct(p.id)} className="flex-1 bg-red-500 text-white text-[10px] py-2 rounded-full font-bold">Borrar</button>
-                          </div>
-                        </div>
+                  {isBoutique && (
+                    <>
+                      <div className="md:col-span-3 border-t pt-4 mt-2">
+                        <p className="font-black text-[12px] tracking-widest">📸 GALERIA BOUTIQUE - 2 FOTOS EXTRAS (solo boutique)</p>
+                        <p className="text-[11px] opacity-50 mt-1">Frente ya está arriba. Sube espalda y modelo vistiendo la prenda.</p>
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    <a href={'/'+selectedStore.slug} target="_blank" className="px-5 py-3 bg-black text-white rounded-full text-xs font-black">Ver tienda /{selectedStore.slug} →</a>
-                    <a href={'/'+selectedStore.slug+'/admin'} target="_blank" className="px-5 py-3 border-2 border-black rounded-full text-xs font-bold">Admin dueno →</a>
-                  </div>
-                </>
-              )}
+                      <label className="w-full border-2 border-dashed border-black/20 rounded-xl px-3 py-3 text-center bg-[#FBF9F7] cursor-pointer hover:bg-[#F6F3F0]">
+                        <span className="text-xs font-bold">{extraFile1? `✅ Espalda: ${extraFile1.name}` : 'Foto 2 - Espalda'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e=> setExtraFile1(e.target.files[0])} />
+                      </label>
+                      <label className="w-full border-2 border-dashed border-black/20 rounded-xl px-3 py-3 text-center bg-[#FBF9F7] cursor-pointer hover:bg-[#F6F3F0]">
+                        <span className="text-xs font-bold">{extraFile2? `✅ Modelo: ${extraFile2.name}` : 'Foto 3 - Modelo'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e=> setExtraFile2(e.target.files[0])} />
+                      </label>
+                      <div className="md:col-span-3 bg-white border rounded-xl p-3">
+                        <p className="font-black text-[12px]">📏 TALLAS DISPONIBLES (solo boutique)</p>
+                        <div className="flex gap-2 mt-2">
+                          <button type="button" onClick={()=>setTipoTalla('letras')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${tipoTalla==='letras'?'bg-black text-white':'bg-white'}`}>Letras S M L</button>
+                          <button type="button" onClick={()=>setTipoTalla('numero')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${tipoTalla==='numero'?'bg-black text-white':'bg-white'}`}>Numero 28 30 32</button>
+                          <button type="button" onClick={()=>setTipoTalla('kids')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${tipoTalla==='kids'?'bg-black text-white':'bg-white'}`}>Niños 3/4 11/12</button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {(tipoTalla==='letras'?['S','M','L','XL','XXL']:tipoTalla==='numero'?['28','30','32','34','36','38','40']:['3/4','5/6','7/8','9/10','11/12','13/14']).map(t=>(
+                            <button type="button" key={t} onClick={()=>toggleTalla(t)} className={`min-w-[44px] px-3 py-2 rounded-full text-xs font-bold border ${tallas.includes(t)?'bg-black text-white border-black':'bg-white border-black/20'}`}>{t}</button>
+                          ))}
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <input value={tallas.join(', ')} readOnly placeholder="Selecciona tallas arriba" className="flex-1 border rounded-full px-3 py-2 text-xs bg-black/5" />
+                          <button type="button" onClick={()=>setTallas([])} className="text-[11px] underline opacity-50">Limpiar</button>
+                        </div>
+                        <p className="text-[10px] opacity-40 mt-2">Si no seleccionas tallas, se guardará como TALLA UNICA. Si seleccionas, el cliente deberá elegir talla antes de comprar.</p>
+                      </div>
+                    </>
+                  )}
+
+                  <button disabled={uploading} className="md:col-span-3 bg-[#00D084] text-black py-3 rounded-full font-bold disabled:opacity-50">{uploading? 'Subiendo fotos...' : isBoutique ? `Agregar Producto Boutique ${tallas.length>0?`(${tallas.join(', ')})`:''}` : 'Agregar Producto'}</button>
+                </form>
+                <div className="grid md:grid-cols-3 gap-4 mt-6">
+                  {products.map(p=>(
+                    <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
+                      <div className="relative">
+                        <img src={p.image_url || 'https://via.placeholder.com/300'} className="h-32 w-full object-cover"/>
+                        {p.extra_images?.length>0 && <span className="absolute top-2 left-2 bg-black text-white text-[9px] px-2 py-1 rounded-full">{p.extra_images.length+1} fotos</span>}
+                      </div>
+                      <div className="p-3">
+                        <p className="font-bold text-sm truncate">{p.name}</p>
+                        <p className="text-sm text-gray-500">C$ {p.price}</p>
+                        {p.tallas?.length>0 && <p className="text-[10px] mt-1 bg-black/5 rounded-full px-2 py-1 inline-block">Tallas: {p.tallas.join(', ')}</p>}
+                        {p.extra_images?.length>0 && <p className="text-[10px] mt-1 text-black/40">+{p.extra_images.length} fotos extra</p>}
+                      </div>
+                    </div>
+                  ))}
+                  {products.length===0 && <p className="text-gray-400 text-sm col-span-3">Aún no hay productos. Agrega el primero arriba.</p>}
+                </div>
+                <div className="mt-6">
+                  <a href={'/'+selectedStore.slug} target="_blank" className="px-5 py-2 bg-black text-white rounded-full text-sm">Ver tienda /{selectedStore.slug} →</a>
+                </div>
+              </>}
             </div>
           </div>
         </div>
