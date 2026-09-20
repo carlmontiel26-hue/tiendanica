@@ -2,147 +2,73 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-
-export default function OwnerAdmin({ params }){
-  const slug=params.slug
+export default function AdminDueno({params}){
+  const slug=params?.slug
   const [store,setStore]=useState(null)
-  const [isAuth,setIsAuth]=useState(false)
-  const [passInput,setPassInput]=useState('')
   const [products,setProducts]=useState([])
-  const [form,setForm]=useState({name:'',price:'',image_url:'',id:null})
-  const [editing,setEditing]=useState(false)
-
-  useEffect(()=>{
-    async function load(){
-      const {data} = await supabase.from('stores').select('*').eq('slug',slug).single()
-      if(data){
-        setStore(data)
-        const {data:prods}=await supabase.from('products').select('*').eq('store_id',data.id).order('created_at',{ascending:false})
-        setProducts(prods||[])
-        const saved=localStorage.getItem('tn_owner_'+data.slug)
-        if(saved && saved===data.whatsapp) setIsAuth(true)
+  const [pform,setPform]=useState({name:'',price:''})
+  const [f1,setF1]=useState(null); const [f2,setF2]=useState(null); const [f3,setF3]=useState(null)
+  const [tallas,setTallas]=useState([]); const [tipo,setTipo]=useState('letras')
+  const [editing,setEditing]=useState(null); const [uploading,setUploading]=useState(false)
+  useEffect(()=>{(async()=>{const {data}=await supabase.from('stores').select('*').eq('slug',slug).single(); if(data){setStore(data); const {data:p}=await supabase.from('products').select('*').eq('store_id',data.id).order('created_at',{ascending:false}); setProducts(p||[])}})()},[slug])
+  const upload=async(file)=>{if(!file)return null; const n=`${Date.now()}-${file.name.replace(/\s/g,'-')}`; await supabase.storage.from('product-images').upload(n,file); const {data}=supabase.storage.from('product-images').getPublicUrl(n); return data.publicUrl}
+  const save=async(e)=>{
+    e.preventDefault(); setUploading(true)
+    try{
+      let url=editing?.image_url||''; if(f1) url=await upload(f1)
+      let extras=editing?.extra_images||[]
+      if(store.tipo_tienda==='boutique'){
+        if(f2){const u=await upload(f2); if(u) extras=[...extras,u]}
+        if(f3){const u=await upload(f3); if(u) extras=[...extras,u]}
+        extras=extras.slice(0,2)
       }
-    }
-    load()
-  },[slug])
-
-  const handleLogin=(e)=>{
-    e.preventDefault()
-    if(passInput===store.whatsapp || passInput===store.owner_password){
-      localStorage.setItem('tn_owner_'+store.slug, store.whatsapp)
-      setIsAuth(true)
-    } else alert('Usa tu WhatsApp: '+store.whatsapp)
+      const payload={store_id:store.id,name:pform.name,price:parseFloat(pform.price),image_url:url,is_active:true,extra_images:store.tipo_tienda==='boutique'?extras:[],tallas:store.tipo_tienda==='boutique'?tallas:[],tipo_talla:tipo}
+      if(editing) await supabase.from('products').update(payload).eq('id',editing.id)
+      else await supabase.from('products').insert(payload)
+      setPform({name:'',price:''}); setF1(null); setF2(null); setF3(null); setTallas([]); setEditing(null)
+      const {data:p}=await supabase.from('products').select('*').eq('store_id',store.id).order('created_at',{ascending:false}); setProducts(p||[])
+    }catch(err){alert(err.message)}finally{setUploading(false)}
   }
-
-  const uploadImage=async(file)=>{
-    const name=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9.]/g,'-')
-    const {error}=await supabase.storage.from('tienda-images').upload(name,file)
-    if(error){
-      // fallback a product-images por si tu bucket es el viejo
-      const {error:err2}=await supabase.storage.from('product-images').upload(name,file)
-      if(err2){alert(err2.message);return null}
-      const {data}=supabase.storage.from('product-images').getPublicUrl(name)
-      return data.publicUrl
-    }
-    const {data}=supabase.storage.from('tienda-images').getPublicUrl(name)
-    return data.publicUrl
-  }
-
-  const saveProduct=async(e)=>{
-    e.preventDefault()
-    let imageUrl=form.image_url
-    const inp=document.getElementById('prod-file')
-    if(inp && inp.files[0]){
-      const up=await uploadImage(inp.files[0])
-      if(up) imageUrl=up
-    }
-    if(editing){
-      await supabase.from('products').update({name:form.name,price:parseFloat(form.price),image_url:imageUrl}).eq('id',form.id)
-    } else {
-      await supabase.from('products').insert({store_id:store.id,name:form.name,price:parseFloat(form.price),image_url:imageUrl,is_active:true})
-    }
-    setForm({name:'',price:'',image_url:'',id:null})
-    setEditing(false)
-    const {data}=await supabase.from('products').select('*').eq('store_id',store.id).order('created_at',{ascending:false})
-    setProducts(data||[])
-  }
-
-  const startEdit=(p)=>{setForm({name:p.name,price:p.price,image_url:p.image_url||'',id:p.id});setEditing(true); window.scrollTo({top:0,behavior:'smooth'})}
-  const deleteProduct=async(id)=>{if(!confirm('¿Borrar?'))return;await supabase.from('products').delete().eq('id',id);const {data}=await supabase.from('products').select('*').eq('store_id',store.id).order('created_at',{ascending:false});setProducts(data||[])}
-
-  if(!store) return <div className='p-10 text-center'>Cargando...</div>
-
-  if(!isAuth){
-    return(
-      <main className='min-h-screen bg-black flex items-center justify-center p-6'>
-        <div className='bg-white rounded-[24px] p-8 max-w-sm w-full text-center'>
-          <h1 className='font-black text-xl'>Panel Dueño Seguro 🔒</h1>
-          <p className='text-xs mt-2'>Tienda: {store.name}</p>
-          <p className='text-[11px] bg-yellow-100 border rounded-full px-3 py-1 mt-2'>Contraseña = tu WhatsApp</p>
-          <form onSubmit={handleLogin} className='mt-6 space-y-3'>
-            <input type='password' className='w-full border-2 border-black rounded-xl px-4 py-3 text-center font-bold' placeholder={store.whatsapp} value={passInput} onChange={e=>setPassInput(e.target.value)} required/>
-            <button className='w-full bg-black text-white py-3 rounded-full font-bold'>Entrar</button>
-            <p className='text-[10px] text-gray-400 mt-2'>Tu pass es: {store.whatsapp}</p>
-          </form>
-        </div>
-      </main>
-    )
-  }
-
+  if(!store) return <div className="p-10">Cargando /{slug}...</div>
+  const isBoutique=store.tipo_tienda==='boutique'
   return(
-    <main className='min-h-screen bg-[#fafaf9] p-6'>
-      <div className='max-w-5xl mx-auto'>
-        <div className='flex justify-between items-center'>
-          <h1 className='font-black'>Panel {store.name} - 🔒 Protegido con WhatsApp</h1>
-          <div className='flex gap-2'>
-            <a href={`/${store.slug}`} target='_blank' className='text-xs border-2 border-black px-4 py-2 rounded-full bg-white font-bold'>Ver mi tienda</a>
-            <button onClick={()=>{localStorage.removeItem('tn_owner_'+store.slug);setIsAuth(false)}} className='text-xs bg-black text-white px-4 py-2 rounded-full'>Salir</button>
+    <main className="min-h-screen bg-[#fafaf9] p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between"><h1 className="font-black">Panel {store.name} {isBoutique&&<span className="bg-black text-white text-[10px] px-2 py-1 rounded-full ml-2">BOUTIQUE 3 FOTOS + TALLAS</span>}</h1><a href={'/'+store.slug} target="_blank" className="bg-black text-white px-3 py-1 rounded-full text-xs">Ver tienda</a></div>
+        <div className="grid md:grid-cols-3 gap-6 mt-6">
+          <div className="bg-white border rounded-2xl p-5 h-fit">
+            <h2 className="font-bold">Mi QR para clientes</h2><p className="text-xs opacity-60">tiendanica.store/{store.slug}</p>
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://tiendanica.store/${store.slug}`} className="w-full mt-4 border rounded-xl bg-white p-2"/>
+            <a href={`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=https://tiendanica.store/${store.slug}`} target="_blank" className="mt-4 block w-full bg-[#00E676] text-black text-center py-3 rounded-full font-bold text-sm">Descargar QR HD</a>
           </div>
-        </div>
-        <div className='grid md:grid-cols-3 gap-6 mt-6'>
-          <div className='space-y-6'>
-            <div className='bg-white border-2 border-black rounded-2xl p-5'>
-              <h2 className='font-black'>Mi QR para clientes</h2>
-              <p className='text-[11px] text-gray-500 mt-1'>tiendanica.store/{store.slug}</p>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=https://tiendanica.store/${store.slug}`} className='w-full mt-4 bg-white border-2 border-black rounded-xl p-3'/>
-              <a href={`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=https://tiendanica.store/${store.slug}`} target='_blank' download={`QR-${store.slug}-HD.png`} className='block w-full mt-4 bg-[#00ff88] border-2 border-black text-black text-center py-3 rounded-full font-black text-sm'>⬇️ Descargar QR Grande HD</a>
-              <a href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=https://tiendanica.store/${store.slug}`} target='_blank' className='block w-full mt-2 bg-white border-2 border-black text-black text-center py-3 rounded-full font-bold text-sm'>Ver QR grande</a>
-              <p className='text-[10px] mt-3 text-gray-500 text-center'>Imprime este QR en tu local - tus clientes escanean y entran directo</p>
-            </div>
-            <div className='bg-black text-white rounded-2xl p-4'>
-              <p className='text-xs font-bold'>🔒 Seguro: /{store.slug}/admin solo con tu WhatsApp {store.whatsapp}</p>
-            </div>
-          </div>
-          <div className='md:col-span-2 space-y-6'>
-            <div className='bg-white border-2 border-black rounded-2xl p-5'>
-              <h2 className='font-black text-lg'>{editing?'✏️ Editar producto':'➕ Agregar producto'}</h2>
-              <form onSubmit={saveProduct} className='mt-3 space-y-3'>
-                <input className='w-full border-2 border-black rounded-xl px-4 py-3 font-bold' placeholder='Nombre ej: Bistec' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
-                <input className='w-full border-2 border-black rounded-xl px-4 py-3' placeholder='Precio ej: 180' value={form.price} onChange={e=>setForm({...form,price:e.target.value})} required/>
-                <div className='border-2 border-dashed border-black rounded-xl p-3 bg-gray-50'>
-                  <label className='text-xs font-black'>📸 Foto producto</label>
-                  <input id='prod-file' type='file' accept='image/*' className='w-full mt-2 text-sm font-bold'/>
-                  <input className='w-full border rounded-xl px-4 py-2 mt-2' placeholder='O pega URL imagen' value={form.image_url} onChange={e=>setForm({...form,image_url:e.target.value})}/>
+          <div className="md:col-span-2 bg-white border rounded-2xl p-6">
+            <h2 className="font-black">{editing?'✏️ Editando '+editing.name:'➕ Agregar producto'}</h2>
+            <form onSubmit={save} className="grid gap-3 mt-4 bg-gray-50 p-4 rounded-2xl border-2 border-dashed">
+              <input className="border rounded-xl px-3 py-2" placeholder="Nombre" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
+              <input className="border rounded-xl px-3 py-2" placeholder="Precio" type="number" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
+              <label className="border-2 border-dashed rounded-xl px-3 py-4 text-center bg-white cursor-pointer"><span className="text-sm font-bold">{f1?'✅ '+f1.name:'📸 Foto 1 Frente (principal)'}</span><input type="file" accept="image/*" className="hidden" onChange={e=>setF1(e.target.files[0])}/></label>
+              {isBoutique&&<>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="border-2 border-dashed rounded-xl px-3 py-3 text-center bg-[#FBF9F7] cursor-pointer"><span className="text-xs font-bold">{f2?'✅ '+f2.name:'Foto 2 Espalda'}</span><input type="file" accept="image/*" className="hidden" onChange={e=>setF2(e.target.files[0])}/></label>
+                  <label className="border-2 border-dashed rounded-xl px-3 py-3 text-center bg-[#FBF9F7] cursor-pointer"><span className="text-xs font-bold">{f3?'✅ '+f3.name:'Foto 3 Modelo'}</span><input type="file" accept="image/*" className="hidden" onChange={e=>setF3(e.target.files[0])}/></label>
                 </div>
-                <div className='flex gap-2'>
-                  <button className='flex-1 bg-[#00ff88] border-2 border-black py-3 rounded-full font-black'>{editing?'💾 Guardar cambios':'✅ Agregar producto'}</button>
-                  {editing && <button type='button' onClick={()=>{setEditing(false);setForm({name:'',price:'',image_url:'',id:null})}} className='flex-1 border-2 border-black py-3 rounded-full font-bold'>Cancelar</button>}
+                <div className="bg-white border rounded-xl p-3">
+                  <p className="font-black text-[12px]">📏 TALLAS</p>
+                  <div className="flex flex-wrap gap-2 mt-2">{['S','M','L','XL','XXL','28','30','32','34'].map(t=><button type="button" key={t} onClick={()=>setTallas(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t])} className={`min-w-[44px] px-3 py-2 rounded-full text-xs font-bold border ${tallas.includes(t)?'bg-black text-white':'bg-white'}`}>{t}</button>)}</div>
+                  <input value={tallas.join(', ')} readOnly className="mt-2 w-full border rounded-full px-3 py-2 text-xs bg-black/5" placeholder="Tallas seleccionadas"/>
                 </div>
-              </form>
-            </div>
-            <div className='bg-white border-2 border-black rounded-2xl p-5'>
-              <h2 className='font-black'>Mis productos ({products.length}) - Editar y Borrar</h2>
-              <div className='mt-3 space-y-2'>
-                {products.map(p=>(
-                  <div key={p.id} className='flex gap-3 border-2 border-black rounded-xl p-2 items-center'>
-                    <img src={p.image_url} className='w-14 h-14 object-cover rounded-lg border'/>
-                    <div className='flex-1'><p className='font-bold text-sm'>{p.name}</p><p className='text-xs'>C$ {p.price}</p></div>
-                    <button onClick={()=>startEdit(p)} className='bg-black text-white text-xs px-4 py-2 rounded-full font-bold'>Editar</button>
-                    <button onClick={()=>deleteProduct(p.id)} className='bg-red-500 text-white text-xs px-4 py-2 rounded-full font-bold'>Borrar</button>
-                  </div>
-                ))}
-                {products.length===0 && <p className='text-center text-gray-400 py-10'>Aún no hay productos</p>}
-              </div>
+              </>}
+              <button disabled={uploading} className="bg-[#00D084] text-black py-3 rounded-full font-bold">{uploading?'Guardando...': editing?'Actualizar':'Agregar Producto'}</button>
+              {editing&&<button type="button" onClick={()=>{setEditing(null); setPform({name:'',price:''}); setTallas([])}} className="border py-2 rounded-full text-xs">Cancelar edición</button>}
+            </form>
+            <div className="grid md:grid-cols-2 gap-4 mt-6">
+              {products.map(p=>(
+                <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
+                  <div className="relative"><img src={p.image_url} className="h-40 w-full object-cover"/>{p.extra_images?.length>0&&<span className="absolute top-2 left-2 bg-black text-white text-[9px] px-2 py-1 rounded-full">{p.extra_images.length+1} fotos</span>}</div>
+                  <div className="p-3"><p className="font-bold text-sm truncate">{p.name}</p><p className="text-sm">C$ {p.price}</p>{p.tallas?.length>0&&<p className="text-[10px] mt-1 bg-black/5 rounded-full px-2 py-1 inline-block">Tallas: {p.tallas.join(', ')}</p>}</div>
+                  <div className="p-2 border-t flex gap-2"><button onClick={()=>{setEditing(p); setPform({name:p.name,price:p.price}); setTallas(p.tallas||[])}} className="flex-1 bg-black text-white text-[11px] py-2 rounded-full">Editar</button><button onClick={async()=>{if(confirm('Borrar?')){await supabase.from('products').delete().eq('id',p.id); setProducts(products.filter(x=>x.id!==p.id))}}} className="flex-1 bg-red-50 text-red-600 text-[11px] py-2 rounded-full">Borrar</button></div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
