@@ -54,7 +54,7 @@ export default function AdminDueno({params}){
                 </div>
                 <div className="bg-white border rounded-xl p-3">
                   <p className="font-black text-[12px]">📏 TALLAS</p>
-                  <div className="flex flex-wrap gap-2 mt-2">{['S','M','L','XL','XXL','28','30','32','34','36','38'].map(t=><button type="button" key={t} onClick={()=>setTallas(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t])} className={`min-w-[44px] px-3 py-2 rounded-full text-xs font-bold border ${tallas.includes(t)?'bg-black text-white':'bg-white'}`}>{t}</button>)}</div>
+                  <div className="flex flex-wrap gap-2 mt-2">{['S','M','L','XL','XXL','28','30','32','34'].map(t=><button type="button" key={t} onClick={()=>setTallas(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t])} className={`min-w-[44px] px-3 py-2 rounded-full text-xs font-bold border ${tallas.includes(t)?'bg-black text-white':'bg-white'}`}>{t}</button>)}</div>
                   <input value={tallas.join(', ')} readOnly className="mt-2 w-full border rounded-full px-3 py-2 text-xs bg-black/5" placeholder="Tallas seleccionadas"/>
                 </div>
               </>}
