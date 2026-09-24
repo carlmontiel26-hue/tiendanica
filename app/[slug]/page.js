@@ -35,7 +35,7 @@ export default function Tienda({params}){
     <img src={cover} alt={store.name} className="absolute inset-0 w-full h-full object-cover"/>
     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10"></div>
     <div className="absolute bottom-6 left-4 right-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded- p-5 shadow-2xl">
-      <h1 className="font-black uppercase text- text-white leading-tight">{store.name}</h1>
+      <h1 className="font-black uppercase text- text-white leading-tight tracking-tight">{store.name}</h1>
       <p className="text- text-white/70 mt-1">{store.description}</p>
       {isComida?(
         <div className="flex gap-2 mt-4"><button className="flex-1 bg-white text-black py-3 rounded-full font-black text-">🍽️ Menú</button><button onClick={()=>setShowBebidas(true)} className="flex-1 bg-[#00E676] text-black py-3 rounded-full font-black text-">🥤 Bebidas y Extras {bebidas.length?`(${bebidas.length})`:''}</button></div>
