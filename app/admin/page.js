@@ -8,8 +8,10 @@ export default function Admin(){
   const [products, setProducts] = useState([])
   const [selectedStore, setSelectedStore] = useState(null)
   const [form, setForm] = useState({name:'', slug:'', whatsapp:'', description:'', cover_image:'', tipo_tienda:'comida'})
-  const [pform, setPform] = useState({name:'', price:'', image_url:''})
+  const [pform, setPform] = useState({name:'', price:'', image_url:'', tallas:''})
   const [imageFile, setImageFile] = useState(null)
+  const [extraFile1, setExtraFile1] = useState(null)
+  const [extraFile2, setExtraFile2] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [log, setLog] = useState('Conectando...')
@@ -33,8 +35,6 @@ export default function Admin(){
     try{
       const cleanSlug = form.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g,'-').replace(/--+/g,'-')
       let finalCover = form.cover_image || null
-
-      // Si subió portada local, súbela a storage
       if(coverFile){
         const fileName = `cover-${Date.now()}-${coverFile.name.replace(/\s/g,'-')}`
         const { error: upError } = await supabase.storage.from('product-images').upload(fileName, coverFile)
@@ -42,43 +42,34 @@ export default function Admin(){
         const { data: {publicUrl} } = supabase.storage.from('product-images').getPublicUrl(fileName)
         finalCover = publicUrl
       }
-
-      const payload = {
-        name:form.name,
-        slug:cleanSlug,
-        whatsapp:form.whatsapp,
-        description:form.description,
-        cover_image: finalCover,
-        tipo_tienda: form.tipo_tienda,
-        is_active:true
-      }
+      const payload = { name:form.name, slug:cleanSlug, whatsapp:form.whatsapp, description:form.description, cover_image: finalCover, tipo_tienda: form.tipo_tienda, is_active:true }
       const { data, error } = await supabase.from('stores').insert(payload).select().single()
       if(error) throw error
       loadStores(); setSelectedStore(data);
       setForm({name:'', slug:'', whatsapp:'', description:'', cover_image:'', tipo_tienda:'comida'})
       setCoverFile(null)
       alert('Tienda creada: /'+cleanSlug+' tipo: '+form.tipo_tienda)
-    }catch(err){
-      alert('Error: '+err.message)
-    }finally{
-      setUploading(false)
-    }
+    }catch(err){ alert('Error: '+err.message) } finally{ setUploading(false) }
   }
 
   const deleteStore = async(id, slug)=>{
-    if(!confirm(`¿Seguro que quieres eliminar la tienda /${slug}? Esto borrará también todos sus productos. Esta acción no se puede deshacer.`)) return
+    if(!confirm(`¿Seguro que quieres eliminar la tienda /${slug}? Esto borrará también todos sus productos.`)) return
     try{
-      // Primero borra productos de esa tienda
       await supabase.from('products').delete().eq('store_id', id)
-      // Luego borra la tienda
       const { error } = await supabase.from('stores').delete().eq('id', id)
       if(error) throw error
       alert('Tienda eliminada')
       setSelectedStore(null)
       loadStores()
-    }catch(err){
-      alert('Error al eliminar: '+err.message)
-    }
+    }catch(err){ alert('Error al eliminar: '+err.message) }
+  }
+
+  const uploadOne = async(file)=>{
+    const fileName = `${Date.now()}-${file.name.replace(/\s/g,'-')}`
+    const { error } = await supabase.storage.from('product-images').upload(fileName, file)
+    if(error) throw error
+    const { data: {publicUrl} } = supabase.storage.from('product-images').getPublicUrl(fileName)
+    return publicUrl
   }
 
   const createProduct = async(e)=>{
@@ -86,19 +77,34 @@ export default function Admin(){
     if(!selectedStore) return alert('Selecciona una tienda primero')
     if(!imageFile &&!pform.image_url) return alert('Sube una foto')
     setUploading(true)
-    let finalUrl = pform.image_url
     try {
-      if(imageFile){
-        const fileName = `${Date.now()}-${imageFile.name.replace(/\s/g,'-')}`
-        const { error: upError } = await supabase.storage.from('product-images').upload(fileName, imageFile)
-        if(upError) throw upError
-        const { data: {publicUrl} } = supabase.storage.from('product-images').getPublicUrl(fileName)
-        finalUrl = publicUrl
+      let finalUrl = pform.image_url
+      if(imageFile) finalUrl = await uploadOne(imageFile)
+
+      let extraImgs = []
+      if(extraFile1) extraImgs.push(await uploadOne(extraFile1))
+      if(extraFile2) extraImgs.push(await uploadOne(extraFile2))
+
+      // Tallas para boutique (ej: S,M,L o 38,40,42)
+      let tallasArray = null
+      if(selectedStore.tipo_tienda==='boutique' && pform.tallas){
+        tallasArray = pform.tallas.split(',').map(t=>t.trim()).filter(Boolean)
       }
-      const { error } = await supabase.from('products').insert({ store_id:selectedStore.id, name:pform.name, price: parseFloat(pform.price), image_url:finalUrl, is_active:true }).select()
+
+      const insertData = {
+        store_id:selectedStore.id,
+        name:pform.name,
+        price: parseFloat(pform.price),
+        image_url:finalUrl,
+        extra_images: extraImgs.length>0? extraImgs : null,
+        tallas: tallasArray,
+        is_active:true
+      }
+
+      const { error } = await supabase.from('products').insert(insertData).select()
       if(error) throw error
-      setPform({name:'',price:'',image_url:''})
-      setImageFile(null)
+      setPform({name:'',price:'',image_url:'', tallas:''})
+      setImageFile(null); setExtraFile1(null); setExtraFile2(null)
       loadProducts(selectedStore.id)
     } catch(err){
       alert('Error: '+err.message)
@@ -106,6 +112,8 @@ export default function Admin(){
       setUploading(false)
     }
   }
+
+  const isBoutique = selectedStore?.tipo_tienda==='boutique'
 
   return (
     <main className="min-h-screen bg-[#fafaf9] p-6">
@@ -123,23 +131,19 @@ export default function Admin(){
                 <input className="w-full border rounded-xl px-4 py-2" placeholder="slug ej: cafe-dulce-aroma" value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} required/>
                 <input className="w-full border rounded-xl px-4 py-2" placeholder="WhatsApp 505..." value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} required/>
                 <input className="w-full border rounded-xl px-4 py-2" placeholder="Descripcion" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-
-                {/* PORTADA - AHORA CON SUBIDA LOCAL */}
                 <label className="w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-3 text-center bg-white cursor-pointer hover:bg-gray-100 block">
-                  <span className="text-xs font-bold">{coverFile? `✅ Portada: ${coverFile.name}` : '🖼️ Toca para subir portada local (opcional)'}</span>
+                  <span className="text-xs font-bold">{coverFile? `✅ Portada: ${coverFile.name}` : '🖼️ Toca para subir portada local'}</span>
                   <input type="file" accept="image/*" className="hidden" onChange={e=> setCoverFile(e.target.files[0])} />
                 </label>
-                <input className="w-full border rounded-xl px-4 py-2 text-xs" placeholder="O pega URL de portada (opcional)" value={form.cover_image} onChange={e=>setForm({...form,cover_image:e.target.value})}/>
-
+                <input className="w-full border rounded-xl px-4 py-2 text-xs" placeholder="O URL de portada (opcional)" value={form.cover_image} onChange={e=>setForm({...form,cover_image:e.target.value})}/>
                 <div>
                   <label className="text-xs font-bold">Tipo de tienda *</label>
                   <select className="w-full border rounded-xl px-4 py-3 mt-1 font-bold" value={form.tipo_tienda} onChange={e=>setForm({...form,tipo_tienda:e.target.value})} required>
-                    <option value="comida">🍽️ Comida - El Sazón (con Bebidas y Especialidad)</option>
-                    <option value="boutique">👗 Boutique - Casa Lino (con Tallas y 3 fotos)</option>
-                    <option value="electro">📱 Tecnología / Hogar - Tecno Hogar (sin bebidas)</option>
+                    <option value="comida">🍽️ Comida - El Sazón</option>
+                    <option value="boutique">👗 Boutique - Casa Lino</option>
+                    <option value="electro">📱 Tecnología / Hogar</option>
                   </select>
                 </div>
-
                 <button disabled={uploading} className="w-full bg-black text-white py-3 rounded-full font-bold disabled:opacity-50">{uploading?'Creando...':'Crear Tienda'}</button>
               </form>
             </div>
@@ -168,20 +172,41 @@ export default function Admin(){
                 <form onSubmit={createProduct} className="grid md:grid-cols-3 gap-3 mt-4 bg-gray-50 p-4 rounded-2xl">
                   <input className="border rounded-xl px-3 py-2" placeholder="Nombre producto" value={pform.name} onChange={e=>setPform({...pform,name:e.target.value})} required/>
                   <input className="border rounded-xl px-3 py-2" placeholder="Precio C$" type="number" step="0.01" value={pform.price} onChange={e=>setPform({...pform,price:e.target.value})} required/>
+                  {isBoutique && <input className="border rounded-xl px-3 py-2" placeholder="Tallas ej: S,M,L o 38,40" value={pform.tallas} onChange={e=>setPform({...pform,tallas:e.target.value})}/>}
+
                   <label className="md:col-span-3 w-full border-2 border-dashed border-gray-300 rounded-xl px-3 py-4 text-center bg-white cursor-pointer hover:bg-gray-100">
-                    <span className="text-sm font-bold">{imageFile? `✅ ${imageFile.name}` : '📸 Toca para subir foto desde el celular'}</span>
+                    <span className="text-sm font-bold">{imageFile? `✅ Principal: ${imageFile.name}` : '📸 Foto principal (obligatoria)'}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={e=> setImageFile(e.target.files[0])} />
                   </label>
-                  <button disabled={uploading} className="md:col-span-3 bg-[#00D084] text-black py-3 rounded-full font-bold disabled:opacity-50">{uploading? 'Subiendo foto...' : 'Agregar Producto'}</button>
+
+                  {/* SOLO PARA BOUTIQUE - 2 FOTOS EXTRA PARA CARRUSEL */}
+                  {isBoutique && <>
+                    <label className="md:col-span-3 w-full border border-dashed border-black/20 rounded-xl px-3 py-3 text-center bg-[#F6F3F0] cursor-pointer hover:bg-[#efe9e4] block">
+                      <span className="text-xs font-bold">{extraFile1? `✅ Extra 1: ${extraFile1.name}` : '➕ Foto extra 1 para carrusel (opcional - boutique)'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={e=> setExtraFile1(e.target.files[0])} />
+                    </label>
+                    <label className="md:col-span-3 w-full border border-dashed border-black/20 rounded-xl px-3 py-3 text-center bg-[#F6F3F0] cursor-pointer hover:bg-[#efe9e4] block">
+                      <span className="text-xs font-bold">{extraFile2? `✅ Extra 2: ${extraFile2.name}` : '➕ Foto extra 2 para carrusel (opcional - boutique)'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={e=> setExtraFile2(e.target.files[0])} />
+                    </label>
+                    <p className="md:col-span-3 text- opacity-60 text-center">Con 3 fotos el cliente podrá deslizar en la tienda como antes</p>
+                  </>}
+
+                  <button disabled={uploading} className="md:col-span-3 bg-[#00D084] text-black py-3 rounded-full font-bold disabled:opacity-50">{uploading? 'Subiendo...' : 'Agregar Producto'}</button>
                 </form>
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                   {products.map(p=>(
                     <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
                       <img src={p.image_url || 'https://via.placeholder.com/300'} className="h-32 w-full object-cover"/>
-                      <div className="p-3"><p className="font-bold text-sm">{p.name}</p><p className="text-sm text-gray-500">C$ {p.price}</p></div>
+                      <div className="p-3">
+                        <p className="font-bold text-sm">{p.name}</p>
+                        <p className="text-sm text-gray-500">C$ {p.price}</p>
+                        {p.extra_images?.length>0 && <p className="text- text-green-600 font-bold mt-1">+{p.extra_images.length} fotos extra</p>}
+                        {p.tallas?.length>0 && <p className="text- opacity-60 mt-1">{p.tallas.join(' • ')}</p>}
+                      </div>
                     </div>
                   ))}
-                  {products.length===0 && <p className="text-gray-400 text-sm col-span-3">Aún no hay productos. Agrega el primero arriba.</p>}
+                  {products.length===0 && <p className="text-gray-400 text-sm col-span-3">Aún no hay productos.</p>}
                 </div>
                 <div className="mt-6">
                   <a href={'/'+selectedStore.slug} target="_blank" className="px-5 py-2 bg-black text-white rounded-full text-sm">Ver tienda /{selectedStore.slug} →</a>
