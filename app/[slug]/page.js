@@ -64,8 +64,12 @@ export default function Tienda({params}){
  return(
  <main style={{minHeight:'100vh', background:isBoutique?'#F6F3F0':'#0A0A0A', color:isBoutique?'#000':'#fff'}}>
   <style>{`
-  .portada{ height: 520px; }
-    @media (max-width: 768px){.portada{ height: 420px!important; } }
+   .portada{ height: 520px; }
+  .portada img{ object-fit: cover; object-position: center top; }
+  @media (max-width: 768px){
+   .portada{ height: auto!important; aspect-ratio: 4/3.2; min-height: 380px; max-height: 440px; }
+   .portada img{ object-fit: contain!important; object-position: center!important; background: #000; }
+  }
   `}</style>
 
   {/* CARRITO CON WHATSAPP - SIEMPRE VISIBLE CUANDO HAY PRODUCTOS */}
