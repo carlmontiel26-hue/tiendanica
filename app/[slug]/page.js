@@ -49,20 +49,27 @@ export default function Tienda({params}){
  .portada{ height: 520px; position: relative; }
  .portada img{ object-fit: cover; object-position: center top; }
  .info-card{ position: absolute; bottom: 20px; left: 16px; right: 16px; }
-  @media (max-width: 768px){
-  .portada{ height: 380px!important; }
-  .portada img{ object-fit: cover!important; object-position: center center!important; }
+ @media (max-width: 768px){
+  .portada{ height: auto!important; aspect-ratio: 16/9!important; min-height: 320px!important; background: #000; }
+  .portada img{ 
+    object-fit: contain!important; 
+    object-position: center top!important; 
+    background: #000; 
+    height: auto!important; 
+    position: relative!important;
+    min-height: 320px;
+  }
   .info-card{
      bottom: 8px!important;
      left: 8px!important;
      right: 8px!important;
-     padding: 12px 14px!important;
-     border-radius: 16px!important;
+     padding: 10px 12px!important;
+     border-radius: 14px!important;
    }
-  .info-card h1{ font-size: 16px!important; line-height: 1.1!important; }
-  .info-card p{ font-size: 10.5px!important; line-height: 1.25!important; margin-top: 4px!important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .info-card.badge{ font-size: 9px!important; padding: 4px 10px!important; margin-top: 6px!important; }
-  }
+  .info-card h1{ font-size: 14px!important; line-height: 1.1!important; }
+  .info-card p{ font-size: 10px!important; line-height: 1.2!important; margin-top: 3px!important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .info-card span{ font-size: 9px!important; padding: 4px 10px!important; margin-top: 5px!important; }
+ }
 `}</style>
 
   <div style={{position:'fixed', bottom:24, right:16, zIndex:100, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8}}>
