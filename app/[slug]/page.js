@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
+// 👇 AQUÍ AGREGA TODAS LAS TALLAS QUE QUIERAS - ESTO ES LO ÚNICO NUEVO
+const TALLAS_COMPLETAS = ["26","28","30","32","34","36","38","40","42","44"]
+
 export default function Tienda({params}){
  const slug=params?.slug
  const [store,setStore]=useState(null); const [prods,setProds]=useState([]); const [cart,setCart]=useState([])
@@ -17,8 +20,15 @@ export default function Tienda({params}){
 
  useEffect(()=>{if(sel){ setTallaSel(null); setCurrentImg(0) }},[sel])
 
+ // Función para juntar las tallas de la base de datos + las nuevas que agregues arriba
+ const getTallas = (pr) => {
+   const base = pr?.tallas?.length? pr.tallas : []
+   const merged = [...new Set([...base,...TALLAS_COMPLETAS])].sort((a,b)=>parseInt(a)-parseInt(b))
+   return merged
+ }
+
  const add=(pr,talla=null)=>{
-   if(store?.tipo_tienda==='boutique'&&pr.tallas?.length>0&&!talla) return false
+   if(store?.tipo_tienda==='boutique'&&getTallas(pr).length>0&&!talla) return false
    setCart(v=>{
      const key=talla?pr.id+'-'+talla:pr.id;
      const ex=v.find(i=>i.cartId===key);
@@ -40,7 +50,7 @@ export default function Tienda({params}){
 
  const buyNowDirect=()=>{
    if(!sel) return
-   if(store.tipo_tienda==='boutique'&&sel.tallas?.length>0&&!tallaSel){ alert('Selecciona una talla'); return }
+   if(store.tipo_tienda==='boutique'&&getTallas(sel).length>0&&!tallaSel){ alert('Selecciona una talla'); return }
    let m=`Hola ${store.name}! 👋\nQuiero comprar:\n\n• 1x ${sel.name}${tallaSel?` (Talla: ${tallaSel})`:''} - C$ ${sel.price}\n\nhttps://tiendanica.store/${store.slug}`
    window.open(`https://wa.me/${store.whatsapp}?text=${encodeURIComponent(m)}`,'_blank')
  }
@@ -60,17 +70,17 @@ export default function Tienda({params}){
 .portada img{ object-fit: cover; object-position: center top; }
 .info-card{ position: absolute; bottom: 20px; left: 16px; right: 16px; }
  @media (max-width: 768px){
- .portada{ height: auto!important; aspect-ratio: 16/9!important; min-height: 320px!important; background: #000; }
- .portada img{ object-fit: contain!important; object-position: center top!important; background: #000; height: auto!important; position: relative!important; min-height: 320px; }
- .info-card{ bottom: 6px!important; left: 6px!important; right: 6px!important; padding: 10px 12px!important; border-radius: 12px!important; }
- .info-card h1{ font-size: 14px!important; line-height: 1.1!important; }
- .info-card p{ font-size: 9.5px!important; line-height: 1.2!important; margin-top: 2px!important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
- .info-card.badge{ font-size: 8.5px!important; padding: 3px 8px!important; margin-top: 4px!important; }
- .product-card{ border-radius: 14px!important; }
- .product-info{ padding: 8px 8px 9px 8px!important; }
- .product-info.name{ font-size: 10px!important; line-height: 1.15!important; }
- .product-info.price{ font-size: 12px!important; margin-top: 2px!important; }
- .product-info button{ margin-top: 6px!important; padding: 8px 0!important; font-size: 10px!important; }
+.portada{ height: auto!important; aspect-ratio: 16/9!important; min-height: 320px!important; background: #000; }
+.portada img{ object-fit: contain!important; object-position: center top!important; background: #000; height: auto!important; position: relative!important; min-height: 320px; }
+.info-card{ bottom: 6px!important; left: 6px!important; right: 6px!important; padding: 10px 12px!important; border-radius: 12px!important; }
+.info-card h1{ font-size: 14px!important; line-height: 1.1!important; }
+.info-card p{ font-size: 9.5px!important; line-height: 1.2!important; margin-top: 2px!important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.info-card.badge{ font-size: 8.5px!important; padding: 3px 8px!important; margin-top: 4px!important; }
+.product-card{ border-radius: 14px!important; }
+.product-info{ padding: 8px 8px 9px 8px!important; }
+.product-info.name{ font-size: 10px!important; line-height: 1.15!important; }
+.product-info.price{ font-size: 12px!important; margin-top: 2px!important; }
+.product-info button{ margin-top: 6px!important; padding: 8px 0!important; font-size: 10px!important; }
  }
 `}</style>
 
@@ -80,7 +90,7 @@ export default function Tienda({params}){
      {cart.map(i=><div key={i.cartId} style={{display:'flex', gap:8, background:'rgba(0,0,0,0.05)', borderRadius:12, padding:8, marginBottom:6, alignItems:'center'}}>
        <img src={i.image_url} style={{width:40, height:40, borderRadius:8, objectFit:'cover'}}/>
        <div style={{fontSize:12, flex:1}}><b>{i.name}</b>{i.tallaSel&&<span style={{background:'#000', color:'#fff', fontSize:9, padding:'2px 6px', borderRadius:99, marginLeft:6}}>Talla {i.tallaSel}</span>}<br/>{i.qty}x C$ {i.price}</div>
-       <button onClick={()=>setCart(v=>v.filter(x=>x.cartId!==i.cartId))}>🗑️</button>
+       <button onClick={()=>setCart(v=>v.filter(x=>x.cartId!==i.cartId))}>🗑</button>
      </div>)}
      {cart.length>0&&<><div style={{borderTop:'1px solid #eee', marginTop:8, paddingTop:8, display:'flex', justifyContent:'space-between', fontWeight:900}}><span>Total</span><span>C$ {total}</span></div><button onClick={sendWACart} style={{marginTop:12, width:'100%', background:'#00E676', color:'#000', padding:14, borderRadius:999, fontWeight:900, border:'none'}}>📲 Comprar por WhatsApp</button></>}
    </div>}
@@ -105,7 +115,7 @@ export default function Tienda({params}){
         <button onClick={()=>setSel(pr)} style={{width:'100%', aspectRatio:'4/5', position:'relative', border:'none', background:'#FBF9F7', cursor:'pointer'}}>
           <img src={pr.image_url} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
           {imgs.length>1&&<span style={{position:'absolute', top:10, left:10, background:'rgba(0,0,0,0.8)', color:'#fff', fontSize:9, padding:'4px 8px', borderRadius:999}}>{imgs.length} fotos</span>}
-          {pr.tallas?.length>0&&<span style={{position:'absolute', top:10, right:10, background:'#fff', color:'#000', fontSize:8, fontWeight:900, padding:'4px 6px', borderRadius:999}}>{pr.tallas.join('-')}</span>}
+          {getTallas(pr).length>0&&<span style={{position:'absolute', top:10, right:10, background:'#fff', color:'#000', fontSize:8, fontWeight:900, padding:'4px 6px', borderRadius:999}}>{getTallas(pr).join('-')}</span>}
         </button>
         <div className="product-info" style={{padding:10}}>
           <p className="name" style={{fontSize:11, color:'#000', lineHeight:1.2}}>{pr.name}</p>
@@ -125,12 +135,12 @@ export default function Tienda({params}){
     </div>
     <div style={{background:'#fff', borderTopLeftRadius:28, borderTopRightRadius:28, padding:18, marginTop:-20, position:'relative'}} onClick={e=>e.stopPropagation()}>
       <h3 style={{fontWeight:900, fontSize:18, color:'#000'}}>{sel.name}</h3><p style={{fontWeight:900, fontSize:17, color:'#000', marginTop:4}}>C$ {sel.price}</p>
-      {isBoutique&&sel.tallas?.length>0&&<div style={{marginTop:10}}><p style={{fontWeight:700, fontSize:12, color:'#000'}}>Elige tu talla {tallaSel&&<span style={{color:'#00C853'}}>• {tallaSel}</span>}</p><div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>{sel.tallas.map(t=><button key={t} onClick={()=>setTallaSel(t)} style={{minWidth:40, width:40, height:40, padding:'0', borderRadius:999, fontSize:12, fontWeight:800, border:tallaSel===t?'2px solid #000':'1.2px solid #000', background:tallaSel===t?'#000':'#fff', color:tallaSel===t?'#fff':'#000'}}>{t}</button>)}</div></div>}
+      {isBoutique&&<div style={{marginTop:10}}><p style={{fontWeight:700, fontSize:12, color:'#000'}}>Elige tu talla {tallaSel&&<span style={{color:'#00C853'}}>• {tallaSel}</span>}</p><div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>{getTallas(sel).map(t=><button key={t} onClick={()=>setTallaSel(t)} style={{minWidth:40, width:40, height:40, padding:'0', borderRadius:999, fontSize:12, fontWeight:800, border:tallaSel===t?'2px solid #000':'1.2px solid #000', background:tallaSel===t?'#000':'#fff', color:tallaSel===t?'#fff':'#000'}}>{t}</button>)}</div></div>}
       <div style={{display:'flex', gap:10, marginTop:16}}>
         <button onClick={()=>setSel(null)} style={{flex:0.7, background:'#F0F0F0', padding:12, borderRadius:999, fontWeight:700, color:'#000', border:'none'}}>Cerrar</button>
-        <button onClick={buyNowDirect} disabled={isBoutique&&sel.tallas?.length>0&&!tallaSel} style={{flex:1.3, background:isBoutique&&sel.tallas?.length>0&&!tallaSel?'#ccc':'#00E676', color:'#000', padding:12, borderRadius:999, fontWeight:900, border:'none', opacity:isBoutique&&sel.tallas?.length>0&&!tallaSel?0.6:1}}>{isBoutique&&!tallaSel?'Elige una talla':'📲 Comprar por WhatsApp'}</button>
+        <button onClick={buyNowDirect} disabled={isBoutique&&!tallaSel} style={{flex:1.3, background:isBoutique&&!tallaSel?'#ccc':'#00E676', color:'#000', padding:12, borderRadius:999, fontWeight:900, border:'none', opacity:isBoutique&&!tallaSel?0.6:1}}>{isBoutique&&!tallaSel?'Elige una talla':'📲 Comprar por WhatsApp'}</button>
       </div>
-      <button onClick={()=>{ if(add(sel,tallaSel)){ setShowCart(true); setSel(null) } }} disabled={isBoutique&&sel.tallas?.length>0&&!tallaSel} style={{marginTop:8, width:'100%', background:'#000', color:'#fff', padding:10, borderRadius:999, fontWeight:700, border:'none', fontSize:12, opacity:isBoutique&&sel.tallas?.length>0&&!tallaSel?0.4:1}}>🛒 Añadir al carrito {tallaSel?`(Talla ${tallaSel})`:''}</button>
+      <button onClick={()=>{ if(add(sel,tallaSel)){ setShowCart(true); setSel(null) } }} disabled={isBoutique&&!tallaSel} style={{marginTop:8, width:'100%', background:'#000', color:'#fff', padding:10, borderRadius:999, fontWeight:700, border:'none', fontSize:12, opacity:isBoutique&&!tallaSel?0.4:1}}>🛒 Añadir al carrito {tallaSel?`(Talla ${tallaSel})`:''}</button>
     </div>
   </div>}
 
