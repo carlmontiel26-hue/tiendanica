@@ -9,11 +9,14 @@ export default function Tienda({params}){
  const [sel,setSel]=useState(null); const [showCart,setShowCart]=useState(false); const [showBebidas,setShowBebidas]=useState(false)
  const [tallaSel,setTallaSel]=useState(null)
  const [currentImg, setCurrentImg] = useState(0)
+
  useEffect(()=>{(async()=>{
    const {data:s}=await supabase.from('stores').select('*').eq('slug',slug).single()
    if(s){setStore(s); const {data:p}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false}); setProds(p||[])}
  })()},[slug])
+
  useEffect(()=>{if(sel){ setTallaSel(null); setCurrentImg(0) }},[sel])
+
  const add=(pr,talla=null)=>{
    if(store?.tipo_tienda==='boutique'&&pr.tallas?.length>0&&!talla) return false
    setCart(v=>{
@@ -23,52 +26,51 @@ export default function Tienda({params}){
      return [...v,{...pr,cartId:key,qty:1,tallaSel:talla}]
    }); return true
  }
+
  const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
  const count=cart.reduce((s,i)=>s+i.qty,0)
+
  const sendWACart=()=>{
+   if(cart.length===0) return
    let m=`Hola ${store.name}! 👋\nQuiero hacer este pedido:\n\n`;
    cart.forEach(i=>{ m+=`• ${i.qty}x ${i.name}${i.tallaSel?' (Talla: '+i.tallaSel+')':''} - C$ ${i.price*i.qty}\n` });
    m+=`\n*Total: C$ ${total}*\nhttps://tiendanica.store/${store.slug}`
    window.open(`https://wa.me/${store.whatsapp}?text=${encodeURIComponent(m)}`,'_blank')
  }
+
  const buyNowDirect=()=>{
    if(!sel) return
    if(store.tipo_tienda==='boutique'&&sel.tallas?.length>0&&!tallaSel){ alert('Selecciona una talla'); return }
    let m=`Hola ${store.name}! 👋\nQuiero comprar:\n\n• 1x ${sel.name}${tallaSel?` (Talla: ${tallaSel})`:''} - C$ ${sel.price}\n\nhttps://tiendanica.store/${store.slug}`
    window.open(`https://wa.me/${store.whatsapp}?text=${encodeURIComponent(m)}`,'_blank')
  }
+
  const getImgs=(pr)=>[pr.image_url,...(pr.extra_images||[])].filter(Boolean).slice(0,3)
+
  if(!store) return <div style={{padding:40, background:'#000', color:'#fff'}}>Cargando...</div>
  const isComida=store.tipo_tienda==='comida'; const isBoutique=store.tipo_tienda==='boutique'
  const platos=isComida?prods.filter(p=>!p.categoria||p.categoria==='plato'):prods
  const bebidas=isComida?prods.filter(p=>p.categoria==='bebida'||p.categoria==='extra'):[]
  const cover=store.cover_image || store.image_url || prods[0]?.image_url || ''
+
  return(
  <main style={{minHeight:'100vh', background:isBoutique?'#F6F3F0':'#0A0A0A', color:isBoutique?'#000':'#fff'}}>
   <style>{`
- .portada{ height: 520px; position: relative; }
- .portada img{ object-fit: cover; object-position: center top; }
- .info-card{ position: absolute; bottom: 20px; left: 16px; right: 16px; }
+.portada{ height: 520px; position: relative; }
+.portada img{ object-fit: cover; object-position: center top; }
+.info-card{ position: absolute; bottom: 20px; left: 16px; right: 16px; }
  @media (max-width: 768px){
-  .portada{ height: auto!important; aspect-ratio: 16/9!important; min-height: 320px!important; background: #000; }
-  .portada img{ 
-    object-fit: contain!important; 
-    object-position: center top!important; 
-    background: #000; 
-    height: auto!important; 
-    position: relative!important;
-    min-height: 320px;
-  }
-  .info-card{
-     bottom: 8px!important;
-     left: 8px!important;
-     right: 8px!important;
-     padding: 10px 12px!important;
-     border-radius: 14px!important;
-   }
-  .info-card h1{ font-size: 14px!important; line-height: 1.1!important; }
-  .info-card p{ font-size: 10px!important; line-height: 1.2!important; margin-top: 3px!important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .info-card span{ font-size: 9px!important; padding: 4px 10px!important; margin-top: 5px!important; }
+ .portada{ height: auto!important; aspect-ratio: 16/9!important; min-height: 320px!important; background: #000; }
+ .portada img{ object-fit: contain!important; object-position: center top!important; background: #000; height: auto!important; position: relative!important; min-height: 320px; }
+ .info-card{ bottom: 6px!important; left: 6px!important; right: 6px!important; padding: 10px 12px!important; border-radius: 12px!important; }
+ .info-card h1{ font-size: 14px!important; line-height: 1.1!important; }
+ .info-card p{ font-size: 9.5px!important; line-height: 1.2!important; margin-top: 2px!important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ .info-card.badge{ font-size: 8.5px!important; padding: 3px 8px!important; margin-top: 4px!important; }
+ .product-card{ border-radius: 14px!important; }
+ .product-info{ padding: 8px 8px 9px 8px!important; }
+ .product-info.name{ font-size: 10px!important; line-height: 1.15!important; }
+ .product-info.price{ font-size: 12px!important; margin-top: 2px!important; }
+ .product-info button{ margin-top: 6px!important; padding: 8px 0!important; font-size: 10px!important; }
  }
 `}</style>
 
@@ -99,15 +101,16 @@ export default function Tienda({params}){
    <div style={{display:'grid', gap:16, gridTemplateColumns:'repeat(2,1fr)'}}>
     {platos.map((pr)=>{
       const imgs = getImgs(pr)
-      return <div key={pr.id} style={{background:'#fff', borderRadius:20, overflow:'hidden'}}>
-        <button onClick={()=>setSel(pr)} style={{width:'100%', aspectRatio:'4/5', position:'relative', border:'none', background:'#FBF9F7'}}>
+      return <div key={pr.id} className="product-card" style={{background:'#fff', borderRadius:20, overflow:'hidden', boxShadow:'0 2px 10px rgba(0,0,0,0.05)'}}>
+        <button onClick={()=>setSel(pr)} style={{width:'100%', aspectRatio:'4/5', position:'relative', border:'none', background:'#FBF9F7', cursor:'pointer'}}>
           <img src={pr.image_url} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
           {imgs.length>1&&<span style={{position:'absolute', top:10, left:10, background:'rgba(0,0,0,0.8)', color:'#fff', fontSize:9, padding:'4px 8px', borderRadius:999}}>{imgs.length} fotos</span>}
+          {pr.tallas?.length>0&&<span style={{position:'absolute', top:10, right:10, background:'#fff', color:'#000', fontSize:8, fontWeight:900, padding:'4px 6px', borderRadius:999}}>{pr.tallas.join('-')}</span>}
         </button>
-        <div style={{padding:10}}>
-          <p style={{fontSize:11, color:'#000'}}>{pr.name}</p>
-          <p style={{fontWeight:900, fontSize:13, marginTop:4, color:'#000'}}>C$ {pr.price}</p>
-          <button onClick={()=>setSel(pr)} style={{marginTop:8, width:'100%', background:'#00E676', color:'#000', padding:10, borderRadius:999, fontSize:11, fontWeight:900, border:'none'}}>📲 Comprar por WhatsApp</button>
+        <div className="product-info" style={{padding:10}}>
+          <p className="name" style={{fontSize:11, color:'#000', lineHeight:1.2}}>{pr.name}</p>
+          <p className="price" style={{fontWeight:900, fontSize:13, marginTop:4, color:'#000'}}>C$ {pr.price}</p>
+          <button onClick={()=>setSel(pr)} style={{marginTop:8, width:'100%', background:'#00E676', color:'#000', padding:10, borderRadius:999, fontSize:11, fontWeight:900, border:'none', cursor:'pointer'}}>📲 Comprar por WhatsApp</button>
         </div>
       </div>
     })}
@@ -122,11 +125,16 @@ export default function Tienda({params}){
     </div>
     <div style={{background:'#fff', borderTopLeftRadius:28, borderTopRightRadius:28, padding:18, marginTop:-20, position:'relative'}} onClick={e=>e.stopPropagation()}>
       <h3 style={{fontWeight:900, fontSize:18, color:'#000'}}>{sel.name}</h3><p style={{fontWeight:900, fontSize:17, color:'#000', marginTop:4}}>C$ {sel.price}</p>
-      {isBoutique&&sel.tallas?.length>0&&<div style={{marginTop:14}}><p style={{fontWeight:700, fontSize:13, color:'#000'}}>Elige tu talla {tallaSel&&<span style={{color:'#00C853'}}>• {tallaSel}</span>}</p><div style={{display:'flex', flexWrap:'wrap', gap:8, marginTop:10}}>{sel.tallas.map(t=><button key={t} onClick={()=>setTallaSel(t)} style={{minWidth:52, padding:'12px 16px', borderRadius:999, fontSize:13, fontWeight:800, border:tallaSel===t?'2px solid #000':'1.5px solid #000', background:tallaSel===t?'#000':'#fff', color:tallaSel===t?'#fff':'#000'}}>{t}</button>)}</div></div>}
-      <div style={{display:'flex', gap:10, marginTop:18}}><button onClick={()=>setSel(null)} style={{flex:0.7, background:'#F0F0F0', padding:14, borderRadius:999, fontWeight:700, color:'#000', border:'none'}}>Cerrar</button><button onClick={buyNowDirect} disabled={isBoutique&&sel.tallas?.length>0&&!tallaSel} style={{flex:1.3, background:isBoutique&&sel.tallas?.length>0&&!tallaSel?'#ccc':'#00E676', color:'#000', padding:14, borderRadius:999, fontWeight:900, border:'none', opacity:isBoutique&&sel.tallas?.length>0&&!tallaSel?0.6:1}}>{isBoutique&&!tallaSel?'Elige una talla':'📲 Comprar por WhatsApp'}</button></div>
-      <button onClick={()=>{ if(add(sel,tallaSel)){ setShowCart(true); setSel(null) } }} disabled={isBoutique&&sel.tallas?.length>0&&!tallaSel} style={{marginTop:8, width:'100%', background:'#000', color:'#fff', padding:12, borderRadius:999, fontWeight:700, border:'none', opacity:isBoutique&&sel.tallas?.length>0&&!tallaSel?0.4:1}}>🛒 Añadir al carrito {tallaSel?`(Talla ${tallaSel})`:''}</button>
+      {isBoutique&&sel.tallas?.length>0&&<div style={{marginTop:10}}><p style={{fontWeight:700, fontSize:12, color:'#000'}}>Elige tu talla {tallaSel&&<span style={{color:'#00C853'}}>• {tallaSel}</span>}</p><div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>{sel.tallas.map(t=><button key={t} onClick={()=>setTallaSel(t)} style={{minWidth:40, width:40, height:40, padding:'0', borderRadius:999, fontSize:12, fontWeight:800, border:tallaSel===t?'2px solid #000':'1.2px solid #000', background:tallaSel===t?'#000':'#fff', color:tallaSel===t?'#fff':'#000'}}>{t}</button>)}</div></div>}
+      <div style={{display:'flex', gap:10, marginTop:16}}>
+        <button onClick={()=>setSel(null)} style={{flex:0.7, background:'#F0F0F0', padding:12, borderRadius:999, fontWeight:700, color:'#000', border:'none'}}>Cerrar</button>
+        <button onClick={buyNowDirect} disabled={isBoutique&&sel.tallas?.length>0&&!tallaSel} style={{flex:1.3, background:isBoutique&&sel.tallas?.length>0&&!tallaSel?'#ccc':'#00E676', color:'#000', padding:12, borderRadius:999, fontWeight:900, border:'none', opacity:isBoutique&&sel.tallas?.length>0&&!tallaSel?0.6:1}}>{isBoutique&&!tallaSel?'Elige una talla':'📲 Comprar por WhatsApp'}</button>
+      </div>
+      <button onClick={()=>{ if(add(sel,tallaSel)){ setShowCart(true); setSel(null) } }} disabled={isBoutique&&sel.tallas?.length>0&&!tallaSel} style={{marginTop:8, width:'100%', background:'#000', color:'#fff', padding:10, borderRadius:999, fontWeight:700, border:'none', fontSize:12, opacity:isBoutique&&sel.tallas?.length>0&&!tallaSel?0.4:1}}>🛒 Añadir al carrito {tallaSel?`(Talla ${tallaSel})`:''}</button>
     </div>
   </div>}
+
+  {showBebidas&&isComida&&<div style={{position:'fixed', inset:0, zIndex:250, background:'#0A0A0A', display:'flex', flexDirection:'column'}}><div style={{padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid rgba(255,255,255,0.1)'}}><h2 style={{fontWeight:900, fontSize:16}}>🥤 Bebidas</h2><button onClick={()=>setShowBebidas(false)} style={{background:'#fff', color:'#000', width:36, height:36, borderRadius:999, fontWeight:900, border:'none'}}>✕</button></div><div style={{flex:1, overflow:'auto', padding:16}}><div style={{display:'grid', gap:12, gridTemplateColumns:'repeat(2,1fr)'}}>{bebidas.map(pr=><div key={pr.id} style={{background:'#fff', borderRadius:18, overflow:'hidden', color:'#000'}}><img src={pr.image_url} style={{width:'100%', aspectRatio:'1/1', objectFit:'cover'}}/><div style={{padding:10}}><p style={{fontWeight:700, fontSize:11}}>{pr.name}</p><p style={{fontWeight:900, fontSize:11, marginTop:4}}>C$ {pr.price}</p><button onClick={()=>{add(pr); setShowCart(true)}} style={{marginTop:8, width:'100%', background:'#000', color:'#fff', padding:7, borderRadius:999, fontSize:10, fontWeight:700, border:'none'}}>Añadir</button></div></div>)}</div></div></div>}
  </main>
  )
 }
