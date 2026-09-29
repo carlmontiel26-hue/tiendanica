@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -9,20 +9,17 @@ export default function Tienda({params}){
  const [sel,setSel]=useState(null); const [showCart,setShowCart]=useState(false); const [showBebidas,setShowBebidas]=useState(false)
  const [tallaSel,setTallaSel]=useState(null)
  const [currentImg, setCurrentImg] = useState(0)
+ // Filtros boutique - estados simples
  const [filtroTalla, setFiltroTalla]=useState(null)
- const [filtroTipo, setFiltroTipo]=useState(null)
- const [ordenProd, setOrdenProd]=useState('orden')
+ const [filtroCat, setFiltroCat]=useState(null)
+ const [orden, setOrden]=useState('orden')
  const [busqueda, setBusqueda]=useState('')
 
  useEffect(()=>{(async()=>{
    try{
      const {data:s}=await supabase.from('stores').select('*').eq('slug',slug).single()
-     if(s){
-       setStore(s); 
-       const {data:p} = await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false})
-       setProds(p||[])
-     }
-   }catch(e){ console.error(e) }
+     if(s){setStore(s); const {data:p}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false}); setProds(p||[])}
+   }catch(e){ console.error('load store',e) }
  })()},[slug])
 
  useEffect(()=>{if(sel){ setTallaSel(null); setCurrentImg(0) }},[sel])
@@ -56,51 +53,59 @@ export default function Tienda({params}){
  }
 
  const getImgs=(pr)=>{
-   try{ return [pr.image_url,...(pr.extra_images||[])].filter(Boolean).slice(0,3) }
-   catch{ return [pr.image_url].filter(Boolean) }
+   if(!pr) return []
+   const main = pr.image_url ? [pr.image_url] : []
+   const extras = Array.isArray(pr.extra_images) ? pr.extra_images : []
+   return [...main, ...extras].filter(Boolean).slice(0,3)
  }
 
  if(!store) return <div style={{padding:40, background:'#000', color:'#fff'}}>Cargando...</div>
  const isComida=store.tipo_tienda==='comida'; const isBoutique=store.tipo_tienda==='boutique'
- const platosBase=isComida?prods.filter(p=>!p.categoria||p.categoria==='plato'):prods
+ 
+ // ORIGINAL LOGIC intacta
+ let platos=isComida?prods.filter(p=>!p.categoria||p.categoria==='plato'):prods
  const bebidas=isComida?prods.filter(p=>p.categoria==='bebida'||p.categoria==='extra'):[]
 
- const platos = useMemo(()=>{
-   if(!isBoutique) return platosBase
-   let filtered=[...platosBase]
-   if(busqueda.trim()){
-     const q=busqueda.toLowerCase()
-     filtered=filtered.filter(p=> (p.name||'').toLowerCase().includes(q))
-   }
-   if(filtroTalla){
-     filtered=filtered.filter(p=> (p.tallas||[]).includes(filtroTalla) )
-   }
-   if(filtroTipo){
-     filtered=filtered.filter(p=> (p.categoria||'').toLowerCase()===filtroTipo.toLowerCase() )
-   }
-   if(ordenProd==='precio-asc') filtered.sort((a,b)=>(a.price||0)-(b.price||0))
-   else if(ordenProd==='precio-desc') filtered.sort((a,b)=>(b.price||0)-(a.price||0))
-   else if(ordenProd==='nombre') filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''))
-   else if(ordenProd==='nuevo') filtered.sort((a,b)=> new Date(b.created_at||0)-new Date(a.created_at||0))
-   else if(ordenProd==='orden') filtered.sort((a,b)=> (a.orden ?? 9999) - (b.orden ?? 9999))
-   return filtered
- },[platosBase, isBoutique, filtroTalla, filtroTipo, ordenProd, busqueda])
+ // SOLO PARA BOUTIQUE: aplica filtros de forma segura
+ if(isBoutique){
+   try{
+     let tmp=[...platos]
+     if(busqueda.trim()){
+       const q=busqueda.toLowerCase()
+       tmp=tmp.filter(p=> (p.name||'').toLowerCase().includes(q))
+     }
+     if(filtroTalla){
+       tmp=tmp.filter(p=> Array.isArray(p.tallas) && p.tallas.includes(filtroTalla))
+     }
+     if(filtroCat){
+       tmp=tmp.filter(p=> (p.categoria||'')===filtroCat)
+     }
+     if(orden==='precio-asc') tmp.sort((a,b)=>(a.price||0)-(b.price||0))
+     else if(orden==='precio-desc') tmp.sort((a,b)=>(b.price||0)-(a.price||0))
+     else if(orden==='nombre') tmp.sort((a,b)=> (a.name||'').localeCompare(b.name||''))
+     else if(orden==='nuevo') tmp.sort((a,b)=> new Date(b.created_at||0)-new Date(a.created_at||0))
+     else if(orden==='orden') tmp.sort((a,b)=> (a.orden ?? 999999)-(b.orden ?? 999999))
+     platos=tmp
+   }catch(e){ console.error('filtro boutique',e) }
+ }
 
  const cover=store.cover_image || store.image_url || prods[0]?.image_url || ''
 
- const todasTallas = useMemo(()=>{
-   if(!isBoutique) return []
-   const s=new Set()
-   prods.forEach(p=> (p.tallas||[]).forEach(t=>s.add(t)) )
-   return Array.from(s).sort()
- },[prods, isBoutique])
-
- const todosTipos = useMemo(()=>{
-   if(!isBoutique) return []
-   const s=new Set()
-   prods.forEach(p=> { if(p.categoria && p.categoria!=='plato') s.add(p.categoria) })
-   return Array.from(s)
- },[prods, isBoutique])
+ // Calcula tallas y categorias existentes para botones
+ let tallasDisponibles=[]
+ let catsDisponibles=[]
+ if(isBoutique){
+   try{
+     const tSet=new Set()
+     const cSet=new Set()
+     prods.forEach(p=>{
+       if(Array.isArray(p.tallas)) p.tallas.forEach(t=>tSet.add(t))
+       if(p.categoria && p.categoria!=='plato') cSet.add(p.categoria)
+     })
+     tallasDisponibles=Array.from(tSet)
+     catsDisponibles=Array.from(cSet)
+   }catch{}
+ }
 
  return(
  <main style={{minHeight:'100vh', background:isBoutique?'#F6F3F0':'#0A0A0A', color:isBoutique?'#000':'#fff'}}>
@@ -148,38 +153,30 @@ export default function Tienda({params}){
 
   <div style={{maxWidth:1120, margin:'0 auto', padding:16, paddingBottom:112}}>
    {isBoutique && (
-     <div style={{background:'#fff', borderRadius:16, padding:12, marginBottom:16, display:'flex', flexDirection:'column', gap:10, boxShadow:'0 2px 10px rgba(0,0,0,0.05)'}}>
-       <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
-         <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="🔍 Buscar prenda..." style={{flex:1, minWidth:160, border:'1px solid #e5e5e5', borderRadius:999, padding:'8px 14px', fontSize:12, color:'#000'}}/>
-         <select value={ordenProd} onChange={e=>setOrdenProd(e.target.value)} style={{border:'1px solid #e5e5e5', borderRadius:999, padding:'8px 12px', fontSize:11, fontWeight:700, color:'#000', background:'#fff'}}>
-           <option value="orden">⭐ Orden del admin</option>
-           <option value="nuevo">🆕 Más nuevo</option>
-           <option value="precio-asc">💲 Precio: menor a mayor</option>
-           <option value="precio-desc">💲 Precio: mayor a menor</option>
-           <option value="nombre">🔤 Nombre A-Z</option>
+     <div style={{background:'#fff', borderRadius:16, padding:12, marginBottom:16, display:'flex', flexDirection:'column', gap:10}}>
+       <div style={{display:'flex', gap:8}}>
+         <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="🔍 Buscar" style={{flex:1, border:'1px solid #e5e5e5', borderRadius:999, padding:'8px 14px', fontSize:12, color:'#000'}}/>
+         <select value={orden} onChange={e=>setOrden(e.target.value)} style={{border:'1px solid #e5e5e5', borderRadius:999, padding:'8px 12px', fontSize:11, fontWeight:700, color:'#000', background:'#fff'}}>
+           <option value="orden">⭐ Admin</option>
+           <option value="nuevo">🆕 Nuevo</option>
+           <option value="precio-asc">Menor precio</option>
+           <option value="precio-desc">Mayor precio</option>
+           <option value="nombre">A-Z</option>
          </select>
        </div>
-       <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
-         {todosTipos.length>0 && (
-           <>
-             <span style={{fontSize:10, fontWeight:800, color:'#000'}}>TIPO:</span>
-             <button onClick={()=>setFiltroTipo(null)} style={{padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #000', background:filtroTipo===null?'#000':'#fff', color:filtroTipo===null?'#fff':'#000'}}>Todos</button>
-             {todosTipos.map(t=>(
-               <button key={t} onClick={()=>setFiltroTipo(t===filtroTipo?null:t)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroTipo===t?'#000':'#fff', color:filtroTipo===t?'#fff':'#000', textTransform:'capitalize'}}>{t}</button>
-             ))}
-           </>
-         )}
-       </div>
-       {todasTallas.length>0 && (
-         <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
-           <span style={{fontSize:10, fontWeight:800, color:'#000'}}>TALLA:</span>
-           <button onClick={()=>setFiltroTalla(null)} style={{padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #000', background:filtroTalla===null?'#000':'#fff', color:filtroTalla===null?'#fff':'#000'}}>Todas</button>
-           {todasTallas.map(t=>(
-             <button key={t} onClick={()=>setFiltroTalla(t===filtroTalla?null:t)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroTalla===t?'#000':'#fff', color:filtroTalla===t?'#fff':'#000'}}>{t}</button>
-           ))}
+       {catsDisponibles.length>0 && (
+         <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+           <button onClick={()=>setFiltroCat(null)} style={{padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #000', background:filtroCat===null?'#000':'#fff', color:filtroCat===null?'#fff':'#000'}}>Todo</button>
+           {catsDisponibles.map(c=><button key={c} onClick={()=>setFiltroCat(c===filtroCat?null:c)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroCat===c?'#000':'#fff', color:filtroCat===c?'#fff':'#000', textTransform:'capitalize'}}>{c}</button>)}
          </div>
        )}
-       <div style={{fontSize:10, opacity:0.6, color:'#000'}}>{platos.length} de {platosBase.length} prendas {filtroTipo?`• ${filtroTipo}`:''} {filtroTalla?`• Talla ${filtroTalla}`:''}</div>
+       {tallasDisponibles.length>0 && (
+         <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+           {tallasDisponibles.map(t=><button key={t} onClick={()=>setFiltroTalla(t===filtroTalla?null:t)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroTalla===t?'#000':'#fff', color:filtroTalla===t?'#fff':'#000'}}>{t}</button>)}
+           {filtroTalla && <button onClick={()=>setFiltroTalla(null)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, background:'#f5f5f5', color:'#000'}}>✕ Limpiar talla</button>}
+         </div>
+       )}
+       <div style={{fontSize:10, opacity:0.6, color:'#000'}}>{platos.length} productos</div>
      </div>
    )}
 
@@ -193,19 +190,18 @@ export default function Tienda({params}){
           {pr.tallas?.length>0&&<span style={{position:'absolute', top:10, right:10, background:'#fff', color:'#000', fontSize:8, fontWeight:900, padding:'4px 6px', borderRadius:999}}>{pr.tallas.join('-')}</span>}
         </button>
         <div className="product-info" style={{padding:10}}>
-          <p className="name" style={{fontSize:11, color:'#000', lineHeight:1.2, textTransform:'capitalize'}}>{pr.name} {pr.categoria && pr.categoria!=='plato' ? <span style={{opacity:0.5, fontSize:9}}>• {pr.categoria}</span> : null}</p>
+          <p className="name" style={{fontSize:11, color:'#000', lineHeight:1.2}}>{pr.name}</p>
           <p className="price" style={{fontWeight:900, fontSize:13, marginTop:4, color:'#000'}}>C$ {pr.price}</p>
           <button onClick={()=>setSel(pr)} style={{marginTop:8, width:'100%', background:'#00E676', color:'#000', padding:10, borderRadius:999, fontSize:11, fontWeight:900, border:'none', cursor:'pointer'}}>📲 Comprar por WhatsApp</button>
         </div>
       </div>
     })}
    </div>
-   {isBoutique && platos.length===0 && <div style={{textAlign:'center', padding:40, background:'#fff', borderRadius:16, marginTop:16, color:'#000'}}><p style={{fontWeight:800}}>No hay prendas con esos filtros</p><button onClick={()=>{setFiltroTalla(null); setFiltroTipo(null); setBusqueda('')}} style={{marginTop:10, background:'#000', color:'#fff', padding:'8px 16px', borderRadius:999, fontSize:11}}>Limpiar filtros</button></div>}
   </div>
 
   {sel&&<div style={{position:'fixed', inset:0, zIndex:200, background:'#000', display:'flex', flexDirection:'column'}} onClick={()=>setSel(null)}>
     <div style={{flex:1, position:'relative', background:'#000', overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
-      <img src={getImgs(sel)[currentImg]} style={{width:'100%', height:'100%', objectFit:'contain'}}/>
+      <img src={getImgs(sel)[currentImg]||sel.image_url} style={{width:'100%', height:'100%', objectFit:'contain'}}/>
       <button onClick={()=>setSel(null)} style={{position:'absolute', top:14, right:14, background:'#fff', color:'#000', width:38, height:38, borderRadius:999, fontWeight:900, border:'none'}}>✕</button>
       {getImgs(sel).length>1&&<><span style={{position:'absolute', top:14, left:14, background:'rgba(0,0,0,0.7)', color:'#fff', fontSize:10, padding:'5px 10px', borderRadius:999}}>{currentImg+1}/{getImgs(sel).length}</span><button onClick={()=>setCurrentImg(c=> c===0? getImgs(sel).length-1 : c-1)} style={{position:'absolute', left:10, top:'50%', background:'rgba(255,255,255,0.9)', width:36, height:36, borderRadius:999, border:'none'}}>‹</button><button onClick={()=>setCurrentImg(c=> c===getImgs(sel).length-1? 0 : c+1)} style={{position:'absolute', right:10, top:'50%', background:'rgba(255,255,255,0.9)', width:36, height:36, borderRadius:999, border:'none'}}>›</button></>}
     </div>
