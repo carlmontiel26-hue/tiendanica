@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -9,10 +9,23 @@ export default function Tienda({params}){
  const [sel,setSel]=useState(null); const [showCart,setShowCart]=useState(false); const [showBebidas,setShowBebidas]=useState(false)
  const [tallaSel,setTallaSel]=useState(null)
  const [currentImg, setCurrentImg] = useState(0)
+ // === NUEVO: Filtros solo boutique ===
+ const [filtroTalla, setFiltroTalla]=useState(null)
+ const [ordenProd, setOrdenProd]=useState('orden') // orden, nuevo, precio-asc, precio-desc, nombre
+ const [busqueda, setBusqueda]=useState('')
 
  useEffect(()=>{(async()=>{
    const {data:s}=await supabase.from('stores').select('*').eq('slug',slug).single()
-   if(s){setStore(s); const {data:p}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false}); setProds(p||[])}
+   if(s){
+     setStore(s); 
+     // Intenta ordenar por orden si existe
+     let {data:p, error} = await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('orden',{ascending:true}).order('created_at',{ascending:false})
+     if(error){
+       const res = await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false})
+       p = res.data
+     }
+     setProds(p||[])
+   }
  })()},[slug])
 
  useEffect(()=>{if(sel){ setTallaSel(null); setCurrentImg(0) }},[sel])
@@ -49,9 +62,36 @@ export default function Tienda({params}){
 
  if(!store) return <div style={{padding:40, background:'#000', color:'#fff'}}>Cargando...</div>
  const isComida=store.tipo_tienda==='comida'; const isBoutique=store.tipo_tienda==='boutique'
- const platos=isComida?prods.filter(p=>!p.categoria||p.categoria==='plato'):prods
+ const platosBase=isComida?prods.filter(p=>!p.categoria||p.categoria==='plato'):prods
  const bebidas=isComida?prods.filter(p=>p.categoria==='bebida'||p.categoria==='extra'):[]
+
+ // === LÓGICA NUEVA: Clasificación solo boutique ===
+ const platos = useMemo(()=>{
+   if(!isBoutique) return platosBase
+   let filtered=[...platosBase]
+   if(busqueda.trim()){
+     const q=busqueda.toLowerCase()
+     filtered=filtered.filter(p=>p.name.toLowerCase().includes(q))
+   }
+   if(filtroTalla){
+     filtered=filtered.filter(p=> (p.tallas||[]).includes(filtroTalla) )
+   }
+   // Ordenamiento
+   if(ordenProd==='precio-asc') filtered.sort((a,b)=>a.price-b.price)
+   else if(ordenProd==='precio-desc') filtered.sort((a,b)=>b.price-a.price)
+   else if(ordenProd==='nombre') filtered.sort((a,b)=>a.name.localeCompare(b.name))
+   else if(ordenProd==='nuevo') filtered.sort((a,b)=> new Date(b.created_at)-new Date(a.created_at))
+   else if(ordenProd==='orden') filtered.sort((a,b)=> (a.orden ?? 9999) - (b.orden ?? 9999))
+   return filtered
+ },[platosBase, isBoutique, filtroTalla, ordenProd, busqueda])
+
  const cover=store.cover_image || store.image_url || prods[0]?.image_url || ''
+ const todasTallas = useMemo(()=>{
+   if(!isBoutique) return []
+   const s=new Set()
+   prods.forEach(p=> (p.tallas||[]).forEach(t=>s.add(t)) )
+   return Array.from(s)
+ },[prods, isBoutique])
 
  return(
  <main style={{minHeight:'100vh', background:isBoutique?'#F6F3F0':'#0A0A0A', color:isBoutique?'#000':'#fff'}}>
@@ -98,6 +138,32 @@ export default function Tienda({params}){
   </div>
 
   <div style={{maxWidth:1120, margin:'0 auto', padding:16, paddingBottom:112}}>
+   {/* === NUEVO: Filtros solo boutique === */}
+   {isBoutique && (
+     <div style={{background:'#fff', borderRadius:16, padding:12, marginBottom:16, display:'flex', flexDirection:'column', gap:10, boxShadow:'0 2px 10px rgba(0,0,0,0.05)'}}>
+       <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
+         <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="🔍 Buscar prenda..." style={{flex:1, minWidth:160, border:'1px solid #e5e5e5', borderRadius:999, padding:'8px 14px', fontSize:12, color:'#000'}}/>
+         <select value={ordenProd} onChange={e=>setOrdenProd(e.target.value)} style={{border:'1px solid #e5e5e5', borderRadius:999, padding:'8px 12px', fontSize:11, fontWeight:700, color:'#000', background:'#fff'}}>
+           <option value="orden">⭐ Orden del admin</option>
+           <option value="nuevo">🆕 Más nuevo</option>
+           <option value="precio-asc">💲 Precio: menor a mayor</option>
+           <option value="precio-desc">💲 Precio: mayor a menor</option>
+           <option value="nombre">🔤 Nombre A-Z</option>
+         </select>
+       </div>
+       {todasTallas.length>0 && (
+         <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
+           <span style={{fontSize:10, fontWeight:800}}>TALLA:</span>
+           <button onClick={()=>setFiltroTalla(null)} style={{padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #000', background:filtroTalla===null?'#000':'#fff', color:filtroTalla===null?'#fff':'#000'}}>Todas</button>
+           {todasTallas.map(t=>(
+             <button key={t} onClick={()=>setFiltroTalla(t===filtroTalla?null:t)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroTalla===t?'#000':'#fff', color:filtroTalla===t?'#fff':'#000'}}>{t}</button>
+           ))}
+         </div>
+       )}
+       <div style={{fontSize:10, opacity:0.6, color:'#000'}}>{platos.length} de {platosBase.length} prendas</div>
+     </div>
+   )}
+
    <div style={{display:'grid', gap:16, gridTemplateColumns:'repeat(2,1fr)'}}>
     {platos.map((pr)=>{
       const imgs = getImgs(pr)
@@ -115,6 +181,7 @@ export default function Tienda({params}){
       </div>
     })}
    </div>
+   {isBoutique && platos.length===0 && <div style={{textAlign:'center', padding:40, background:'#fff', borderRadius:16, marginTop:16, color:'#000'}}><p style={{fontWeight:800}}>No hay prendas con esos filtros</p><button onClick={()=>{setFiltroTalla(null); setBusqueda('')}} style={{marginTop:10, background:'#000', color:'#fff', padding:'8px 16px', borderRadius:999, fontSize:11}}>Limpiar filtros</button></div>}
   </div>
 
   {sel&&<div style={{position:'fixed', inset:0, zIndex:200, background:'#000', display:'flex', flexDirection:'column'}} onClick={()=>setSel(null)}>
