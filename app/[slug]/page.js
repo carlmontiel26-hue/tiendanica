@@ -9,23 +9,20 @@ export default function Tienda({params}){
  const [sel,setSel]=useState(null); const [showCart,setShowCart]=useState(false); const [showBebidas,setShowBebidas]=useState(false)
  const [tallaSel,setTallaSel]=useState(null)
  const [currentImg, setCurrentImg] = useState(0)
- // === NUEVO: Filtros solo boutique ===
  const [filtroTalla, setFiltroTalla]=useState(null)
- const [ordenProd, setOrdenProd]=useState('orden') // orden, nuevo, precio-asc, precio-desc, nombre
+ const [filtroTipo, setFiltroTipo]=useState(null)
+ const [ordenProd, setOrdenProd]=useState('orden')
  const [busqueda, setBusqueda]=useState('')
 
  useEffect(()=>{(async()=>{
-   const {data:s}=await supabase.from('stores').select('*').eq('slug',slug).single()
-   if(s){
-     setStore(s); 
-     // Intenta ordenar por orden si existe
-     let {data:p, error} = await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('orden',{ascending:true}).order('created_at',{ascending:false})
-     if(error){
-       const res = await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false})
-       p = res.data
+   try{
+     const {data:s}=await supabase.from('stores').select('*').eq('slug',slug).single()
+     if(s){
+       setStore(s); 
+       const {data:p} = await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false})
+       setProds(p||[])
      }
-     setProds(p||[])
-   }
+   }catch(e){ console.error(e) }
  })()},[slug])
 
  useEffect(()=>{if(sel){ setTallaSel(null); setCurrentImg(0) }},[sel])
@@ -58,38 +55,50 @@ export default function Tienda({params}){
    window.open(`https://wa.me/${store.whatsapp}?text=${encodeURIComponent(m)}`,'_blank')
  }
 
- const getImgs=(pr)=>[pr.image_url,...(pr.extra_images||[])].filter(Boolean).slice(0,3)
+ const getImgs=(pr)=>{
+   try{ return [pr.image_url,...(pr.extra_images||[])].filter(Boolean).slice(0,3) }
+   catch{ return [pr.image_url].filter(Boolean) }
+ }
 
  if(!store) return <div style={{padding:40, background:'#000', color:'#fff'}}>Cargando...</div>
  const isComida=store.tipo_tienda==='comida'; const isBoutique=store.tipo_tienda==='boutique'
  const platosBase=isComida?prods.filter(p=>!p.categoria||p.categoria==='plato'):prods
  const bebidas=isComida?prods.filter(p=>p.categoria==='bebida'||p.categoria==='extra'):[]
 
- // === LÓGICA NUEVA: Clasificación solo boutique ===
  const platos = useMemo(()=>{
    if(!isBoutique) return platosBase
    let filtered=[...platosBase]
    if(busqueda.trim()){
      const q=busqueda.toLowerCase()
-     filtered=filtered.filter(p=>p.name.toLowerCase().includes(q))
+     filtered=filtered.filter(p=> (p.name||'').toLowerCase().includes(q))
    }
    if(filtroTalla){
      filtered=filtered.filter(p=> (p.tallas||[]).includes(filtroTalla) )
    }
-   // Ordenamiento
-   if(ordenProd==='precio-asc') filtered.sort((a,b)=>a.price-b.price)
-   else if(ordenProd==='precio-desc') filtered.sort((a,b)=>b.price-a.price)
-   else if(ordenProd==='nombre') filtered.sort((a,b)=>a.name.localeCompare(b.name))
-   else if(ordenProd==='nuevo') filtered.sort((a,b)=> new Date(b.created_at)-new Date(a.created_at))
+   if(filtroTipo){
+     filtered=filtered.filter(p=> (p.categoria||'').toLowerCase()===filtroTipo.toLowerCase() )
+   }
+   if(ordenProd==='precio-asc') filtered.sort((a,b)=>(a.price||0)-(b.price||0))
+   else if(ordenProd==='precio-desc') filtered.sort((a,b)=>(b.price||0)-(a.price||0))
+   else if(ordenProd==='nombre') filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+   else if(ordenProd==='nuevo') filtered.sort((a,b)=> new Date(b.created_at||0)-new Date(a.created_at||0))
    else if(ordenProd==='orden') filtered.sort((a,b)=> (a.orden ?? 9999) - (b.orden ?? 9999))
    return filtered
- },[platosBase, isBoutique, filtroTalla, ordenProd, busqueda])
+ },[platosBase, isBoutique, filtroTalla, filtroTipo, ordenProd, busqueda])
 
  const cover=store.cover_image || store.image_url || prods[0]?.image_url || ''
+
  const todasTallas = useMemo(()=>{
    if(!isBoutique) return []
    const s=new Set()
    prods.forEach(p=> (p.tallas||[]).forEach(t=>s.add(t)) )
+   return Array.from(s).sort()
+ },[prods, isBoutique])
+
+ const todosTipos = useMemo(()=>{
+   if(!isBoutique) return []
+   const s=new Set()
+   prods.forEach(p=> { if(p.categoria && p.categoria!=='plato') s.add(p.categoria) })
    return Array.from(s)
  },[prods, isBoutique])
 
@@ -138,7 +147,6 @@ export default function Tienda({params}){
   </div>
 
   <div style={{maxWidth:1120, margin:'0 auto', padding:16, paddingBottom:112}}>
-   {/* === NUEVO: Filtros solo boutique === */}
    {isBoutique && (
      <div style={{background:'#fff', borderRadius:16, padding:12, marginBottom:16, display:'flex', flexDirection:'column', gap:10, boxShadow:'0 2px 10px rgba(0,0,0,0.05)'}}>
        <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
@@ -151,16 +159,27 @@ export default function Tienda({params}){
            <option value="nombre">🔤 Nombre A-Z</option>
          </select>
        </div>
+       <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
+         {todosTipos.length>0 && (
+           <>
+             <span style={{fontSize:10, fontWeight:800, color:'#000'}}>TIPO:</span>
+             <button onClick={()=>setFiltroTipo(null)} style={{padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #000', background:filtroTipo===null?'#000':'#fff', color:filtroTipo===null?'#fff':'#000'}}>Todos</button>
+             {todosTipos.map(t=>(
+               <button key={t} onClick={()=>setFiltroTipo(t===filtroTipo?null:t)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroTipo===t?'#000':'#fff', color:filtroTipo===t?'#fff':'#000', textTransform:'capitalize'}}>{t}</button>
+             ))}
+           </>
+         )}
+       </div>
        {todasTallas.length>0 && (
          <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
-           <span style={{fontSize:10, fontWeight:800}}>TALLA:</span>
+           <span style={{fontSize:10, fontWeight:800, color:'#000'}}>TALLA:</span>
            <button onClick={()=>setFiltroTalla(null)} style={{padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #000', background:filtroTalla===null?'#000':'#fff', color:filtroTalla===null?'#fff':'#000'}}>Todas</button>
            {todasTallas.map(t=>(
              <button key={t} onClick={()=>setFiltroTalla(t===filtroTalla?null:t)} style={{padding:'6px 10px', borderRadius:999, fontSize:11, fontWeight:700, border:'1px solid #ddd', background:filtroTalla===t?'#000':'#fff', color:filtroTalla===t?'#fff':'#000'}}>{t}</button>
            ))}
          </div>
        )}
-       <div style={{fontSize:10, opacity:0.6, color:'#000'}}>{platos.length} de {platosBase.length} prendas</div>
+       <div style={{fontSize:10, opacity:0.6, color:'#000'}}>{platos.length} de {platosBase.length} prendas {filtroTipo?`• ${filtroTipo}`:''} {filtroTalla?`• Talla ${filtroTalla}`:''}</div>
      </div>
    )}
 
@@ -174,14 +193,14 @@ export default function Tienda({params}){
           {pr.tallas?.length>0&&<span style={{position:'absolute', top:10, right:10, background:'#fff', color:'#000', fontSize:8, fontWeight:900, padding:'4px 6px', borderRadius:999}}>{pr.tallas.join('-')}</span>}
         </button>
         <div className="product-info" style={{padding:10}}>
-          <p className="name" style={{fontSize:11, color:'#000', lineHeight:1.2}}>{pr.name}</p>
+          <p className="name" style={{fontSize:11, color:'#000', lineHeight:1.2, textTransform:'capitalize'}}>{pr.name} {pr.categoria && pr.categoria!=='plato' ? <span style={{opacity:0.5, fontSize:9}}>• {pr.categoria}</span> : null}</p>
           <p className="price" style={{fontWeight:900, fontSize:13, marginTop:4, color:'#000'}}>C$ {pr.price}</p>
           <button onClick={()=>setSel(pr)} style={{marginTop:8, width:'100%', background:'#00E676', color:'#000', padding:10, borderRadius:999, fontSize:11, fontWeight:900, border:'none', cursor:'pointer'}}>📲 Comprar por WhatsApp</button>
         </div>
       </div>
     })}
    </div>
-   {isBoutique && platos.length===0 && <div style={{textAlign:'center', padding:40, background:'#fff', borderRadius:16, marginTop:16, color:'#000'}}><p style={{fontWeight:800}}>No hay prendas con esos filtros</p><button onClick={()=>{setFiltroTalla(null); setBusqueda('')}} style={{marginTop:10, background:'#000', color:'#fff', padding:'8px 16px', borderRadius:999, fontSize:11}}>Limpiar filtros</button></div>}
+   {isBoutique && platos.length===0 && <div style={{textAlign:'center', padding:40, background:'#fff', borderRadius:16, marginTop:16, color:'#000'}}><p style={{fontWeight:800}}>No hay prendas con esos filtros</p><button onClick={()=>{setFiltroTalla(null); setFiltroTipo(null); setBusqueda('')}} style={{marginTop:10, background:'#000', color:'#fff', padding:'8px 16px', borderRadius:999, fontSize:11}}>Limpiar filtros</button></div>}
   </div>
 
   {sel&&<div style={{position:'fixed', inset:0, zIndex:200, background:'#000', display:'flex', flexDirection:'column'}} onClick={()=>setSel(null)}>
