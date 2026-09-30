@@ -18,7 +18,6 @@ export default function Tienda({ params }){
      if(s){
        setStore(s);
        const {data:p}=await supabase.from('products').select('*').eq('store_id',s.id).eq('is_active',true).order('created_at',{ascending:false}); setProds(p||[])
-       supabase.from('visitas').insert([{ store_id: s.id }]).then(()=>{})
      }
    }catch{}
  })()},[slug])
