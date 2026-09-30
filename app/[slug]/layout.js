@@ -9,23 +9,32 @@ export async function generateMetadata({ params }) {
   if (!store) return { title: 'Tienda no encontrada' }
 
   const cover = store.cover_image || store.image_url || 'https://tiendanica.store/logo.png'
-  const title = `${store.name} - ${store.description?.slice(0,60) || 'Tienda en TiendaNica'}`
-  const desc = store.description || `Compra en ${store.name} por WhatsApp. Envíos disponibles.`
+  // WhatsApp corta título a 60-65 caracteres, descripción a 155
+  const title = `${store.name} - ${store.description?.slice(0,50) || 'Ropa, Accesorios y Calzado'}`.slice(0,65)
+  const desc = (store.description || `Envíos en todo Paiwas. Pide por WhatsApp ${store.whatsapp || ''}. Compra en ${store.name}`).slice(0,155)
 
   return {
+    metadataBase: new URL('https://tiendanica.store'),
     title: title,
     description: desc,
+    alternates: {
+      canonical: `/${slug}`,
+    },
     openGraph: {
       title: store.name,
       description: desc,
       url: `https://tiendanica.store/${slug}`,
+      siteName: 'TiendaNica.Store',
       type: 'website',
+      locale: 'es_NI',
       images: [
         {
           url: cover,
+          secureUrl: cover,
           width: 1200,
           height: 630,
           alt: store.name,
+          type: 'image/jpeg',
         },
       ],
     },
@@ -35,6 +44,11 @@ export async function generateMetadata({ params }) {
       description: desc,
       images: [cover],
     },
+    // WhatsApp usa estos también si están
+    other: {
+      'og:image:width': '1200',
+      'og:image:height': '630',
+    }
   }
 }
 
