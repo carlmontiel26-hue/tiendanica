@@ -1,10 +1,18 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-function getSupabase(){ const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; if(!url||!key) return null; return createClient(url,key) }
 
-export default function AdminPage({ params }){
- const { slug } = use(params)
+function getSupabase(){
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if(!url || !key) return null
+  return createClient(url, key)
+}
+
+export default function AdminPage(){
+ const params = useParams()
+ const slug = params?.slug
  const [loading, setLoading] = useState(true)
  const [store, setStore] = useState(null)
  const [prods, setProds] = useState([])
@@ -12,11 +20,7 @@ export default function AdminPage({ params }){
 
  useEffect(()=>{
    const supabase = getSupabase()
-   if(!supabase){
-     setEnvError(true)
-     setLoading(false)
-     return
-   }
+   if(!supabase){ setEnvError(true); setLoading(false); return }
    if(!slug) return
    ;(async()=>{
      try{
@@ -31,20 +35,19 @@ export default function AdminPage({ params }){
    })()
  },[slug])
 
- if(envError){
-   return <div style={{padding:40}}>Falta env vars en Vercel - Settings - Environment Variables</div>
- }
+ if(envError){ return <div style={{padding:40}}>Falta env vars en Vercel - Settings - Environment Variables - Production</div> }
  if(loading) return <div style={{padding:40}}>Cargando admin {slug}...</div>
- if(!store) return <div style={{padding:40}}>Tienda {slug} no encontrada</div>
+ if(!store) return <div style={{padding:40}}>Tienda {slug} no encontrada. Revisa Supabase tabla stores.</div>
 
  return (
    <main style={{padding:20, maxWidth:800, margin:'0 auto'}}>
      <h1 style={{fontWeight:900, fontSize:20}}>Admin - {store.name}</h1>
-     <p>{prods.length} productos</p>
+     <p>WhatsApp: {store.whatsapp}</p>
+     <p style={{marginTop:10}}>{prods.length} productos</p>
      <div style={{marginTop:16, display:'grid', gap:8}}>
        {prods.map(p=><div key={p.id} style={{border:'1px solid #eee', padding:10, borderRadius:10, display:'flex', gap:10}}>
          <img src={p.image_url} style={{width:60, height:60, objectFit:'cover', borderRadius:8}}/>
-         <div><b>{p.name}</b><br/>C$ {p.price}</div>
+         <div><b>{p.name}</b><br/>C$ {p.price} {p.is_active ? '' : '(inactivo)'}</div>
        </div>)}
      </div>
    </main>
