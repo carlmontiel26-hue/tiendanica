@@ -1,67 +1,62 @@
+'use client'
+import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-import Link from 'next/link'
+function getSupabase(){
+  const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim()
+  const key=(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'').trim()
+  if(!url||!key||!url.startsWith('http')) return null
+  return createClient(url,key)
+}
 
 export default function Home(){
-  const adminWhatsapp = "50581732620" // CAMBIA ESTE NUMERO POR EL TUYO
-  const waLink = `https://wa.me/${adminWhatsapp}?text=Hola! Quiero solicitar mi tienda en Tienda Nica. Mi negocio es: `
+  const [form,setForm]=useState({slug:'',name:'',whatsapp:'',desc:''})
+  const [loading,setLoading]=useState(false)
+  const [msg,setMsg]=useState('')
+
+  const createStore=async(e)=>{
+    e.preventDefault()
+    const supabase=getSupabase()
+    if(!supabase){ setMsg('Falta conectar Supabase en Vercel'); return }
+    if(!form.slug.match(/^[a-z0-9-]+$/)){ setMsg('Slug solo minusculas, numeros y guiones'); return }
+    setLoading(true)
+    try{
+      const {data,error}=await supabase.from('stores').insert({
+        slug: form.slug.toLowerCase(),
+        name: form.name,
+        whatsapp: form.whatsapp.replace(/[^0-9]/g,''),
+        description: form.desc,
+        tipo_tienda: 'boutique'
+      }).select().single()
+      if(error) throw error
+      setMsg(`✅ Tienda creada! Ve a tiendanica.store/${data.slug} y admin en /${data.slug}/admin`)
+      setForm({slug:'',name:'',whatsapp:'',desc:''})
+    }catch(err){ setMsg('Error: '+err.message) }
+    setLoading(false)
+  }
 
   return (
-    <main className="min-h-screen bg-white text-black">
-      <header className="border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" className="h-8" alt="Tienda Nica"/>
-            <span className="text-xs bg-gray-100 px-3 py-1 rounded-full">NICARAGUA • LATAM</span>
-          </div>
-          <div className="flex gap-3">
-            <a href={waLink} target="_blank" className="px-4 py-2 text-sm border rounded-full font-bold">Solicitar tienda</a>
-            <a href={waLink} target="_blank" className="px-5 py-2 bg-black text-white rounded-full text-sm font-bold">Quiero mi tienda →</a>
-          </div>
-        </div>
-      </header>
-
-      <section className="max-w-7xl mx-auto px-6 py-16 grid lg:grid-cols-2 gap-10 items-center">
-        <div>
-          <div className="inline-flex items-center gap-2 bg-gray-50 border px-3 py-1 rounded-full text-xs mb-6">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> 32 tiendas activas hoy • hecho para Nicaragua
-          </div>
-          <h1 className="text-6xl font-black leading-[0.9] tracking-tight">Crea tu tienda online<br/>en 5 minutos. Vende por <br/><span className="relative">WhatsApp.<span className="absolute -top-2 -right-16 bg-[#00D084] text-black text-base px-3 py-1 rounded-full rotate-3">Sin código</span></span></h1>
-          <p className="mt-8 text-gray-600 text-lg max-w-xl">Sin programadores. Sin comisiones por venta. Sube productos, comparte tu link y recibe pedidos directo en tu WhatsApp. Cobra en C$ o USD.</p>
-          <div className="mt-8 flex gap-3">
-            <a href={waLink} target="_blank" className="px-7 py-3 bg-black text-white rounded-full font-bold">Solicitar mi tienda por WhatsApp →</a>
-            <Link href="/cafe-dulce-aroma" className="px-7 py-3 border rounded-full font-bold">Ver tienda ejemplo</Link>
-          </div>
-          <div className="mt-2 text-xs text-gray-400">Tú solicitas, nosotros la creamos y te damos acceso en 24h</div>
-          <div className="mt-8 flex gap-6 text-sm text-gray-500">
-            <span>✅ Pagos por transferencia</span><span>✅ Entrega en todo NI</span><span>✅ Dominio .com.ni</span>
-          </div>
+    <main style={{minHeight:'100vh', background:'#0A0A0A', color:'#fff', padding:20}}>
+      <div style={{maxWidth:900, margin:'0 auto'}}>
+        <h1 style={{fontSize:32, fontWeight:900}}>TiendaNica.Store</h1>
+        <p style={{opacity:0.7, marginTop:8}}>Crea tu tienda en 30 segundos. Boutique con tallas, carrito y WhatsApp.</p>
+        
+        <div style={{marginTop:30, background:'#fff', color:'#000', borderRadius:20, padding:20}}>
+          <h2 style={{fontWeight:900, fontSize:18}}>Crear nueva tienda</h2>
+          <form onSubmit={createStore} style={{marginTop:16, display:'grid', gap:12}}>
+            <input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nombre de la tienda (Ej: Moda Nica)" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
+            <input required value={form.slug} onChange={e=>setForm({...form,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')})} placeholder="slug unico (Ej: moda-nica) - sera tu link" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
+            <input required value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} placeholder="WhatsApp con codigo pais (Ej: 50588888888)" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
+            <input value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="Descripcion corta" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
+            <button disabled={loading} style={{background:'#000', color:'#fff', padding:14, borderRadius:999, fontWeight:900, border:'none'}}>{loading?'Creando...':'Crear tienda'}</button>
+          </form>
+          {msg && <div style={{marginTop:12, background:'#f5f5f5', padding:10, borderRadius:10, fontSize:13}}>{msg}</div>}
         </div>
 
-        <div className="bg-white border rounded-[20px] p-4 shadow-xl">
-          <div className="flex justify-between items-center text-xs text-gray-400 mb-4">
-            <span className="flex gap-1"><span className="w-3 h-3 bg-gray-200 rounded-full"></span><span className="w-3 h-3 bg-gray-200 rounded-full"></span><span className="w-3 h-3 bg-gray-200 rounded-full"></span></span>
-            <span>tiendanica.com/cafelabruna • en vivo</span>
-            <span className="bg-[#00D084] text-black px-2 py-0.5 rounded-full font-bold">LIVE</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {n:'Café Bourbon Lavado 250g', p:'C$ 180', img:'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400'},
-              {n:'Café Pacamara Honey 500g', p:'C$ 320', img:'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400'},
-              {n:'Cold Brew La Bruma', p:'C$ 95', img:'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400'},
-              {n:'Café Catuai Natural 1kg', p:'C$ 550', img:'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400'},
-            ].map(it=>(
-              <div key={it.n} className="border rounded-2xl overflow-hidden">
-                <img src={it.img} className="h-32 w-full object-cover"/>
-                <div className="p-3"><p className="text-sm font-bold">{it.n}</p><p className="text-sm text-gray-500">{it.p}</p></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 bg-black text-white rounded-2xl p-4 flex justify-between items-center">
-            <div><p className="text-xs text-gray-400">PEDIDOS HOY</p><p className="text-xl font-bold">C$ 2,340 • 7 pedidos</p></div>
-            <div className="w-10 h-10 bg-[#00D084] rounded-full flex items-center justify-center text-black">↗</div>
-          </div>
+        <div style={{marginTop:30}}>
+          <a href="/admin" style={{color:'#00E676', textDecoration:'underline'}}>Ver todas las tiendas → /admin</a>
         </div>
-      </section>
+      </div>
     </main>
   )
 }
