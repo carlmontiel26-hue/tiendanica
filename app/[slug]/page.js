@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, use } from 'react'
-import { createClient } from '@supabase/supabase-js'
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+import { getSupabase } from '../lib/supabaseClient'
 
 export default function Page({ params }){
  const { slug } = use(params)
@@ -19,6 +18,8 @@ export default function Page({ params }){
 
  useEffect(()=>{
    if(!slug) return
+   const supabase = getSupabase()
+   if(!supabase) return
    ;(async()=>{
      try{
        const {data:s, error:e1}=await supabase.from('stores').select('*').eq('slug',slug).single()
