@@ -10,7 +10,7 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-export default function StorePremiumBannerMobileFix(){
+export default function StoreBannerCompletaMovil(){
   const { slug } = useParams()
   const [store,setStore]=useState(null)
   const [prods,setProds]=useState([])
@@ -65,10 +65,7 @@ export default function StorePremiumBannerMobileFix(){
   const isComida=store.tipo_tienda==='comida'
   const isGeneral=store.tipo_tienda==='general'
   const isBoutique=store.tipo_tienda==='boutique'
-
   const cover=store.cover_image || store.image_url || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200'
-
-  // COLORES PREMIUM PARA FONDO
   const bgColor = isComida ? '#0A0A0A' : isGeneral ? '#0F172A' : '#0A0A0A'
   const accentGlow = isComida ? 'rgba(255,107,0,0.35)' : isGeneral ? 'rgba(0,102,255,0.30)' : 'rgba(0,230,118,0.28)'
 
@@ -93,45 +90,44 @@ export default function StorePremiumBannerMobileFix(){
           position: absolute;
           inset: 0;
           background: radial-gradient(600px 300px at 20% 0%, ${accentGlow}, transparent 70%), radial-gradient(500px 300px at 80% 20%, ${accentGlow}, transparent 70%);
-          opacity: 1;
         }
+        /* MOVIL: PORTADA COMPLETA SIN CORTE */
         @media (max-width: 768px) {
           .banner-wrap {
-            height: 62vh;
-            min-height: 380px;
-            max-height: 460px;
+            height: auto !important;
+            min-height: unset;
+            max-height: unset;
           }
           .banner-img {
-            object-fit: cover;
-            object-position: center top;
+            position: relative !important;
+            inset: auto !important;
+            width: 100% !important;
+            height: auto !important;
+            max-height: 68vh;
+            object-fit: contain !important;
+            object-position: center top !important;
+            background: ${bgColor};
           }
-        }
-        @media (max-width: 480px) {
-          .banner-wrap {
-            height: 58vh;
-            min-height: 360px;
-            max-height: 420px;
+          .banner-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(400px 200px at 30% 10%, ${accentGlow}, transparent 60%);
+            z-index: 0;
           }
         }
       `}</style>
 
-      {/* BANNER PREMIUM CON FONDO DE COLOR + IMAGEN NO CORTADA EN MOVIL */}
       <div className="banner-wrap">
-        {/* Fondo de color degradado premium - AHORA SI SE VE EL COLOR */}
-        <div style={{position:'absolute', inset:0, background: isBoutique ? 'linear-gradient(180deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%)' : isComida ? 'linear-gradient(180deg, #0A0A0A 0%, #1A1200 50%, #0A0A0A 100%)' : 'linear-gradient(180deg, #0A0A0A 0%, #0F172A 60%, #0A0A0A 100%)'}}/>
-        <div className="banner-bg-blur"/>
+        <div style={{position:'absolute', inset:0, background: isBoutique ? 'linear-gradient(180deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%)' : isComida ? 'linear-gradient(180deg, #0A0A0A 0%, #1A1200 50%, #0A0A0A 100%)' : 'linear-gradient(180deg, #0A0A0A 0%, #0F172A 60%, #0A0A0A 100%)', zIndex:0}}/>
+        <div className="banner-bg-blur" style={{zIndex:0}}/>
         
-        {/* Imagen con overlay para que no se corte feo */}
-        <img src={cover} alt="portada" className="banner-img" style={{opacity:0.92}}/>
+        <img src={cover} alt="portada" className="banner-img" style={{zIndex:1, opacity:0.95}}/>
         
-        {/* Degradado premium con color - PARA QUE SE VEA EL CAMBIO */}
-        <div style={{position:'absolute', inset:0, background: isBoutique ? 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 18%, rgba(0,230,118,0.18) 35%, rgba(10,10,10,0.2) 65%, transparent 100%)' : isComida ? 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 15%, rgba(255,107,0,0.28) 32%, rgba(10,10,10,0.15) 70%, transparent 100%)' : 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 15%, rgba(0,102,255,0.28) 32%, rgba(10,10,10,0.15) 70%, transparent 100%)'}}/>
-        
-        {/* Linea superior de color */}
-        <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: isBoutique ? 'linear-gradient(90deg, #00E676, #00C853)' : isComida ? 'linear-gradient(90deg, #FF6B00, #FF8A3D)' : 'linear-gradient(90deg, #0066FF, #3385FF)'}}/>
+        <div style={{position:'absolute', inset:0, zIndex:2, background: isBoutique ? 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 22%, rgba(0,230,118,0.16) 38%, rgba(10,10,10,0.05) 68%, transparent 100%)' : isComida ? 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 18%, rgba(255,107,0,0.22) 35%, rgba(10,10,10,0.05) 70%, transparent 100%)' : 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 18%, rgba(0,102,255,0.22) 35%, rgba(10,10,10,0.05) 70%, transparent 100%)', pointerEvents:'none'}}/>
+        <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: isBoutique ? 'linear-gradient(90deg, #00E676, #00C853)' : isComida ? 'linear-gradient(90deg, #FF6B00, #FF8A3D)' : 'linear-gradient(90deg, #0066FF, #3385FF)', zIndex:3}}/>
 
-        {/* Header mini */}
-        <div style={{position:'absolute',top:12,left:12,right:12, display:'flex', justifyContent:'space-between', alignItems:'flex-start', zIndex:2}}>
+        <div style={{position:'absolute',top:12,left:12,right:12, display:'flex', justifyContent:'space-between', alignItems:'flex-start', zIndex:4}}>
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
             {store.logo_url && <img src={store.logo_url} style={{width:46,height:46,borderRadius:13,background:'#fff',objectFit:'cover', border:'2px solid rgba(255,255,255,0.9)', boxShadow:'0 4px 12px rgba(0,0,0,0.4)'}}/>}
             <div style={{background:'rgba(0,0,0,0.55)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{isBoutique?'BOUTIQUE':isComida?'COMIDA':'GENERAL'}</div>
@@ -139,19 +135,12 @@ export default function StorePremiumBannerMobileFix(){
           <div style={{background:'rgba(255,255,255,0.92)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>● Abierto</div>
         </div>
 
-        {/* Card info - con fondo premium de color, no blanco plano */}
-        <div style={{position:'absolute',bottom:12,left:12,right:12, zIndex:2}}>
+        <div style={{position:'absolute',bottom:12,left:12,right:12, zIndex:4}}>
           <div style={{
             background: isComida ? 'linear-gradient(135deg, #1A1A1A 0%, #141414 100%)' : 'linear-gradient(135deg, #ffffff 0%, #faf8f6 100%)',
-            borderRadius:20,
-            padding:14,
-            display:'flex',
-            justifyContent:'space-between',
-            alignItems:'center',
+            borderRadius:20, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center',
             boxShadow:'0 20px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.7)',
-            border: isComida ? '1px solid rgba(255,107,0,0.15)' : '1px solid rgba(0,0,0,0.06)',
-            overflow:'hidden',
-            position:'relative'
+            border: isComida ? '1px solid rgba(255,107,0,0.15)' : '1px solid rgba(0,0,0,0.06)', overflow:'hidden', position:'relative'
           }}>
             <div style={{position:'absolute',top:0,left:0,right:0,height:1, background: isBoutique ? 'linear-gradient(90deg, transparent, rgba(0,230,118,0.5), transparent)' : isComida ? 'linear-gradient(90deg, transparent, rgba(255,107,0,0.5), transparent)' : 'linear-gradient(90deg, transparent, rgba(0,102,255,0.4), transparent)'}}/>
             <div style={{flex:1}}>
@@ -167,7 +156,6 @@ export default function StorePremiumBannerMobileFix(){
         </div>
       </div>
 
-      {/* CART */}
       <div style={{position:'fixed', bottom:16, right:12, zIndex:60}}>
         {showCart&&<div style={{background:'#fff', width:'92vw', maxWidth:360, borderRadius:20, padding:14, boxShadow:'0 20px 40px rgba(0,0,0,0.3)', marginBottom:10, color:'#000'}}>
           <div style={{display:'flex',justifyContent:'space-between'}}><b>{isComida?'Mi Pedido':`Carrito (${count})`}</b><button onClick={()=>setShowCart(false)} style={{border:'none',background:'#eee',borderRadius:999,width:28,height:28}}>X</button></div>
@@ -181,7 +169,6 @@ export default function StorePremiumBannerMobileFix(){
         <button onClick={()=>setShowCart(!showCart)} style={{background:'#000', color:'#fff', padding:'13px 18px', borderRadius:999, fontWeight:900, border:'none', boxShadow:'0 10px 20px rgba(0,0,0,0.3)', fontSize:13}}>🛒 {count? `${count} • C$ ${total}`: isComida?'Ver pedido':'Carrito'}</button>
       </div>
 
-      {/* CONTENT BLANCO */}
       <div style={{maxWidth:1120, margin:'0 auto', padding:14}}>
         <div style={{background:'#fff', borderRadius:16, padding:12, display:'flex', flexDirection:'column', gap:10, boxShadow:'0 1px 3px rgba(0,0,0,0.06)', border:'1px solid #f0f0f0'}}>
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder={isComida?'Buscar plato...':isGeneral?'Buscar producto...':'Buscar: vestido, blusa...'} style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'10px 14px', fontSize:13}}/>
@@ -191,12 +178,8 @@ export default function StorePremiumBannerMobileFix(){
         <div style={{marginTop:14, display:'grid', gridTemplateColumns: isGeneral? '1fr':'repeat(2,1fr)', gap: isGeneral?10:14}}>
           {filtered.map(p=>{
             const im=imgs(p)
-            if(isGeneral){
-              return <div key={p.id} style={{background:'#fff', borderRadius:14, padding:10, display:'flex', gap:10, border:'1px solid #f0f0f0'}}><img src={p.image_url} style={{width:72,height:72,borderRadius:10,objectFit:'cover'}}/><div style={{flex:1}}><b style={{fontSize:13}}>{p.name}</b> {p.sku&&<span style={{fontSize:10, opacity:0.5}}>SKU:{p.sku}</span>}<br/><span style={{fontSize:11, opacity:0.6}}>{p.categoria||''}</span><div style={{marginTop:4, display:'flex', gap:8, alignItems:'center'}}><span style={{fontWeight:900}}>C$ {p.price}</span><button onClick={()=>setSel(p)} style={{marginLeft:'auto', background:'#000', color:'#fff', border:'none', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700}}>Ver</button></div></div></div>
-            }
-            if(isComida){
-              return <div key={p.id} style={{background:'#fff', borderRadius:14, overflow:'hidden', display:'flex', gap:0, border:'1px solid #f0f0f0'}}><img src={p.image_url} style={{width:90,height:90,objectFit:'cover'}}/><div style={{padding:10, flex:1}}><b style={{fontSize:13, color:'#000'}}>{p.name}</b><p style={{fontSize:11, color:'#666', marginTop:2}}>{p.categoria||'Plato'}</p><div style={{marginTop:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}><span style={{color:'#FF6B00', fontWeight:900}}>C$ {p.price}</span><button onClick={()=>setSel(p)} style={{background:'#000', color:'#fff', border:'none', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:800}}>Añadir</button></div></div></div>
-            }
+            if(isGeneral) return <div key={p.id} style={{background:'#fff', borderRadius:14, padding:10, display:'flex', gap:10, border:'1px solid #f0f0f0'}}><img src={p.image_url} style={{width:72,height:72,borderRadius:10,objectFit:'cover'}}/><div style={{flex:1}}><b style={{fontSize:13}}>{p.name}</b><br/><span style={{fontSize:11, opacity:0.6}}>{p.categoria||''}</span><div style={{marginTop:4, display:'flex', gap:8, alignItems:'center'}}><span style={{fontWeight:900}}>C$ {p.price}</span><button onClick={()=>setSel(p)} style={{marginLeft:'auto', background:'#000', color:'#fff', border:'none', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700}}>Ver</button></div></div></div>
+            if(isComida) return <div key={p.id} style={{background:'#fff', borderRadius:14, overflow:'hidden', display:'flex', gap:0, border:'1px solid #f0f0f0'}}><img src={p.image_url} style={{width:90,height:90,objectFit:'cover'}}/><div style={{padding:10, flex:1}}><b style={{fontSize:13, color:'#000'}}>{p.name}</b><p style={{fontSize:11, color:'#666', marginTop:2}}>{p.categoria||'Plato'}</p><div style={{marginTop:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}><span style={{color:'#FF6B00', fontWeight:900}}>C$ {p.price}</span><button onClick={()=>setSel(p)} style={{background:'#000', color:'#fff', border:'none', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:800}}>Añadir</button></div></div></div>
             return <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}><button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'4/5',border:'none',background:'#FBF9F7',position:'relative', overflow:'hidden'}}><img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'cover'}}/>{im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}{p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>{p.tallas.join(' ')}</span>}</button><div style={{padding:12, background:'#fff'}}><p style={{fontSize:12,fontWeight:600, color:'#000'}}>{p.name}</p><p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p><button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Ver tallas</button></div></div>
           })}
         </div>
