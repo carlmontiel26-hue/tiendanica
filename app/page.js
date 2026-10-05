@@ -1,91 +1,63 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 
-function getSupabase(){
-  const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim()
-  const key=(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'').trim()
-  if(!url||!key||!url.startsWith('http')) return null
-  return createClient(url,key)
-}
+export default function PublicHome(){
+  const [tipo,setTipo]=useState('boutique')
+  const waNumber='50576478028' // Cambia por tu WhatsApp de ventas
 
-export default function Home(){
-  const [form,setForm]=useState({slug:'',name:'',whatsapp:'',desc:'',tipo:'boutique'})
-  const [logoFile,setLogoFile]=useState(null)
-  const [coverFile,setCoverFile]=useState(null)
-  const [loading,setLoading]=useState(false)
-  const [msg,setMsg]=useState('')
-
-  const uploadFile=async(supabase, file, bucket)=>{
-    const ext=file.name.split('.').pop()
-    const name=`${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const {data,error}=await supabase.storage.from(bucket).upload(name, file)
-    if(error) throw error
-    const {data:urlData}=supabase.storage.from(bucket).getPublicUrl(data.path)
-    return urlData.publicUrl
-  }
-
-  const createStore=async(e)=>{
-    e.preventDefault()
-    const supabase=getSupabase()
-    if(!supabase){ setMsg('Falta env vars'); return }
-    if(!form.slug.match(/^[a-z0-9-]+$/)){ setMsg('Slug solo minusculas, numeros y guiones'); return }
-    setLoading(true)
-    try{
-      let logoUrl=null, coverUrl=null
-      if(logoFile) logoUrl=await uploadFile(supabase, logoFile, 'store-assets')
-      if(coverFile) coverUrl=await uploadFile(supabase, coverFile, 'store-assets')
-      const {data,error}=await supabase.from('stores').insert({
-        slug: form.slug.toLowerCase(),
-        name: form.name,
-        whatsapp: form.whatsapp.replace(/[^0-9]/g,''),
-        description: form.desc,
-        tipo_tienda: form.tipo,
-        logo_url: logoUrl,
-        cover_image: coverUrl
-      }).select().single()
-      if(error) throw error
-      setMsg(`✅ ${data.name} creada! Link: /${data.slug} - Admin: /${data.slug}/admin`)
-      setForm({slug:'',name:'',whatsapp:'',desc:'',tipo:'boutique'}); setLogoFile(null); setCoverFile(null)
-    }catch(err){ setMsg('Error: '+err.message) }
-    setLoading(false)
+  const solicitar=(t)=>{
+    const msg=`Hola TiendaNica! Quiero solicitar una tienda tipo ${t}. Mi negocio es: `
+    window.open(`https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(msg)}`,'_blank')
   }
 
   return (
-    <main style={{minHeight:'100vh', background:'#0A0A0A', color:'#fff', padding:20}}>
-      <div style={{maxWidth:1000, margin:'0 auto'}}>
-        <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:20}}>
-          <img src="https://tiendanica.store/logo.png" alt="logo" style={{height:36}} onError={(e)=>e.target.style.display='none'}/>
-          <div><h1 style={{fontSize:28, fontWeight:900, letterSpacing:-1}}>Tienda<span style={{color:'#00E676'}}>Nica</span>.Store</h1><p style={{opacity:0.6, fontSize:12}}>Plataforma premium - crea tiendas ilimitadas</p></div>
-        </div>
+    <main style={{minHeight:'100vh', background:'#0A0A0A', color:'#fff'}}>
+      <div style={{maxWidth:1100, margin:'0 auto', padding:20}}>
+        <header style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0'}}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <div style={{width:40,height:40,background:'#fff',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',color:'#000',fontWeight:900}}>TN</div>
+            <div><h1 style={{fontWeight:900, fontSize:18}}>Tienda<span style={{color:'#00E676'}}>Nica</span>.Store</h1><p style={{fontSize:10, opacity:0.5}}>Plataforma premium Nicaragua</p></div>
+          </div>
+          <a href={`https://wa.me/${waNumber}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'10px 16px', borderRadius:999, textDecoration:'none', fontWeight:800, fontSize:12}}>Solicitar tienda</a>
+        </header>
 
-        <div style={{background:'#fff', color:'#000', borderRadius:24, padding:22}}>
-          <h2 style={{fontWeight:900, fontSize:18}}>Crear nueva tienda premium</h2>
-          <p style={{fontSize:12, opacity:0.6, marginTop:4}}>Elige tipo: boutique (ropa), comida (restaurante), general (ferreteria/pulperia). Todo se vende por WhatsApp.</p>
-          <form onSubmit={createStore} style={{marginTop:16, display:'grid', gap:12}}>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-              <select value={form.tipo} onChange={e=>setForm({...form,tipo:e.target.value})} style={{border:'1px solid #ddd', padding:12, borderRadius:12, fontWeight:700}}>
-                <option value="boutique">👗 Boutique - Ropa y moda</option>
-                <option value="comida">🍔 Comida - Restaurante</option>
-                <option value="general">🛠️ General - Ferreteria / Variedad</option>
-              </select>
-              <input required value={form.slug} onChange={e=>setForm({...form,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')})} placeholder="slug unico: moda-nica" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
-            </div>
-            <input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nombre tienda" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
-            <input required value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})} placeholder="WhatsApp con pais: 505..." style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
-            <input value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="Descripcion corta" style={{border:'1px solid #ddd', padding:12, borderRadius:12}}/>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-              <div><label style={{fontSize:11, fontWeight:700}}>Logo del dueño (subida local)</label><input type="file" accept="image/*" onChange={e=>setLogoFile(e.target.files[0])} style={{width:'100%', marginTop:6, fontSize:12}}/></div>
-              <div><label style={{fontSize:11, fontWeight:700}}>Portada editable (subida local)</label><input type="file" accept="image/*" onChange={e=>setCoverFile(e.target.files[0])} style={{width:'100%', marginTop:6, fontSize:12}}/></div>
-            </div>
-            <button disabled={loading} style={{background:'#000', color:'#fff', padding:14, borderRadius:999, fontWeight:900, border:'none'}}>{loading?'Creando...':'Crear tienda premium'}</button>
-          </form>
-          {msg && <div style={{marginTop:12, background:'#F6F3F0', padding:12, borderRadius:12, fontSize:13, fontWeight:600}}>{msg}</div>}
-        </div>
+        <section style={{marginTop:30, textAlign:'center'}}>
+          <h2 style={{fontSize:36, fontWeight:900, lineHeight:1.1}}>Tu tienda online<br/>vende por <span style={{color:'#00E676'}}>WhatsApp</span><br/>en 24h</h2>
+          <p style={{marginTop:12, opacity:0.7, fontSize:14, maxWidth:500, margin:'12px auto'}}>Boutique, restaurante o ferretería. Con portada editable, logo del dueño, fotos locales, carrito y cobro por WhatsApp. Sin comisiones.</p>
+          <div style={{marginTop:20, display:'flex', gap:10, justifyContent:'center'}}>
+            <button onClick={()=>solicitar(tipo)} style={{background:'#fff', color:'#000', padding:'14px 24px', borderRadius:999, fontWeight:900, border:'none'}}>Solicitar mi tienda ahora</button>
+            <a href="#tipos" style={{border:'1px solid #333', color:'#fff', padding:'14px 24px', borderRadius:999, textDecoration:'none', fontWeight:700}}>Ver tipos</a>
+          </div>
+        </section>
 
-        <div style={{marginTop:24, display:'flex', gap:10}}>
-          <a href="/admin" style={{background:'#00E676', color:'#000', padding:'12px 18px', borderRadius:999, textDecoration:'none', fontWeight:800}}>Super Admin → Ver todas</a>
-          <span style={{fontSize:12, opacity:0.5, alignSelf:'center'}}>Crea tiendas ilimitadas para monetizar</span>
+        <section id="tipos" style={{marginTop:40, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px,1fr))', gap:14}}>
+          {[
+            {id:'boutique', icon:'👗', title:'Boutique Premium', desc:'Moda, tallas S/M/L/XL, categorias vestidos/blusas/jeans, 4 fotos por producto, buscador', color:'#F6F3F0', text:'#000'},
+            {id:'comida', icon:'🍔', title:'Comida & Restaurante', desc:'Menú por categorias platos/bebidas/extras, precio C$, foto grande, pedido rápido', color:'#FF6B00', text:'#fff'},
+            {id:'general', icon:'🛠️', title:'General & Ferreteria', desc:'SKU, stock, categorias herramientas/hogar, lista utilitaria para pulperias', color:'#0066FF', text:'#fff'},
+          ].map(t=>(
+            <div key={t.id} style={{background: t.id==='boutique'?'#fff':'#1A1A1A', borderRadius:20, padding:16, border: tipo===t.id?'2px solid #00E676':'1px solid #222'}}>
+              <div style={{width:44,height:44,borderRadius:12,background:t.color,color:t.text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{t.icon}</div>
+              <h3 style={{marginTop:10, fontWeight:900, color: t.id==='boutique'?'#000':'#fff'}}>{t.title}</h3>
+              <p style={{fontSize:12, opacity:0.7, marginTop:6, color: t.id==='boutique'?'#000':'#aaa'}}>{t.desc}</p>
+              <button onClick={()=>{setTipo(t.id); solicitar(t.id)}} style={{marginTop:12, width:'100%', background:'#000', color:'#fff', padding:'10px', borderRadius:999, fontWeight:700, border:'none'}}>Solicitar {t.id}</button>
+            </div>
+          ))}
+        </section>
+
+        <section style={{marginTop:40, background:'#fff', color:'#000', borderRadius:24, padding:20}}>
+          <h3 style={{fontWeight:900}}>¿Cómo funciona?</h3>
+          <div style={{marginTop:12, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:12, fontSize:12}}>
+            <div><b>1. Solicitas</b><br/>Nos escribes por WhatsApp con tu tipo de tienda</div>
+            <div><b>2. Creamos</b><br/>En super admin creamos tu slug, logo y portada en 5 min</div>
+            <div><b>3. Te pasamos tu admin privado</b><br/>Link tipo tiendanica.store/tu-negocio/admin + clave = tu WhatsApp. Subes fotos locales ilimitadas</div>
+            <div><b>4. Vendes</b><br/>Tus clientes añaden al carrito y te compran por WhatsApp. Sin admin visible para ellos</div>
+          </div>
+        </section>
+
+        <div style={{marginTop:30, textAlign:'center', paddingBottom:30}}>
+          <p style={{fontSize:11, opacity:0.4}}>© 2025 TiendaNica.Store • Plataforma premium • Hecho en Nicaragua • Powered by TiendaNica</p>
+          <div style={{marginTop:8, opacity:0.2, fontSize:10}}>Super admin privado en /admin • Admin dueño privado en /[slug]/admin</div>
         </div>
       </div>
     </main>
