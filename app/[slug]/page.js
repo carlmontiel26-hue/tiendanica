@@ -10,7 +10,7 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-export default function StoreBannerCompactMovil(){
+export default function StoreBannerTransparenteAngosto(){
   const { slug } = useParams()
   const [store,setStore]=useState(null)
   const [prods,setProds]=useState([])
@@ -62,13 +62,10 @@ export default function StoreBannerCompactMovil(){
   if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()))
   if(cat) filtered=filtered.filter(p=>p.categoria===cat)
   const cats=[...new Set(prods.map(p=>p.categoria).filter(Boolean))]
-  const isComida=store.tipo_tienda==='comida'
-  const isGeneral=store.tipo_tienda==='general'
-  const isBoutique=store.tipo_tienda==='boutique'
   const cover=store.cover_image || store.image_url || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200'
 
   return (
-    <main style={{minHeight:'100vh', background: isComida?'#0A0A0A':'#F6F3F0', color:isComida?'#fff':'#000', paddingBottom:90}}>
+    <main style={{minHeight:'100vh', background:'#F6F3F0', color:'#000', paddingBottom:90}}>
       <style>{`
         .banner-wrap {
           position: relative;
@@ -96,16 +93,9 @@ export default function StoreBannerCompactMovil(){
           justify-content: space-between;
           align-items: center;
           box-shadow: 0 20px 40px rgba(0,0,0,0.35);
-          border: 1px solid rgba(0,0,0,0.06);
           z-index: 4;
         }
-        .info-desc {
-          display: block;
-        }
-        .info-badges {
-          display: flex;
-        }
-        /* MOVIL COMPACTO - 50% MAS PEQUEÑO */
+        /* MOVIL: TRANSPARENTE Y MAS ANGOSTO */
         @media (max-width: 768px) {
           .banner-wrap {
             height: auto !important;
@@ -118,70 +108,57 @@ export default function StoreBannerCompactMovil(){
             background: #0A0A0A;
           }
           .info-card {
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            padding: 10px 12px !important;
-            border-radius: 16px !important;
-            min-height: 68px;
+            bottom: 8px !important;
+            left: 8px !important;
+            right: 8px !important;
+            padding: 8px 10px !important;
+            border-radius: 14px !important;
+            min-height: 52px !important;
+            max-height: 52px !important;
+            background: rgba(0,0,0,0.42) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(255,255,255,0.18) !important;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25) !important;
           }
           .info-card h1 {
-            font-size: 15px !important;
-            line-height: 1.1 !important;
-          }
-          .info-desc {
-            display: none !important;
-          }
-          .info-badges {
-            display: none !important;
+            font-size: 13px !important;
+            color: #fff !important;
+            letter-spacing: -0.2px !important;
           }
           .info-logo {
-            width: 38px !important;
-            height: 38px !important;
+            width: 32px !important;
+            height: 32px !important;
+            border: 1.5px solid rgba(255,255,255,0.8) !important;
           }
           .wa-btn {
-            padding: 8px 12px !important;
-            font-size: 11px !important;
-          }
-          .wa-btn .wa-text-long {
-            display: none;
-          }
-          .wa-btn .wa-text-short {
-            display: inline !important;
+            padding: 6px 10px !important;
+            font-size: 10px !important;
+            background: #00E676 !important;
+            color: #000 !important;
+            box-shadow: 0 2px 8px rgba(0,230,118,0.35) !important;
           }
         }
       `}</style>
 
       <div className="banner-wrap">
         <div style={{position:'absolute', inset:0, background: 'linear-gradient(180deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%)', zIndex:0}}/>
-        <div style={{position:'absolute', inset:0, background: 'radial-gradient(600px 300px at 20% 0%, rgba(0,230,118,0.22), transparent 70%), radial-gradient(500px 300px at 80% 20%, rgba(0,230,118,0.18), transparent 70%)', zIndex:0}}/>
         <img src={cover} alt="portada" className="banner-img" style={{zIndex:1, opacity:0.95}}/>
-        <div style={{position:'absolute', inset:0, zIndex:2, background: 'linear-gradient(to top, #0A0A0A 0%, #0A0A0A 20%, rgba(0,230,118,0.14) 38%, transparent 75%)', pointerEvents:'none'}}/>
+        <div style={{position:'absolute', inset:0, zIndex:2, background: 'linear-gradient(to top, #0A0A0A 0%, transparent 70%)', pointerEvents:'none'}}/>
         <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: 'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
 
-        <div style={{position:'absolute',top:12,left:12,right:12, display:'flex', justifyContent:'space-between', alignItems:'flex-start', zIndex:4}}>
-          <div style={{display:'flex', gap:8, alignItems:'center'}}>
-            <div style={{background:'rgba(0,0,0,0.55)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>BOUTIQUE</div>
-          </div>
-          <div style={{background:'rgba(255,255,255,0.92)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>● Abierto</div>
+        <div style={{position:'absolute',top:10,left:10,right:10, display:'flex', justifyContent:'space-between', zIndex:4}}>
+          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>BOUTIQUE</div>
+          <div style={{background:'rgba(255,255,255,0.9)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>● Abierto</div>
         </div>
 
-        {/* INFO CARD COMPACTA */}
+        {/* BANNER TRANSPARENTE ANGOSTO */}
         <div className="info-card">
-          <div style={{display:'flex', gap:10, alignItems:'center', flex:1, minWidth:0}}>
-            {store.logo_url && <img src={store.logo_url} className="info-logo" style={{width:46,height:46,borderRadius:12,background:'#fff',objectFit:'cover', border:'2px solid #fff', flexShrink:0}}/>}
-            <div style={{flex:1, minWidth:0}}>
-              <h1 style={{fontWeight:900, fontSize:20, textTransform:'uppercase', letterSpacing:-0.5, color:'#000', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{store.name}</h1>
-              <p className="info-desc" style={{fontSize:11, opacity:0.6, marginTop:2, color:'#666', lineHeight:1.2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{store.description||'Moda con estilo'}</p>
-              <div className="info-badges" style={{marginTop:6, gap:5}}>
-                <span style={{fontSize:9, background:'#000', color:'#fff', padding:'3px 8px', borderRadius:999, fontWeight:700}}>{prods.length} prod</span>
-                <span style={{fontSize:9, background:'#F6F3F0', color:'#666', padding:'3px 8px', borderRadius:999}}>WA: {store.whatsapp.slice(-8)}</span>
-              </div>
-            </div>
+          <div style={{display:'flex', gap:8, alignItems:'center', flex:1, minWidth:0}}>
+            {store.logo_url && <img src={store.logo_url} className="info-logo" style={{width:46,height:46,borderRadius:10,background:'#fff',objectFit:'cover', flexShrink:0}}/>}
+            <h1 style={{fontWeight:900, fontSize:20, textTransform:'uppercase', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{store.name}</h1>
           </div>
-          <a href={`https://wa.me/${store.whatsapp}`} target="_blank" className="wa-btn" style={{background:'#00E676', color:'#000', padding:'11px 15px', borderRadius:999, textDecoration:'none', fontWeight:900, fontSize:12, marginLeft:10, flexShrink:0, display:'flex', alignItems:'center', gap:4}}>
-            <span>💬</span><span className="wa-text-long">WhatsApp</span><span className="wa-text-short" style={{display:'none'}}>WA</span>
-          </a>
+          <a href={`https://wa.me/${store.whatsapp}`} target="_blank" className="wa-btn" style={{background:'#00E676', color:'#000', padding:'10px 14px', borderRadius:999, textDecoration:'none', fontWeight:900, fontSize:12, marginLeft:10, flexShrink:0, display:'flex', alignItems:'center', gap:4}}>💬 WA</a>
         </div>
       </div>
 
@@ -203,18 +180,11 @@ export default function StoreBannerCompactMovil(){
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar: vestido, blusa..." style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'10px 14px', fontSize:13}}/>
           {cats.length>0&&<div style={{display:'flex',gap:6,flexWrap:'wrap'}}><button onClick={()=>setCat(null)} style={{padding:'6px 12px',borderRadius:999,border:'1px solid #000',background:cat===null?'#000':'#fff',color:cat===null?'#fff':'#000',fontSize:12,fontWeight:700}}>Todo</button>{cats.map(c=><button key={c} onClick={()=>setCat(c===cat?null:c)} style={{padding:'6px 12px',borderRadius:999,border:'1px solid #eee',background:cat===c?'#000':'#fff',color:cat===c?'#fff':'#000',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{c}</button>)}</div>}
         </div>
-
         <div style={{marginTop:14, display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14}}>
           {filtered.map(p=>{
             const im=imgs(p)
             return <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}><button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'4/5',border:'none',background:'#FBF9F7',position:'relative', overflow:'hidden'}}><img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'cover'}}/>{im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}{p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>{p.tallas.join(' ')}</span>}</button><div style={{padding:12, background:'#fff'}}><p style={{fontSize:12,fontWeight:600, color:'#000'}}>{p.name}</p><p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p><button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Ver tallas</button></div></div>
           })}
-        </div>
-        {filtered.length===0&&<div style={{marginTop:40,textAlign:'center',opacity:0.5}}>No hay productos</div>}
-        <div style={{marginTop:30, textAlign:'center'}}>
-          <div style={{display:'inline-flex', alignItems:'center', gap:6, background:'rgba(0,0,0,0.06)', padding:'6px 12px', borderRadius:999}}>
-            <span style={{fontSize:10, opacity:0.5}}>Powered by</span><span style={{fontWeight:900, fontSize:11}}>Tienda<span style={{color:'#00E676'}}>Nica</span>.Store</span>
-          </div>
         </div>
       </div>
 
