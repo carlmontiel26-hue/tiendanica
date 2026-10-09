@@ -7,7 +7,7 @@ function getSupabase(){ const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').tri
 
 const BOUTIQUE_CATS = ['vestidos','blusas','jeans','faldas','conjuntos','shorts','ropa interior','pijamas','accesorios','zapatos','carteras','nuevo','oferta']
 
-export default function OwnerAdminBoutiqueFix(){
+export default function AdminEliteProfesional(){
   const { slug } = useParams()
   const [store,setStore]=useState(null)
   const [prods,setProds]=useState([])
@@ -88,7 +88,7 @@ export default function OwnerAdminBoutiqueFix(){
         categoria: form.categoria,
         is_active: form.is_active
       }
-      if(!payload.image_url){ alert('Sube la foto principal del producto'); setUploading(false); return }
+      if(!payload.image_url){ alert('Sube la foto principal'); setUploading(false); return }
       if(editing){ const {error}=await supabase.from('products').update(payload).eq('id',editing); if(error) throw error }
       else { const {error}=await supabase.from('products').insert(payload); if(error) throw error }
       setForm({name:'',price:'',categoria:'vestidos',tallas:'S,M,L',is_active:true}); setMainFile(null); setMainPreview(null); setExtraFiles([]); setExtraPreviews([]); setEditing(null); loadProds(store.id)
@@ -105,110 +105,111 @@ export default function OwnerAdminBoutiqueFix(){
   }
   const del=async(id)=>{ if(!confirm('¿Borrar producto?')) return; const s=getSupabase(); await s.from('products').delete().eq('id',id); loadProds(store.id) }
 
-  if(loading) return <div style={{padding:40}}>Cargando...</div>
+  if(loading) return <div style={{padding:40, background:'#F7F5F3', minHeight:'100vh'}}>Cargando...</div>
   if(!store) return <div style={{padding:40}}>Tienda no encontrada</div>
 
   if(!auth){
     return (
-      <main style={{minHeight:'100vh', background:'#F6F3F0', display:'flex', alignItems:'center', justifyContent:'center', padding:16}}>
-        <div style={{background:'#fff', borderRadius:20, padding:20, width:'100%', maxWidth:360, boxShadow:'0 10px 30px rgba(0,0,0,0.08)', boxSizing:'border-box'}}>
-          <h2 style={{fontWeight:900, fontSize:18}}>👗 {store.name}</h2><p style={{fontSize:12, opacity:0.6, marginTop:4}}>Admin privado - entra con tu WhatsApp</p>
-          <div style={{position:'relative', marginTop:12, width:'100%'}}>
-            <input type={showPin?'text':'password'} value={pin} onChange={e=>setPin(e.target.value)} placeholder="Tu WhatsApp como clave" style={{width:'100%', border:'1px solid #ddd', padding:'12px 40px 12px 12px', borderRadius:12, boxSizing:'border-box'}}/>
-            <button type="button" onClick={()=>setShowPin(!showPin)} style={{position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', fontSize:18, cursor:'pointer', padding:4}}>{showPin?'🙈':'👁️'}</button>
+      <main style={{minHeight:'100vh', background:'#F7F5F3', display:'flex', alignItems:'center', justifyContent:'center', padding:16}}>
+        <div style={{background:'#FFFFFF', borderRadius:22, padding:22, width:'100%', maxWidth:360, boxShadow:'0 12px 32px rgba(0,0,0,0.08)', border:'1px solid #EAE6E1', boxSizing:'border-box'}}>
+          <h2 style={{fontWeight:900, fontSize:18, letterSpacing:'-0.3px'}}>👗 {store.name}</h2><p style={{fontSize:12, color:'#9A9590', marginTop:4}}>Admin privado - entra con tu WhatsApp</p>
+          <div style={{position:'relative', marginTop:16, width:'100%'}}>
+            <input type={showPin?'text':'password'} value={pin} onChange={e=>setPin(e.target.value)} placeholder="Tu WhatsApp como clave" style={{width:'100%', border:'1px solid #E8E3DD', background:'#FBF9F7', padding:'13px 44px 13px 14px', borderRadius:14, fontSize:13, boxSizing:'border-box'}}/>
+            <button type="button" onClick={()=>setShowPin(!showPin)} style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'#fff', border:'1px solid #EAE6E1', borderRadius:999, width:32, height:32, fontSize:14, cursor:'pointer'}}>{showPin?'🙈':'👁️'}</button>
           </div>
-          <button onClick={tryAuth} style={{marginTop:10, width:'100%', background:'#000', color:'#fff', padding:12, borderRadius:999, fontWeight:800, border:'none'}}>Entrar</button>
+          <button onClick={tryAuth} style={{marginTop:12, width:'100%', background:'#0A0A0A', color:'#fff', padding:13, borderRadius:999, fontWeight:800, border:'none'}}>Entrar</button>
         </div>
       </main>
     )
   }
 
   return (
-    <main style={{padding:10, maxWidth:'100vw', margin:'0 auto', paddingBottom:90, background:'#F6F3F0', minHeight:'100vh', overflowX:'hidden', boxSizing:'border-box'}}>
+    <main style={{padding:'12px', maxWidth:'100vw', margin:'0 auto', paddingBottom:90, background:'#F7F5F3', minHeight:'100vh', overflowX:'hidden', boxSizing:'border-box', fontFamily:'Inter, system-ui, sans-serif'}}>
       <style>{`
         * { box-sizing: border-box; }
         .admin-wrap { max-width: 560px; margin: 0 auto; width: 100%; }
-        .top-bar { display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 12px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:8px; }
-        .top-left { min-width:0; flex:1; }
-        .top-right { display:flex; gap:6px; flex-shrink:0; }
-        .form-card { margin-top:12px; background:#fff; border-radius:18px; padding:14px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1.5px solid #000; width:100%; overflow:hidden; }
-        .row-2 { display:grid; grid-template-columns: 1fr 1fr; gap:8px; width:100%; }
-        .input-base { padding:11px 12px; border-radius:12px; border:1px solid #ddd; font-size:13px; width:100%; }
+        .top-bar { display:flex; justify-content:space-between; align-items:center; background:#FFFFFF; padding:12px 14px; border-radius:18px; box-shadow:0 8px 24px rgba(0,0,0,0.06); border:1px solid #EAE6E1; gap:8px; }
+        .form-card { margin-top:14px; background:#FFFFFF; border-radius:22px; padding:18px; box-shadow:0 12px 32px rgba(0,0,0,0.06); border:1px solid #EAE6E1; width:100%; overflow:hidden; }
+        .row-2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; width:100%; }
+        .input-base { padding:13px 14px; border-radius:14px; border:1px solid #E8E3DD; background:#FBF9F7; font-size:13px; width:100%; outline:none; transition: all 0.2s; }
+        .input-base:focus { border-color:#0A0A0A; background:#fff; box-shadow:0 0 0 3px rgba(0,0,0,0.06); }
+        .photo-main { background:#FFFFFF; border:1.5px dashed #0A0A0A; border-radius:16px; padding:14px; width:100%; }
+        .photo-extra { background:#F9F6F2; border-radius:16px; padding:14px; border:1px solid #EAE6E1; width:100%; }
         @media (max-width: 480px) {
-          .top-bar { padding:8px 10px; }
-          .form-card { padding:12px; border-radius:16px; }
           .row-2 { grid-template-columns: 1fr; }
-          .top-right a, .top-right button { padding:7px 10px !important; font-size:12px !important; }
         }
       `}</style>
 
       <div className="admin-wrap">
         <div className="top-bar">
-          <div className="top-left">
-            <h1 style={{fontWeight:900, fontSize:15, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>👗 {store.name}</h1>
-            <p style={{fontSize:11, opacity:0.5}}>{prods.length} productos • Boutique</p>
+          <div style={{minWidth:0, flex:1}}>
+            <h1 style={{fontWeight:900, fontSize:16, letterSpacing:'-0.4px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', color:'#0A0A0A'}}>👗 {store.name}</h1>
+            <p style={{fontSize:11, color:'#9A9590', marginTop:2, fontWeight:500}}>{prods.length} productos • Boutique</p>
           </div>
-          <div className="top-right">
-            <a href={`/${slug}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'8px 12px', borderRadius:999, textDecoration:'none', fontSize:12, fontWeight:700, whiteSpace:'nowrap'}}>Ver tienda</a>
-            <button onClick={()=>{localStorage.removeItem(`tn_owner_${slug}`); setAuth(false)}} style={{background:'#eee', border:'none', padding:'8px 12px', borderRadius:999, fontSize:12, whiteSpace:'nowrap'}}>Salir</button>
+          <div style={{display:'flex', gap:8, flexShrink:0}}>
+            <a href={`/${slug}`} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'9px 14px', borderRadius:999, textDecoration:'none', fontSize:12, fontWeight:800, whiteSpace:'nowrap'}}>Ver tienda</a>
+            <button onClick={()=>{localStorage.removeItem(`tn_owner_${slug}`); setAuth(false)}} style={{background:'#F1EDE8', border:'1px solid #EAE6E1', padding:'9px 14px', borderRadius:999, fontSize:12, fontWeight:600, whiteSpace:'nowrap', color:'#0A0A0A'}}>Salir</button>
           </div>
         </div>
 
         <div className="form-card">
-          <h3 style={{fontWeight:900, fontSize:14}}>{editing?'✏️ Editar producto':'➕ Añadir producto'}</h3>
-          <p style={{fontSize:11, opacity:0.6, marginTop:2}}>Sube fotos desde tu celular - se guardan automático</p>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <h3 style={{fontWeight:900, fontSize:16, letterSpacing:'-0.3px', color:'#0A0A0A'}}>{editing?'✏️ Editar producto':'➕ Añadir producto'}</h3>
+            {editing&&<span style={{background:'#F1EDE8', color:'#0A0A0A', fontSize:10, padding:'4px 8px', borderRadius:999, fontWeight:700}}>EDITANDO</span>}
+          </div>
+          <p style={{fontSize:11, color:'#9A9590', marginTop:4}}>Sube fotos desde tu celular - se guarda automático</p>
           
-          <form onSubmit={save} style={{display:'grid', gap:10, marginTop:12}}>
+          <form onSubmit={save} style={{display:'grid', gap:12, marginTop:16}}>
             <input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nombre: Ej. Vestido rojo elegante" className="input-base"/>
 
             <div className="row-2">
               <input required type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})} placeholder="Precio C$" className="input-base"/>
-              <select value={form.categoria} onChange={e=>setForm({...form,categoria:e.target.value})} className="input-base" style={{fontWeight:600, background:'#fff'}}>
+              <select value={form.categoria} onChange={e=>setForm({...form,categoria:e.target.value})} className="input-base" style={{fontWeight:700, background:'#FBF9F7'}}>
                 {BOUTIQUE_CATS.map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
               </select>
             </div>
 
             <input value={form.tallas} onChange={e=>setForm({...form,tallas:e.target.value})} placeholder="Tallas: S, M, L, XL" className="input-base"/>
 
-            <div style={{background:'#000', borderRadius:14, padding:10, color:'#fff', width:'100%'}}>
-              <label style={{fontSize:11, fontWeight:800, display:'block', marginBottom:8}}>📸 FOTO PRINCIPAL *</label>
-              <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'#fff', color:'#000', padding:'14px 10px', borderRadius:10, fontWeight:900, cursor:'pointer', border:'2px dashed #000', width:'100%', textAlign:'center', fontSize:12}}>
-                <span style={{fontSize:18}}>📷</span> <span style={{lineHeight:1.2}}>{mainPreview? 'Cambiar foto principal' : 'TOCA AQUÍ PARA SUBIR FOTO PRINCIPAL'}</span>
+            <div className="photo-main">
+              <label style={{fontSize:11, fontWeight:800, display:'block', marginBottom:10, letterSpacing:'0.4px', color:'#0A0A0A'}}>📸 FOTO PRINCIPAL *</label>
+              <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'#0A0A0A', color:'#fff', padding:'14px 12px', borderRadius:12, fontWeight:800, cursor:'pointer', width:'100%', textAlign:'center', fontSize:12, letterSpacing:'-0.2px'}}>
+                <span style={{fontSize:16}}>📷</span> <span>{mainPreview? 'Cambiar foto principal' : 'TOCA AQUÍ PARA SUBIR FOTO PRINCIPAL'}</span>
                 <input type="file" accept="image/*" onChange={handleMain} style={{display:'none'}} required={!editing}/>
               </label>
-              {mainPreview&&<img src={mainPreview} style={{width:'100%', height:200, objectFit:'cover', borderRadius:10, marginTop:10, border:'2px solid #fff'}}/>}
+              {mainPreview&&<img src={mainPreview} style={{width:'100%', height:220, objectFit:'cover', borderRadius:12, marginTop:12, border:'1px solid #EAE6E1'}}/>}
             </div>
 
-            <div style={{background:'#F6F3F0', borderRadius:14, padding:10, border:'1px solid #eee', width:'100%'}}>
-              <label style={{fontSize:11, fontWeight:800, display:'block', marginBottom:8}}>🖼️ Fotos extra carrusel (opcional, máx 4)</label>
-              <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:6, background:'#fff', color:'#000', padding:'11px', borderRadius:10, fontWeight:700, cursor:'pointer', border:'1px solid #ddd', width:'100%', fontSize:12, textAlign:'center'}}>
+            <div className="photo-extra">
+              <label style={{fontSize:11, fontWeight:700, display:'block', marginBottom:10, color:'#0A0A0A'}}>🖼️ Fotos extra carrusel (opcional, máx 4)</label>
+              <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:6, background:'#FFFFFF', color:'#0A0A0A', padding:'12px', borderRadius:12, fontWeight:700, cursor:'pointer', border:'1px solid #EAE6E1', width:'100%', fontSize:12, textAlign:'center'}}>
                 ➕ Añadir más fotos del mismo producto
                 <input type="file" multiple accept="image/*" onChange={handleExtra} style={{display:'none'}}/>
               </label>
-              {extraPreviews.length>0&&<div style={{display:'flex', gap:6, marginTop:8, overflowX:'auto'}}>{extraPreviews.map((u,i)=><img key={i} src={u} style={{width:60,height:60,borderRadius:8,objectFit:'cover',border:'1px solid #ddd', flexShrink:0}}/>)}</div>}
+              {extraPreviews.length>0&&<div style={{display:'flex', gap:8, marginTop:10, overflowX:'auto', paddingBottom:2}}>{extraPreviews.map((u,i)=><img key={i} src={u} style={{width:64,height:64,borderRadius:10,objectFit:'cover',border:'1px solid #EAE6E1', flexShrink:0}}/>)}</div>}
             </div>
 
-            <label style={{fontSize:12, display:'flex', alignItems:'center', gap:6}}><input type="checkbox" checked={form.is_active} onChange={e=>setForm({...form,is_active:e.target.checked})}/> Producto activo (visible en tienda)</label>
+            <label style={{fontSize:12, display:'flex', alignItems:'center', gap:8, color:'#0A0A0A', fontWeight:500}}><input type="checkbox" checked={form.is_active} onChange={e=>setForm({...form,is_active:e.target.checked})} style={{width:16,height:16, accentColor:'#0A0A0A'}}/> Producto activo (visible en tienda)</label>
 
-            <button type="submit" disabled={uploading} style={{background:'#00E676', color:'#000', padding:13, borderRadius:999, fontWeight:900, border:'none', fontSize:13, width:'100%'}}>{uploading?'⏳ Subiendo...': editing?'✅ Actualizar producto':'✅ Añadir producto a mi tienda'}</button>
-            {editing&&<button type="button" onClick={()=>{setEditing(null); setForm({name:'',price:'',categoria:'vestidos',tallas:'S,M,L',is_active:true}); setMainPreview(null); setExtraPreviews([]); setMainFile(null); setExtraFiles([])}} style={{background:'#eee', padding:11, borderRadius:999, border:'none', fontWeight:700, width:'100%', fontSize:12}}>Cancelar edición</button>}
+            <button type="submit" disabled={uploading} style={{background:'#0A0A0A', color:'#fff', padding:15, borderRadius:999, fontWeight:900, border:'none', fontSize:13, width:'100%', letterSpacing:'-0.2px', boxShadow:'0 8px 20px rgba(0,0,0,0.12)'}}>{uploading?'⏳ Subiendo...': editing?'✅ Actualizar producto':'✅ Añadir producto a mi tienda'}</button>
+            {editing&&<button type="button" onClick={()=>{setEditing(null); setForm({name:'',price:'',categoria:'vestidos',tallas:'S,M,L',is_active:true}); setMainPreview(null); setExtraPreviews([]); setMainFile(null); setExtraFiles([])}} style={{background:'#F1EDE8', padding:12, borderRadius:999, border:'1px solid #EAE6E1', fontWeight:700, width:'100%', fontSize:12, color:'#0A0A0A'}}>Cancelar edición</button>}
           </form>
         </div>
 
-        <div style={{marginTop:14}}>
-          <h3 style={{fontWeight:800, fontSize:13}}>📦 Mis productos ({prods.length})</h3>
-          <div style={{display:'grid', gap:8, marginTop:8}}>
+        <div style={{marginTop:18}}>
+          <h3 style={{fontWeight:800, fontSize:13, color:'#0A0A0A', letterSpacing:'-0.2px'}}>📦 Mis productos ({prods.length})</h3>
+          <div style={{display:'grid', gap:10, marginTop:10}}>
             {prods.map(p=>(
-              <div key={p.id} style={{background:'#fff', borderRadius:12, padding:8, display:'flex', gap:8, alignItems:'center', boxShadow:'0 1px 3px rgba(0,0,0,0.05)', width:'100%', overflow:'hidden'}}>
-                <img src={p.image_url} style={{width:54,height:54,borderRadius:8,objectFit:'cover', flexShrink:0}}/>
-                <div style={{flex:1, minWidth:0}}><b style={{fontSize:12, display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</b><span style={{fontSize:10, opacity:0.7}}>C$ {p.price} • {p.categoria} • {(p.tallas||[]).join(' ')}</span></div>
-                <div style={{display:'flex', flexDirection:'column', gap:4, flexShrink:0}}>
-                  <button onClick={()=>edit(p)} style={{background:'#000',color:'#fff',border:'none',padding:'5px 10px',borderRadius:999,fontSize:11,fontWeight:700}}>Editar</button>
-                  <button onClick={()=>del(p.id)} style={{background:'#fff',color:'#ff4444',border:'1px solid #ffcccc',padding:'5px 10px',borderRadius:999,fontSize:11}}>Borrar</button>
+              <div key={p.id} style={{background:'#FFFFFF', borderRadius:16, padding:10, display:'flex', gap:10, alignItems:'center', boxShadow:'0 4px 12px rgba(0,0,0,0.04)', border:'1px solid #EAE6E1', width:'100%', overflow:'hidden'}}>
+                <img src={p.image_url} style={{width:56,height:56,borderRadius:12,objectFit:'cover', flexShrink:0, border:'1px solid #F1EDE8'}}/>
+                <div style={{flex:1, minWidth:0}}><b style={{fontSize:12.5, display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', color:'#0A0A0A', letterSpacing:'-0.2px'}}>{p.name}</b><span style={{fontSize:11, color:'#9A9590'}}>C$ {p.price} • {p.categoria} • {(p.tallas||[]).join(' ')}</span></div>
+                <div style={{display:'flex', flexDirection:'column', gap:6, flexShrink:0}}>
+                  <button onClick={()=>edit(p)} style={{background:'#0A0A0A',color:'#fff',border:'none',padding:'7px 14px',borderRadius:999,fontSize:11,fontWeight:800}}>Editar</button>
+                  <button onClick={()=>del(p.id)} style={{background:'#fff',color:'#FF4D4D',border:'1px solid #FFD9D9',padding:'6px 14px',borderRadius:999,fontSize:11, fontWeight:600}}>Borrar</button>
                 </div>
               </div>
             ))}
-            {prods.length===0&&<div style={{background:'#fff', borderRadius:12, padding:16, textAlign:'center', opacity:0.5, fontSize:11}}>Aún no tienes productos. ¡Añade el primero! 👆</div>}
+            {prods.length===0&&<div style={{background:'#FFFFFF', borderRadius:16, padding:18, textAlign:'center', color:'#9A9590', fontSize:12, border:'1px solid #EAE6E1'}}>Aún no tienes productos. ¡Añade el primero! 👆</div>}
           </div>
         </div>
       </div>
