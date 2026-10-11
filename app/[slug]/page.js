@@ -177,7 +177,7 @@ export default function StoreBannerTransparenteAngosto(){
 
       <div style={{maxWidth:1120, margin:'0 auto', padding:14}}>
         <div style={{background:'#fff', borderRadius:16, padding:12, display:'flex', flexDirection:'column', gap:10, boxShadow:'0 1px 3px rgba(0,0,0,0.06)', border:'1px solid #f0f0f0'}}>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar: vestido, blusa..." style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'10px 14px', fontSize:13}}/>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar:" style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'10px 14px', fontSize:13}}/>
           {cats.length>0&&<div style={{display:'flex',gap:6,flexWrap:'wrap'}}><button onClick={()=>setCat(null)} style={{padding:'6px 12px',borderRadius:999,border:'1px solid #000',background:cat===null?'#000':'#fff',color:cat===null?'#fff':'#000',fontSize:12,fontWeight:700}}>Todo</button>{cats.map(c=><button key={c} onClick={()=>setCat(c===cat?null:c)} style={{padding:'6px 12px',borderRadius:999,border:'1px solid #eee',background:cat===c?'#000':'#fff',color:cat===c?'#fff':'#000',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{c}</button>)}</div>}
         </div>
         <div style={{marginTop:14, display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14}}>
