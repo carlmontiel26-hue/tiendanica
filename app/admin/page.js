@@ -8,7 +8,6 @@ function getSupabase(){
   if(!url||!key) return null
   return createClient(url,key)
 }
-
 async function uploadToBucket(supabase, bucket, file){
   if(!file) return null
   const ext = file.name.split('.').pop()||'png'
@@ -17,6 +16,13 @@ async function uploadToBucket(supabase, bucket, file){
   if(error) throw error
   const { data } = supabase.storage.from(bucket).getPublicUrl(name)
   return data.publicUrl
+}
+function CopyBtn({text, label}){
+  const [ok,setOk]=useState(false)
+  const copy=async()=>{
+    try{ await navigator.clipboard.writeText(text); setOk(true); setTimeout(()=>setOk(false),1500) }catch{ prompt('Copia este link:', text) }
+  }
+  return <button onClick={copy} style={{background: ok?'#00E676':'#0A0A0A', color: ok?'#000':'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>{ok?'¡Copiado!':label}</button>
 }
 
 export default function SuperAdminPremiumFull(){
@@ -55,8 +61,8 @@ export default function SuperAdminPremiumFull(){
     const supabase=getSupabase()
     try{
       let logoUrl=null, coverUrl=null
-      if(logoFile){ try{ logoUrl=await uploadToBucket(supabase,'store-assets',logoFile) }catch{ try{ logoUrl=await uploadToBucket(supabase,'product-images',logoFile) }catch(e){ console.warn(e)} } }
-      if(coverFile){ try{ coverUrl=await uploadToBucket(supabase,'store-assets',coverFile) }catch{ try{ coverUrl=await uploadToBucket(supabase,'product-images',coverFile) }catch(e){ console.warn(e)} } }
+      if(logoFile){ try{ logoUrl=await uploadToBucket(supabase,'store-assets',logoFile) }catch{ try{ logoUrl=await uploadToBucket(supabase,'product-images',logoFile) }catch{} } }
+      if(coverFile){ try{ coverUrl=await uploadToBucket(supabase,'store-assets',coverFile) }catch{ try{ coverUrl=await uploadToBucket(supabase,'product-images',coverFile) }catch{} } }
       const payload={ slug: form.slug.toLowerCase().trim().replace(/\s+/g,'-'), name: form.name, whatsapp: form.whatsapp.replace(/[^0-9]/g,''), description: form.description, tipo_tienda: form.tipo, logo_url: logoUrl, cover_image: coverUrl }
       const { error } = await supabase.from('stores').insert(payload)
       if(error) throw error
@@ -65,40 +71,24 @@ export default function SuperAdminPremiumFull(){
   }
 
   const eliminarTienda=async(id, slug)=>{
-    if(!confirm(`¿Seguro eliminar ${slug}? También borrará sus productos. Esta acción no se puede deshacer.`)) return
+    if(!confirm(`¿Seguro eliminar ${slug}?`)) return
     const supabase=getSupabase()
-    try{
-      await supabase.from('products').delete().eq('store_id', id)
-      const { error } = await supabase.from('stores').delete().eq('id', id)
-      if(error) throw error
-      alert('Tienda eliminada')
-      load()
-    }catch(e){ alert('Error eliminando: '+e.message) }
+    try{ await supabase.from('products').delete().eq('store_id', id); const { error } = await supabase.from('stores').delete().eq('id', id); if(error) throw error; load() }catch(e){ alert('Error eliminando: '+e.message) }
   }
-
   const agregarProducto=async(storeId, tipoTienda)=>{
     if(!prodForm.name || !prodForm.price){ alert('Falta nombre o precio'); return }
-    const supabase=getSupabase()
-    setMsg('Subiendo producto...')
+    const supabase=getSupabase(); setMsg('Subiendo producto...')
     try{
       let imageUrl=null
-      if(prodForm.imageFile){
-        try{ imageUrl=await uploadToBucket(supabase,'product-images',prodForm.imageFile) }catch(e){ alert('Error imagen: '+e.message); return }
-      }
+      if(prodForm.imageFile){ try{ imageUrl=await uploadToBucket(supabase,'product-images',prodForm.imageFile) }catch(e){ alert('Error imagen: '+e.message); return } }
       const payload={ store_id: storeId, name: prodForm.name, price: Number(prodForm.price), categoria: prodForm.categoria || (tipoTienda==='comida'?'platos fuertes': tipoTienda==='general'?'otros':'vestidos'), image_url: imageUrl, is_active: true }
-      const { error } = await supabase.from('products').insert(payload)
-      if(error) throw error
-      setMsg('Producto agregado!'); setProdForm({name:'', price:'', categoria:'', imageFile:null}); setProdPreview(null); load()
-      setTimeout(()=>setMsg(''),1500)
+      const { error } = await supabase.from('products').insert(payload); if(error) throw error
+      setMsg('Producto agregado!'); setProdForm({name:'', price:'', categoria:'', imageFile:null}); setProdPreview(null); load(); setTimeout(()=>setMsg(''),1500)
     }catch(e){ alert('Error: '+e.message); setMsg('') }
   }
-
   const eliminarProducto=async(prodId)=>{
     if(!confirm('¿Eliminar este producto?')) return
-    const supabase=getSupabase()
-    const { error } = await supabase.from('products').delete().eq('id', prodId)
-    if(error){ alert(error.message); return }
-    load()
+    const supabase=getSupabase(); const { error } = await supabase.from('products').delete().eq('id', prodId); if(error){ alert(error.message); return } load()
   }
 
   const filtered = stores.filter(s=>{
@@ -106,8 +96,9 @@ export default function SuperAdminPremiumFull(){
     if(search && !s.name.toLowerCase().includes(search.toLowerCase()) && !String(s.slug||'').toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
-
   const previewStore={ name: form.name || 'TIENDA AGDIN', slug: form.slug || 'agdin-luna', tipo: form.tipo, logo: logoPreview, cover: coverPreview }
+  const previewLink = `https://tiendanica.store/${previewStore.slug}`
+  const previewAdminLink = `https://tiendanica.store/${previewStore.slug}/admin`
 
   return (
     <main style={{background:'#F7F5F3', minHeight:'100vh', padding:16, fontFamily:'Inter, system-ui'}}>
@@ -121,6 +112,8 @@ export default function SuperAdminPremiumFull(){
         .pill.active{background:#0A0A0A; color:#fff}
         .preview-cover{height:180px; background:#E8E2DD; border-radius:16px; overflow:hidden; position:relative}
         .preview-cover img{width:100%; height:100%; object-fit:cover}
+        .link-box{background:#FBF9F7; border:1px dashed #D6CFC8; border-radius:12px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px}
+        .link-text{font-size:11px; color:#0A0A0A; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px}
       `}</style>
       <div style={{maxWidth:900, margin:'0 auto'}}>
         <h1 style={{fontWeight:900, fontSize:20, color:'#0A0A0A'}}>Super Admin Privado <span style={{fontWeight:500, fontSize:12, color:'#9A9590'}}>• {stores.length} tiendas • {products.length} productos</span> {msg ? <span style={{fontSize:11, background:'#00E676', color:'#000', padding:'4px 10px', borderRadius:999, marginLeft:8}}>{msg}</span> : null}</h1>
@@ -143,6 +136,25 @@ export default function SuperAdminPremiumFull(){
               <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Logo dueño (local)</div><input type="file" accept="image/*" onChange={e=>setLogoFile(e.target.files?.[0]||null)} style={{fontSize:11, width:'100%'}}/>{logoPreview ? <img src={logoPreview} style={{width:52, height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
               <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Portada editable (local)</div><input type="file" accept="image/*" onChange={e=>setCoverFile(e.target.files?.[0]||null)} style={{fontSize:11, width:'100%'}}/>{coverPreview ? <img src={coverPreview} style={{width:'100%', height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
             </div>
+
+            {/* LINKS PREVISTOS PARA COMPARTIR AL DUEÑO ANTES DE CREAR */}
+            {form.slug && (
+              <div style={{marginTop:12, background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:12, padding:10}}>
+                <div style={{fontSize:11, fontWeight:800, color:'#166534'}}>Links que se generaran para compartir al dueño:</div>
+                <div className="link-box">
+                  <div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>TIENDA DEL CLIENTE</div><div className="link-text">{previewLink}</div></div>
+                  <CopyBtn text={previewLink} label="Copiar tienda"/>
+                </div>
+                <div className="link-box">
+                  <div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>ADMIN DEL DUEÑO</div><div className="link-text">{previewAdminLink}</div></div>
+                  <CopyBtn text={previewAdminLink} label="Copiar admin"/>
+                </div>
+                <div style={{display:'flex', gap:6, marginTop:8}}>
+                  <a href={`https://wa.me/${form.whatsapp.replace(/[^0-9]/g,'')}?text=Hola ${form.name || ''}! Tu tienda ya esta lista: ${previewLink} - Tu admin para subir productos: ${previewAdminLink}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>📲 Compartir por WhatsApp al dueño</a>
+                </div>
+              </div>
+            )}
+
             <button onClick={crearTienda} disabled={creating} className="btn-black" style={{marginTop:14, opacity: creating?0.6:1}}>{creating ? 'Creando...' : 'Crear tienda premium →'}</button>
           </div>
           <div>
@@ -150,6 +162,10 @@ export default function SuperAdminPremiumFull(){
             <div className="card" style={{padding:0, overflow:'hidden'}}>
               <div className="preview-cover">{previewStore.cover ? <img src={previewStore.cover}/> : <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'#9A9590'}}>Portada por defecto</div>}<div style={{position:'absolute', top:10, left:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>{previewStore.tipo.toUpperCase()}</div></div>
               <div style={{padding:12, display:'flex', justifyContent:'space-between', alignItems:'center'}}><div style={{display:'flex', alignItems:'center', gap:10}}>{previewStore.logo ? <img src={previewStore.logo} style={{width:36, height:36, borderRadius:10, objectFit:'cover'}}/> : <div style={{width:36, height:36, borderRadius:10, background:'#0A0A0A', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>A</div>}<b style={{fontSize:13}}>{previewStore.name}</b></div><div style={{background:'#00E676', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800}}>WA</div></div>
+              <div style={{padding:'0 12px 12px'}}>
+                <div className="link-box"><div className="link-text">{previewLink}</div><CopyBtn text={previewLink} label="Copiar link tienda"/></div>
+                <div className="link-box"><div className="link-text">{previewAdminLink}</div><CopyBtn text={previewAdminLink} label="Copiar link admin"/></div>
+              </div>
             </div>
           </div>
         </div>
@@ -166,44 +182,56 @@ export default function SuperAdminPremiumFull(){
             {filtered.map(s=>{
               const prods = products.filter(p=>p.store_id===s.id)
               const isOpen = expandedStore===s.id
+              const tiendaLink = `https://tiendanica.store/${s.slug}`
+              const adminLink = `https://tiendanica.store/${s.slug}/admin`
+              const waShare = `Hola ${s.name}! Tu tienda: ${tiendaLink} - Tu panel para subir productos: ${adminLink}`
               return (
                 <div key={s.id} style={{padding:'12px 0', borderBottom:'1px solid #F0EDE8'}}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
                     <div style={{display:'flex', alignItems:'center', gap:10}}>
                       <img src={s.logo_url || s.cover_image || ''} style={{width:36, height:36, borderRadius:8, objectFit:'cover', background:'#F7F5F3', border:'1px solid #EAE6E1'}} onError={e=>e.currentTarget.style.display='none'}/>
-                      <div><b style={{fontSize:12}}>{s.name}</b><div style={{fontSize:10, color:'#9A9590'}}>{s.slug} • {s.tipo_tienda} • {prods.length} prod • {s.whatsapp}</div></div>
+                      <div><b style={{fontSize:12}}>{s.name}</b><div style={{fontSize:10, color:'#9A9590'}}>{s.slug} • {s.tipo_tienda} • {prods.length} prod</div></div>
                     </div>
-                    <div style={{display:'flex', gap:6, alignItems:'center'}}>
-                      <a href={'/'+s.slug} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>ver →</a>
-                      <button onClick={()=>setExpandedStore(isOpen?null:s.id)} style={{background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>{isOpen?'cerrar':'productos'}</button>
-                      <button onClick={()=>eliminarTienda(s.id, s.slug)} className="btn-red">eliminar tienda</button>
+                    <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
+                      <a href={tiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>ver tienda →</a>
+                      <button onClick={()=>setExpandedStore(isOpen?null:s.id)} style={{background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>{isOpen?'cerrar':'productos / links'}</button>
+                      <button onClick={()=>eliminarTienda(s.id, s.slug)} className="btn-red">eliminar</button>
+                    </div>
+                  </div>
+
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10}}>
+                    <div className="link-box" style={{marginTop:0}}>
+                      <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK TIENDA CLIENTE</div><div className="link-text" style={{maxWidth:'100%'}}>{tiendaLink}</div></div>
+                      <div style={{display:'flex', gap:4}}><CopyBtn text={tiendaLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(waShare)}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA</a></div>
+                    </div>
+                    <div className="link-box" style={{marginTop:0}}>
+                      <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK ADMIN DUEÑO</div><div className="link-text" style={{maxWidth:'100%'}}>{adminLink}</div></div>
+                      <div style={{display:'flex', gap:4}}><CopyBtn text={adminLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent('Tu panel para subir productos: '+adminLink)}`} target="_blank" style={{background:'#000', color:'#fff', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA admin</a></div>
                     </div>
                   </div>
 
                   {isOpen && (
                     <div style={{marginTop:12, background:'#FBF9F7', border:'1px solid #EAE6E1', borderRadius:16, padding:12}}>
-                      <b style={{fontSize:11}}>Agregar producto para {s.name} - Ayuda a tu cliente</b>
+                      <b style={{fontSize:11}}>Agregar producto para {s.name}</b>
                       <div style={{display:'grid', gridTemplateColumns:'1fr 100px 1fr', gap:8, marginTop:8}}>
                         <input value={prodForm.name} onChange={e=>setProdForm({...prodForm, name:e.target.value})} placeholder="Nombre producto" className="input" style={{fontSize:11}}/>
                         <input value={prodForm.price} onChange={e=>setProdForm({...prodForm, price:e.target.value})} placeholder="Precio C$" type="number" className="input" style={{fontSize:11}}/>
-                        <input value={prodForm.categoria} onChange={e=>setProdForm({...prodForm, categoria:e.target.value})} placeholder={s.tipo_tienda==='comida'?'platos fuertes / bebidas':'vestidos / blusas / oferta'} className="input" style={{fontSize:11}}/>
+                        <input value={prodForm.categoria} onChange={e=>setProdForm({...prodForm, categoria:e.target.value})} placeholder={s.tipo_tienda==='comida'?'platos fuertes':'vestidos / blusas'} className="input" style={{fontSize:11}}/>
                       </div>
                       <div style={{display:'flex', gap:8, marginTop:8, alignItems:'center'}}>
                         <input type="file" accept="image/*" onChange={e=>setProdForm({...prodForm, imageFile:e.target.files?.[0]||null})} style={{fontSize:11}}/>
                         {prodPreview ? <img src={prodPreview} style={{width:36, height:36, borderRadius:8, objectFit:'cover'}}/> : null}
                         <button onClick={()=>agregarProducto(s.id, s.tipo_tienda)} className="btn-green">+ agregar producto</button>
                       </div>
-
                       <div style={{marginTop:12, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px,1fr))', gap:8}}>
                         {prods.map(p=>(
                           <div key={p.id} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:12, padding:6}}>
                             <img src={p.image_url} style={{width:'100%', height:80, objectFit:'cover', borderRadius:8, background:'#F7F5F3'}}/>
-                            <div style={{fontSize:10, fontWeight:700, marginTop:4, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
-                            <div style={{fontSize:10, color:'#9A9590'}}>C$ {p.price} • {p.categoria}</div>
+                            <div style={{fontSize:10, fontWeight:700, marginTop:4}}>{p.name}</div>
+                            <div style={{fontSize:10, color:'#9A9590'}}>C$ {p.price}</div>
                             <button onClick={()=>eliminarProducto(p.id)} className="btn-red" style={{marginTop:6, width:'100%'}}>eliminar producto</button>
                           </div>
                         ))}
-                        {prods.length===0 && <div style={{fontSize:11, color:'#9A9590'}}>Sin productos aún. Agrégale el primero para ayudar a tu cliente.</div>}
                       </div>
                     </div>
                   )}
