@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
+const DEPARTAMENTOS_NIC = ["Managua","Matagalpa","León","Masaya","Granada","Estelí","Chinandega","Jinotega","Carazo","Rivas","Boaco","Chontales","Madriz","Nueva Segovia","Río San Juan","RAAN","RAAS","Ubú Norte","Zelaya Central"]
+
 function getSupabase(){
   const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim()
   const key=(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'').trim()
@@ -28,13 +30,14 @@ function CopyBtn({text, label}){
 export default function SuperAdminPremiumFull(){
   const [stores,setStores]=useState([])
   const [products,setProducts]=useState([])
-  const [form,setForm]=useState({tipo:'boutique', slug:'', name:'', whatsapp:'', description:''})
+  const [form,setForm]=useState({tipo:'boutique', slug:'', name:'', whatsapp:'', description:'', departamento:'', ciudad:'', tipo_entrega:'nacional'})
   const [logoFile,setLogoFile]=useState(null)
   const [coverFile,setCoverFile]=useState(null)
   const [logoPreview,setLogoPreview]=useState(null)
   const [coverPreview,setCoverPreview]=useState(null)
   const [search,setSearch]=useState('')
   const [filterTipo,setFilterTipo]=useState('all')
+  const [filterDepto,setFilterDepto]=useState('all')
   const [msg,setMsg]=useState('')
   const [creating,setCreating]=useState(false)
   const [expandedStore,setExpandedStore]=useState(null)
@@ -64,10 +67,23 @@ export default function SuperAdminPremiumFull(){
       let logoUrl=null, coverUrl=null
       if(logoFile){ try{ logoUrl=await uploadToBucket(supabase,'store-assets',logoFile) }catch{ try{ logoUrl=await uploadToBucket(supabase,'product-images',logoFile) }catch{} } }
       if(coverFile){ try{ coverUrl=await uploadToBucket(supabase,'store-assets',coverFile) }catch{ try{ coverUrl=await uploadToBucket(supabase,'product-images',coverFile) }catch{} } }
-      const payload={ slug: form.slug.toLowerCase().trim().replace(/\s+/g,'-'), name: form.name, whatsapp: form.whatsapp.replace(/[^0-9]/g,''), description: form.description, tipo_tienda: form.tipo, logo_url: logoUrl, cover_image: coverUrl }
+      const payload={ 
+        slug: form.slug.toLowerCase().trim().replace(/\s+/g,'-'), 
+        name: form.name, 
+        whatsapp: form.whatsapp.replace(/[^0-9]/g,''), 
+        description: form.description, 
+        tipo_tienda: form.tipo, 
+        logo_url: logoUrl, 
+        cover_image: coverUrl,
+        departamento: form.departamento || null,
+        ciudad: form.ciudad || null,
+        tipo_entrega: form.tipo_entrega || 'nacional'
+      }
       const { error } = await supabase.from('stores').insert(payload)
       if(error) throw error
-      setMsg('✅ Tienda creada!'); setForm({tipo:'boutique', slug:'', name:'', whatsapp:'', description:''}); setLogoFile(null); setCoverFile(null); setLogoPreview(null); setCoverPreview(null); setPreviewSelected(null); load(); setTimeout(()=>setMsg(''),2500)
+      setMsg('✅ Tienda creada!'); 
+      setForm({tipo:'boutique', slug:'', name:'', whatsapp:'', description:'', departamento:'', ciudad:'', tipo_entrega:'nacional'}); 
+      setLogoFile(null); setCoverFile(null); setLogoPreview(null); setCoverPreview(null); setPreviewSelected(null); load(); setTimeout(()=>setMsg(''),2500)
     }catch(e){ alert('Error: '+e.message); setMsg('') } finally{ setCreating(false) }
   }
 
@@ -94,11 +110,11 @@ export default function SuperAdminPremiumFull(){
 
   const filtered = stores.filter(s=>{
     if(filterTipo!=='all' && s.tipo_tienda!==filterTipo) return false
+    if(filterDepto!=='all' && (s.departamento||'')!==filterDepto) return false
     if(search && !s.name.toLowerCase().includes(search.toLowerCase()) && !String(s.slug||'').toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
-  // Vista previa: si hay tienda seleccionada, muestra esa, si no, muestra lo que escribes para crear
   const isPreviewFromExisting = !!previewSelected
   const previewStore = isPreviewFromExisting ? {
     id: previewSelected.id,
@@ -108,6 +124,9 @@ export default function SuperAdminPremiumFull(){
     logo: previewSelected.logo_url,
     cover: previewSelected.cover_image,
     whatsapp: previewSelected.whatsapp,
+    departamento: previewSelected.departamento,
+    ciudad: previewSelected.ciudad,
+    tipo_entrega: previewSelected.tipo_entrega,
   } : {
     name: form.name || 'TIENDA AGDIN',
     slug: form.slug || 'agdin-luna',
@@ -115,6 +134,9 @@ export default function SuperAdminPremiumFull(){
     logo: logoPreview,
     cover: coverPreview,
     whatsapp: form.whatsapp,
+    departamento: form.departamento,
+    ciudad: form.ciudad,
+    tipo_entrega: form.tipo_entrega,
   }
 
   const previewLink = `https://tiendanica.store/${previewStore.slug}`
@@ -140,7 +162,7 @@ export default function SuperAdminPremiumFull(){
 
         <div style={{display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:14, marginTop:14, alignItems:'start'}}>
           <div className="card">
-            <b style={{fontSize:13}}>Crear nueva tienda premium</b>
+            <b style={{fontSize:13}}>Crear nueva tienda premium + ubicación Nicaragua (opcional)</b>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
               <select value={form.tipo} onChange={e=>{setForm({...form, tipo:e.target.value}); setPreviewSelected(null)}} className="input">
                 <option value="boutique">👗 Boutique</option>
@@ -152,63 +174,68 @@ export default function SuperAdminPremiumFull(){
             <input value={form.name} onChange={e=>{setForm({...form, name:e.target.value}); setPreviewSelected(null)}} placeholder="Nombre tienda" className="input" style={{marginTop:8}}/>
             <input value={form.whatsapp} onChange={e=>{setForm({...form, whatsapp:e.target.value}); setPreviewSelected(null)}} placeholder="WhatsApp 505..." className="input" style={{marginTop:8}}/>
             <input value={form.description} onChange={e=>{setForm({...form, description:e.target.value}); setPreviewSelected(null)}} placeholder="Descripcion corta" className="input" style={{marginTop:8}}/>
+
+            <div style={{marginTop:12, background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:12, padding:10}}>
+              <div style={{fontSize:11, fontWeight:800, color:'#92400E'}}>📍 Ubicación Nicaragua (opcional - no rompe nada si no lo usas)</div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8}}>
+                <select value={form.departamento} onChange={e=>setForm({...form, departamento:e.target.value})} className="input" style={{fontSize:11}}>
+                  <option value="">Departamento (ej: Matagalpa)</option>
+                  {DEPARTAMENTOS_NIC.map(d=><option key={d} value={d}>{d}</option>)}
+                </select>
+                <input value={form.ciudad} onChange={e=>setForm({...form, ciudad:e.target.value})} placeholder="Ciudad / Municipio ej: Ubú Norte, Matiguás" className="input" style={{fontSize:11}}/>
+              </div>
+              <div style={{marginTop:8}}>
+                <select value={form.tipo_entrega} onChange={e=>setForm({...form, tipo_entrega:e.target.value})} className="input" style={{fontSize:11}}>
+                  <option value="nacional">📦 Envío nacional - Ropa y general (llega a todo Nicaragua)</option>
+                  <option value="local">🍔 Solo local - Comida (solo en su ciudad)</option>
+                  <option value="ambos">🔄 Ambos - Local y nacional</option>
+                </select>
+                <div style={{fontSize:9, color:'#92400E', marginTop:4}}>Si es comida usa Solo local. Si es boutique usa Nacional. Así luego filtraremos por ubicación del cliente.</div>
+              </div>
+            </div>
+
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
               <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Logo dueño (local)</div><input type="file" accept="image/*" onChange={e=>{setLogoFile(e.target.files?.[0]||null); setPreviewSelected(null)}} style={{fontSize:11, width:'100%'}}/>{logoPreview && !previewSelected ? <img src={logoPreview} style={{width:52, height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
               <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Portada editable (local)</div><input type="file" accept="image/*" onChange={e=>{setCoverFile(e.target.files?.[0]||null); setPreviewSelected(null)}} style={{fontSize:11, width:'100%'}}/>{coverPreview && !previewSelected ? <img src={coverPreview} style={{width:'100%', height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
             </div>
-            {form.slug && !previewSelected && (
-              <div style={{marginTop:12, background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:12, padding:10}}>
-                <div style={{fontSize:11, fontWeight:800, color:'#166534'}}>Links que se generaran para compartir al dueño:</div>
-                <div className="link-box"><div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>TIENDA DEL CLIENTE</div><div className="link-text">https://tiendanica.store/{form.slug.toLowerCase()}</div></div><CopyBtn text={`https://tiendanica.store/${form.slug.toLowerCase()}`} label="Copiar tienda"/></div>
-                <div className="link-box"><div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>ADMIN DEL DUEÑO</div><div className="link-text">https://tiendanica.store/{form.slug.toLowerCase()}/admin</div></div><CopyBtn text={`https://tiendanica.store/${form.slug.toLowerCase()}/admin`} label="Copiar admin"/></div>
-              </div>
-            )}
+
             <button onClick={crearTienda} disabled={creating} className="btn-black" style={{marginTop:14, opacity: creating?0.6:1}}>{creating ? 'Creando...' : 'Crear tienda premium →'}</button>
-            {previewSelected && <button onClick={()=>setPreviewSelected(null)} style={{marginTop:8, width:'100%', background:'#fff', border:'1px solid #EAE6E1', padding:'10px', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer'}}>← Volver a vista previa de nueva tienda</button>}
+            {previewSelected && <button onClick={()=>setPreviewSelected(null)} style={{marginTop:8, width:'100%', background:'#fff', border:'1px solid #EAE6E1', padding:'10px', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer'}}>← Volver a crear nueva tienda</button>}
           </div>
 
           <div style={{position:'sticky', top:14}}>
-            <div style={{fontSize:11, fontWeight:800, color: isPreviewFromExisting ? '#0A0A0A' : '#9A9590', letterSpacing:'0.8px', marginBottom:8}}>{isPreviewFromExisting ? `VISTA PREVIA: ${previewStore.name.toUpperCase()} • CLIC EN TIENDA EXISTENTE` : 'VISTA PREVIA EN VIVO - NUEVA TIENDA'}</div>
+            <div style={{fontSize:11, fontWeight:800, color: isPreviewFromExisting ? '#0A0A0A' : '#9A9590', letterSpacing:'0.8px', marginBottom:8}}>{isPreviewFromExisting ? `VISTA PREVIA: ${previewStore.name.toUpperCase()} • ${previewStore.departamento||''} ${previewStore.ciudad||''}` : 'VISTA PREVIA EN VIVO'}</div>
             <div className="card" style={{padding:0, overflow:'hidden', border: isPreviewFromExisting ? '2px solid #0A0A0A' : '1px solid #EAE6E1'}}>
               <div className="preview-cover">
                 {previewStore.cover ? <img src={previewStore.cover}/> : <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'#9A9590'}}>Sin portada</div>}
                 <div style={{position:'absolute', top:10, left:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>{(previewStore.tipo||'boutique').toUpperCase()}</div>
-                <div style={{position:'absolute', top:10, right:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>• Abierto</div>
-                <div style={{position:'absolute', bottom:0, left:0, right:0, height:80, background:'linear-gradient(transparent, rgba(0,0,0,0.7))'}}/>
-                <div style={{position:'absolute', bottom:10, left:12, right:12, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:10}}>
-                    {previewStore.logo ? <img src={previewStore.logo} style={{width:44, height:44, borderRadius:12, objectFit:'cover', border:'2px solid #fff'}}/> : <div style={{width:44, height:44, borderRadius:12, background:'#fff', color:'#0A0A0A', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>A</div>}
-                    <div style={{color:'#fff'}}><div style={{fontWeight:900, fontSize:14, textShadow:'0 1px 4px rgba(0,0,0,0.6)'}}>{previewStore.name}</div><div style={{fontSize:10, opacity:0.9}}>tiendanica.store/{previewStore.slug}</div></div>
-                  </div>
-                </div>
+                {previewStore.departamento && <div style={{position:'absolute', top:36, left:10, background:'#0A0A0A', color:'#fff', padding:'4px 10px', borderRadius:999, fontSize:9, fontWeight:800}}>📍 {previewStore.departamento}{previewStore.ciudad ? ` • ${previewStore.ciudad}` : ''}</div>}
+                <div style={{position:'absolute', top:10, right:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>• {previewStore.tipo_entrega==='local'?'Solo local': previewStore.tipo_entrega==='nacional'?'Envío nacional':'Local + Nacional'}</div>
               </div>
               <div style={{padding:12}}>
-                <div className="link-box" style={{marginTop:0}}>
-                  <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK TIENDA CLIENTE</div><div className="link-text" style={{maxWidth:200}}>{previewLink}</div></div>
-                  <div style={{display:'flex', gap:4}}><CopyBtn text={previewLink} label="Copiar"/><a href={previewLink} target="_blank" style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none', color:'#0A0A0A'}}>Abrir</a></div>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:10}}>{previewStore.logo ? <img src={previewStore.logo} style={{width:44, height:44, borderRadius:12, objectFit:'cover', border:'2px solid #EAE6E1'}}/> : <div style={{width:44, height:44, borderRadius:12, background:'#0A0A0A', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>A</div>}<div><b style={{fontSize:13}}>{previewStore.name}</b><div style={{fontSize:10, color:'#9A9590'}}>📍 {previewStore.departamento||'Sin departamento'} {previewStore.ciudad ? `• ${previewStore.ciudad}` : ''} • {previewStore.tipo_entrega||'nacional'}</div></div></div>
                 </div>
-                <div className="link-box">
-                  <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK ADMIN DUEÑO</div><div className="link-text" style={{maxWidth:200}}>{previewAdminLink}</div></div>
-                  <div style={{display:'flex', gap:4}}><CopyBtn text={previewAdminLink} label="Copiar"/><a href={previewAdminLink} target="_blank" style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none', color:'#0A0A0A'}}>Abrir</a></div>
-                </div>
-                <div style={{display:'flex', gap:6, marginTop:10}}>
-                  <a href={`https://wa.me/${String(previewStore.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hola ${previewStore.name}! Tu tienda: ${previewLink} - Tu panel para subir productos: ${previewAdminLink}`)}`} target="_blank" style={{flex:1, background:'#00E676', color:'#000', padding:'10px', borderRadius:999, fontSize:11, fontWeight:800, textAlign:'center', textDecoration:'none'}}>📲 Compartir al dueño por WhatsApp</a>
-                </div>
-                {isPreviewFromExisting && <div style={{fontSize:10, color:'#9A9590', textAlign:'center', marginTop:8}}>Clicaste {previewStore.name}. Esta es su portada y logo real que subiste.</div>}
+                <div className="link-box" style={{marginTop:10}}><div className="link-text">{previewLink}</div><div style={{display:'flex', gap:4}}><CopyBtn text={previewLink} label="Copiar"/><a href={previewLink} target="_blank" style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none', color:'#0A0A0A'}}>Abrir</a></div></div>
+                <div className="link-box"><div className="link-text">{previewAdminLink}</div><div style={{display:'flex', gap:4}}><CopyBtn text={previewAdminLink} label="Copiar"/><a href={previewAdminLink} target="_blank" style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none', color:'#0A0A0A'}}>Abrir</a></div></div>
+                <a href={`https://wa.me/${String(previewStore.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hola ${previewStore.name}! Tu tienda: ${previewLink} - Tu panel: ${previewAdminLink} - Ubicación: ${previewStore.departamento||''} ${previewStore.ciudad||''}`)}`} target="_blank" style={{display:'block', marginTop:10, background:'#00E676', color:'#000', padding:'10px', borderRadius:999, fontSize:11, fontWeight:800, textAlign:'center', textDecoration:'none'}}>📲 Compartir al dueño por WhatsApp</a>
               </div>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar tienda..." className="input" style={{maxWidth:220}}/>
+          <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar tienda..." className="input" style={{maxWidth:180}}/>
+            <select value={filterDepto} onChange={e=>setFilterDepto(e.target.value)} className="input" style={{maxWidth:160, fontSize:11}}>
+              <option value="all">Todos deptos</option>
+              {DEPARTAMENTOS_NIC.map(d=><option key={d} value={d}>{d}</option>)}
+            </select>
             <button onClick={()=>setFilterTipo('all')} className={`pill ${filterTipo==='all'?'active':''}`}>all</button>
             <button onClick={()=>setFilterTipo('boutique')} className={`pill ${filterTipo==='boutique'?'active':''}`}>boutique</button>
             <button onClick={()=>setFilterTipo('comida')} className={`pill ${filterTipo==='comida'?'active':''}`}>comida</button>
             <button onClick={()=>setFilterTipo('general')} className={`pill ${filterTipo==='general'?'active':''}`}>general</button>
           </div>
-          <div style={{marginTop:6, fontSize:10, color:'#9A9590'}}>💡 Clica en el nombre o logo de cualquier tienda para cargarla en la vista previa bonita de la derecha</div>
           <div style={{marginTop:10}}>
             {filtered.map(s=>{
               const prods = products.filter(p=>p.store_id===s.id)
@@ -221,22 +248,22 @@ export default function SuperAdminPremiumFull(){
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
                     <div style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer'}} onClick={()=>setPreviewSelected(s)}>
                       <img src={s.logo_url || s.cover_image || ''} style={{width:36, height:36, borderRadius:8, objectFit:'cover', background:'#F7F5F3', border: isSelected ? '2px solid #0A0A0A' : '1px solid #EAE6E1'}} onError={e=>e.currentTarget.style.display='none'}/>
-                      <div><b style={{fontSize:12, textDecoration:'underline', textDecorationStyle:'dotted'}}>{s.name}</b><div style={{fontSize:10, color:'#9A9590'}}>{s.slug} • {s.tipo_tienda} • {prods.length} prod • Clic para vista previa →</div></div>
+                      <div><b style={{fontSize:12}}>{s.name}</b><div style={{fontSize:10, color:'#9A9590'}}>{s.slug} • {s.tipo_tienda} • {s.departamento||'sin depto'} {s.ciudad?`• ${s.ciudad}`:''} • {s.tipo_entrega||'nacional'} • {prods.length} prod</div></div>
                     </div>
                     <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
-                      <button onClick={()=>setPreviewSelected(s)} style={{background: isSelected ? '#0A0A0A':'#fff', color: isSelected?'#fff':'#0A0A0A', border:'1px solid #0A0A0A', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>{isSelected ? '✓ en vista previa' : '👁 ver en vista previa'}</button>
+                      <button onClick={()=>setPreviewSelected(s)} style={{background: isSelected ? '#0A0A0A':'#fff', color: isSelected?'#fff':'#0A0A0A', border:'1px solid #0A0A0A', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>{isSelected ? '✓ en vista previa' : '👁 preview'}</button>
                       <a href={tiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>ver tienda</a>
-                      <button onClick={()=>setExpandedStore(isOpen?null:s.id)} style={{background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>{isOpen?'cerrar':'productos / links'}</button>
+                      <button onClick={()=>setExpandedStore(isOpen?null:s.id)} style={{background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>{isOpen?'cerrar':'productos'}</button>
                       <button onClick={()=>eliminarTienda(s.id, s.slug)} className="btn-red">eliminar</button>
                     </div>
                   </div>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10}}>
-                    <div className="link-box" style={{marginTop:0}}><div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK TIENDA</div><div className="link-text">{tiendaLink}</div></div><div style={{display:'flex', gap:4}}><CopyBtn text={tiendaLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Tu tienda: ${tiendaLink}`)}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA</a></div></div>
-                    <div className="link-box" style={{marginTop:0}}><div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK ADMIN DUEÑO</div><div className="link-text">{adminLink}</div></div><div style={{display:'flex', gap:4}}><CopyBtn text={adminLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Tu panel: ${adminLink}`)}`} target="_blank" style={{background:'#000', color:'#fff', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA admin</a></div></div>
+                    <div className="link-box" style={{marginTop:0}}><div className="link-text">{tiendaLink}</div><CopyBtn text={tiendaLink} label="Copiar"/></div>
+                    <div className="link-box" style={{marginTop:0}}><div className="link-text">{adminLink}</div><CopyBtn text={adminLink} label="Copiar"/></div>
                   </div>
                   {isOpen && (
                     <div style={{marginTop:12, background:'#FBF9F7', border:'1px solid #EAE6E1', borderRadius:16, padding:12}}>
-                      <b style={{fontSize:11}}>Agregar producto para {s.name}</b>
+                      <b style={{fontSize:11}}>Agregar producto para {s.name} - {s.departamento||''} {s.ciudad||''}</b>
                       <div style={{display:'grid', gridTemplateColumns:'1fr 100px 1fr', gap:8, marginTop:8}}>
                         <input value={prodForm.name} onChange={e=>setProdForm({...prodForm, name:e.target.value})} placeholder="Nombre producto" className="input" style={{fontSize:11}}/>
                         <input value={prodForm.price} onChange={e=>setProdForm({...prodForm, price:e.target.value})} placeholder="Precio C$" type="number" className="input" style={{fontSize:11}}/>
