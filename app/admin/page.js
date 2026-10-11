@@ -40,6 +40,7 @@ export default function SuperAdminPremiumFull(){
   const [expandedStore,setExpandedStore]=useState(null)
   const [prodForm,setProdForm]=useState({name:'', price:'', categoria:'', imageFile:null})
   const [prodPreview,setProdPreview]=useState(null)
+  const [previewSelected,setPreviewSelected]=useState(null)
 
   useEffect(()=>{ load() },[])
   useEffect(()=>{ if(logoFile) setLogoPreview(URL.createObjectURL(logoFile)); else setLogoPreview(null)},[logoFile])
@@ -66,14 +67,14 @@ export default function SuperAdminPremiumFull(){
       const payload={ slug: form.slug.toLowerCase().trim().replace(/\s+/g,'-'), name: form.name, whatsapp: form.whatsapp.replace(/[^0-9]/g,''), description: form.description, tipo_tienda: form.tipo, logo_url: logoUrl, cover_image: coverUrl }
       const { error } = await supabase.from('stores').insert(payload)
       if(error) throw error
-      setMsg('✅ Tienda creada!'); setForm({tipo:'boutique', slug:'', name:'', whatsapp:'', description:''}); setLogoFile(null); setCoverFile(null); setLogoPreview(null); setCoverPreview(null); load(); setTimeout(()=>setMsg(''),2500)
+      setMsg('✅ Tienda creada!'); setForm({tipo:'boutique', slug:'', name:'', whatsapp:'', description:''}); setLogoFile(null); setCoverFile(null); setLogoPreview(null); setCoverPreview(null); setPreviewSelected(null); load(); setTimeout(()=>setMsg(''),2500)
     }catch(e){ alert('Error: '+e.message); setMsg('') } finally{ setCreating(false) }
   }
 
   const eliminarTienda=async(id, slug)=>{
     if(!confirm(`¿Seguro eliminar ${slug}?`)) return
     const supabase=getSupabase()
-    try{ await supabase.from('products').delete().eq('store_id', id); const { error } = await supabase.from('stores').delete().eq('id', id); if(error) throw error; load() }catch(e){ alert('Error eliminando: '+e.message) }
+    try{ await supabase.from('products').delete().eq('store_id', id); const { error } = await supabase.from('stores').delete().eq('id', id); if(error) throw error; if(previewSelected?.id===id) setPreviewSelected(null); load() }catch(e){ alert('Error eliminando: '+e.message) }
   }
   const agregarProducto=async(storeId, tipoTienda)=>{
     if(!prodForm.name || !prodForm.price){ alert('Falta nombre o precio'); return }
@@ -96,7 +97,26 @@ export default function SuperAdminPremiumFull(){
     if(search && !s.name.toLowerCase().includes(search.toLowerCase()) && !String(s.slug||'').toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
-  const previewStore={ name: form.name || 'TIENDA AGDIN', slug: form.slug || 'agdin-luna', tipo: form.tipo, logo: logoPreview, cover: coverPreview }
+
+  // Vista previa: si hay tienda seleccionada, muestra esa, si no, muestra lo que escribes para crear
+  const isPreviewFromExisting = !!previewSelected
+  const previewStore = isPreviewFromExisting ? {
+    id: previewSelected.id,
+    name: previewSelected.name,
+    slug: previewSelected.slug,
+    tipo: previewSelected.tipo_tienda || 'boutique',
+    logo: previewSelected.logo_url,
+    cover: previewSelected.cover_image,
+    whatsapp: previewSelected.whatsapp,
+  } : {
+    name: form.name || 'TIENDA AGDIN',
+    slug: form.slug || 'agdin-luna',
+    tipo: form.tipo,
+    logo: logoPreview,
+    cover: coverPreview,
+    whatsapp: form.whatsapp,
+  }
+
   const previewLink = `https://tiendanica.store/${previewStore.slug}`
   const previewAdminLink = `https://tiendanica.store/${previewStore.slug}/admin`
 
@@ -110,61 +130,71 @@ export default function SuperAdminPremiumFull(){
         .btn-green{background:#00E676; color:#000; padding:8px 12px; border-radius:999px; font-size:10px; font-weight:800; border:none; cursor:pointer}
         .pill{padding:8px 14px; border-radius:999px; border:1px solid #EAE6E1; background:#fff; font-size:11px; font-weight:700; cursor:pointer}
         .pill.active{background:#0A0A0A; color:#fff}
-        .preview-cover{height:180px; background:#E8E2DD; border-radius:16px; overflow:hidden; position:relative}
+        .preview-cover{height:200px; background:#E8E2DD; border-radius:16px; overflow:hidden; position:relative}
         .preview-cover img{width:100%; height:100%; object-fit:cover}
         .link-box{background:#FBF9F7; border:1px dashed #D6CFC8; border-radius:12px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px}
         .link-text{font-size:11px; color:#0A0A0A; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px}
       `}</style>
-      <div style={{maxWidth:900, margin:'0 auto'}}>
+      <div style={{maxWidth:960, margin:'0 auto'}}>
         <h1 style={{fontWeight:900, fontSize:20, color:'#0A0A0A'}}>Super Admin Privado <span style={{fontWeight:500, fontSize:12, color:'#9A9590'}}>• {stores.length} tiendas • {products.length} productos</span> {msg ? <span style={{fontSize:11, background:'#00E676', color:'#000', padding:'4px 10px', borderRadius:999, marginLeft:8}}>{msg}</span> : null}</h1>
 
-        <div style={{display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:14, marginTop:14}}>
+        <div style={{display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:14, marginTop:14, alignItems:'start'}}>
           <div className="card">
             <b style={{fontSize:13}}>Crear nueva tienda premium</b>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
-              <select value={form.tipo} onChange={e=>setForm({...form, tipo:e.target.value})} className="input">
+              <select value={form.tipo} onChange={e=>{setForm({...form, tipo:e.target.value}); setPreviewSelected(null)}} className="input">
                 <option value="boutique">👗 Boutique</option>
                 <option value="comida">🍔 Comida</option>
                 <option value="general">🛍️ General</option>
               </select>
-              <input value={form.slug} onChange={e=>setForm({...form, slug:e.target.value})} placeholder="slug ej: agdin-luna" className="input"/>
+              <input value={form.slug} onChange={e=>{setForm({...form, slug:e.target.value}); setPreviewSelected(null)}} placeholder="slug ej: agdin-luna" className="input"/>
             </div>
-            <input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} placeholder="Nombre tienda" className="input" style={{marginTop:8}}/>
-            <input value={form.whatsapp} onChange={e=>setForm({...form, whatsapp:e.target.value})} placeholder="WhatsApp 505..." className="input" style={{marginTop:8}}/>
-            <input value={form.description} onChange={e=>setForm({...form, description:e.target.value})} placeholder="Descripcion corta" className="input" style={{marginTop:8}}/>
+            <input value={form.name} onChange={e=>{setForm({...form, name:e.target.value}); setPreviewSelected(null)}} placeholder="Nombre tienda" className="input" style={{marginTop:8}}/>
+            <input value={form.whatsapp} onChange={e=>{setForm({...form, whatsapp:e.target.value}); setPreviewSelected(null)}} placeholder="WhatsApp 505..." className="input" style={{marginTop:8}}/>
+            <input value={form.description} onChange={e=>{setForm({...form, description:e.target.value}); setPreviewSelected(null)}} placeholder="Descripcion corta" className="input" style={{marginTop:8}}/>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
-              <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Logo dueño (local)</div><input type="file" accept="image/*" onChange={e=>setLogoFile(e.target.files?.[0]||null)} style={{fontSize:11, width:'100%'}}/>{logoPreview ? <img src={logoPreview} style={{width:52, height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
-              <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Portada editable (local)</div><input type="file" accept="image/*" onChange={e=>setCoverFile(e.target.files?.[0]||null)} style={{fontSize:11, width:'100%'}}/>{coverPreview ? <img src={coverPreview} style={{width:'100%', height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
+              <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Logo dueño (local)</div><input type="file" accept="image/*" onChange={e=>{setLogoFile(e.target.files?.[0]||null); setPreviewSelected(null)}} style={{fontSize:11, width:'100%'}}/>{logoPreview && !previewSelected ? <img src={logoPreview} style={{width:52, height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
+              <div><div style={{fontSize:11, fontWeight:800, marginBottom:6}}>Portada editable (local)</div><input type="file" accept="image/*" onChange={e=>{setCoverFile(e.target.files?.[0]||null); setPreviewSelected(null)}} style={{fontSize:11, width:'100%'}}/>{coverPreview && !previewSelected ? <img src={coverPreview} style={{width:'100%', height:52, borderRadius:12, marginTop:8, objectFit:'cover', border:'1px solid #EAE6E1'}}/> : null}</div>
             </div>
-
-            {/* LINKS PREVISTOS PARA COMPARTIR AL DUEÑO ANTES DE CREAR */}
-            {form.slug && (
+            {form.slug && !previewSelected && (
               <div style={{marginTop:12, background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:12, padding:10}}>
                 <div style={{fontSize:11, fontWeight:800, color:'#166534'}}>Links que se generaran para compartir al dueño:</div>
-                <div className="link-box">
-                  <div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>TIENDA DEL CLIENTE</div><div className="link-text">{previewLink}</div></div>
-                  <CopyBtn text={previewLink} label="Copiar tienda"/>
-                </div>
-                <div className="link-box">
-                  <div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>ADMIN DEL DUEÑO</div><div className="link-text">{previewAdminLink}</div></div>
-                  <CopyBtn text={previewAdminLink} label="Copiar admin"/>
-                </div>
-                <div style={{display:'flex', gap:6, marginTop:8}}>
-                  <a href={`https://wa.me/${form.whatsapp.replace(/[^0-9]/g,'')}?text=Hola ${form.name || ''}! Tu tienda ya esta lista: ${previewLink} - Tu admin para subir productos: ${previewAdminLink}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>📲 Compartir por WhatsApp al dueño</a>
-                </div>
+                <div className="link-box"><div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>TIENDA DEL CLIENTE</div><div className="link-text">https://tiendanica.store/{form.slug.toLowerCase()}</div></div><CopyBtn text={`https://tiendanica.store/${form.slug.toLowerCase()}`} label="Copiar tienda"/></div>
+                <div className="link-box"><div><div style={{fontSize:9, color:'#9A9590', fontWeight:700}}>ADMIN DEL DUEÑO</div><div className="link-text">https://tiendanica.store/{form.slug.toLowerCase()}/admin</div></div><CopyBtn text={`https://tiendanica.store/${form.slug.toLowerCase()}/admin`} label="Copiar admin"/></div>
               </div>
             )}
-
             <button onClick={crearTienda} disabled={creating} className="btn-black" style={{marginTop:14, opacity: creating?0.6:1}}>{creating ? 'Creando...' : 'Crear tienda premium →'}</button>
+            {previewSelected && <button onClick={()=>setPreviewSelected(null)} style={{marginTop:8, width:'100%', background:'#fff', border:'1px solid #EAE6E1', padding:'10px', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer'}}>← Volver a vista previa de nueva tienda</button>}
           </div>
-          <div>
-            <div style={{fontSize:11, fontWeight:800, color:'#9A9590', letterSpacing:'0.8px', marginBottom:8}}>VISTA PREVIA EN VIVO</div>
-            <div className="card" style={{padding:0, overflow:'hidden'}}>
-              <div className="preview-cover">{previewStore.cover ? <img src={previewStore.cover}/> : <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'#9A9590'}}>Portada por defecto</div>}<div style={{position:'absolute', top:10, left:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>{previewStore.tipo.toUpperCase()}</div></div>
-              <div style={{padding:12, display:'flex', justifyContent:'space-between', alignItems:'center'}}><div style={{display:'flex', alignItems:'center', gap:10}}>{previewStore.logo ? <img src={previewStore.logo} style={{width:36, height:36, borderRadius:10, objectFit:'cover'}}/> : <div style={{width:36, height:36, borderRadius:10, background:'#0A0A0A', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>A</div>}<b style={{fontSize:13}}>{previewStore.name}</b></div><div style={{background:'#00E676', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800}}>WA</div></div>
-              <div style={{padding:'0 12px 12px'}}>
-                <div className="link-box"><div className="link-text">{previewLink}</div><CopyBtn text={previewLink} label="Copiar link tienda"/></div>
-                <div className="link-box"><div className="link-text">{previewAdminLink}</div><CopyBtn text={previewAdminLink} label="Copiar link admin"/></div>
+
+          <div style={{position:'sticky', top:14}}>
+            <div style={{fontSize:11, fontWeight:800, color: isPreviewFromExisting ? '#0A0A0A' : '#9A9590', letterSpacing:'0.8px', marginBottom:8}}>{isPreviewFromExisting ? `VISTA PREVIA: ${previewStore.name.toUpperCase()} • CLIC EN TIENDA EXISTENTE` : 'VISTA PREVIA EN VIVO - NUEVA TIENDA'}</div>
+            <div className="card" style={{padding:0, overflow:'hidden', border: isPreviewFromExisting ? '2px solid #0A0A0A' : '1px solid #EAE6E1'}}>
+              <div className="preview-cover">
+                {previewStore.cover ? <img src={previewStore.cover}/> : <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'#9A9590'}}>Sin portada</div>}
+                <div style={{position:'absolute', top:10, left:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>{(previewStore.tipo||'boutique').toUpperCase()}</div>
+                <div style={{position:'absolute', top:10, right:10, background:'#fff', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>• Abierto</div>
+                <div style={{position:'absolute', bottom:0, left:0, right:0, height:80, background:'linear-gradient(transparent, rgba(0,0,0,0.7))'}}/>
+                <div style={{position:'absolute', bottom:10, left:12, right:12, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:10}}>
+                    {previewStore.logo ? <img src={previewStore.logo} style={{width:44, height:44, borderRadius:12, objectFit:'cover', border:'2px solid #fff'}}/> : <div style={{width:44, height:44, borderRadius:12, background:'#fff', color:'#0A0A0A', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>A</div>}
+                    <div style={{color:'#fff'}}><div style={{fontWeight:900, fontSize:14, textShadow:'0 1px 4px rgba(0,0,0,0.6)'}}>{previewStore.name}</div><div style={{fontSize:10, opacity:0.9}}>tiendanica.store/{previewStore.slug}</div></div>
+                  </div>
+                </div>
+              </div>
+              <div style={{padding:12}}>
+                <div className="link-box" style={{marginTop:0}}>
+                  <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK TIENDA CLIENTE</div><div className="link-text" style={{maxWidth:200}}>{previewLink}</div></div>
+                  <div style={{display:'flex', gap:4}}><CopyBtn text={previewLink} label="Copiar"/><a href={previewLink} target="_blank" style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none', color:'#0A0A0A'}}>Abrir</a></div>
+                </div>
+                <div className="link-box">
+                  <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK ADMIN DUEÑO</div><div className="link-text" style={{maxWidth:200}}>{previewAdminLink}</div></div>
+                  <div style={{display:'flex', gap:4}}><CopyBtn text={previewAdminLink} label="Copiar"/><a href={previewAdminLink} target="_blank" style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none', color:'#0A0A0A'}}>Abrir</a></div>
+                </div>
+                <div style={{display:'flex', gap:6, marginTop:10}}>
+                  <a href={`https://wa.me/${String(previewStore.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hola ${previewStore.name}! Tu tienda: ${previewLink} - Tu panel para subir productos: ${previewAdminLink}`)}`} target="_blank" style={{flex:1, background:'#00E676', color:'#000', padding:'10px', borderRadius:999, fontSize:11, fontWeight:800, textAlign:'center', textDecoration:'none'}}>📲 Compartir al dueño por WhatsApp</a>
+                </div>
+                {isPreviewFromExisting && <div style={{fontSize:10, color:'#9A9590', textAlign:'center', marginTop:8}}>Clicaste {previewStore.name}. Esta es su portada y logo real que subiste.</div>}
               </div>
             </div>
           </div>
@@ -178,45 +208,39 @@ export default function SuperAdminPremiumFull(){
             <button onClick={()=>setFilterTipo('comida')} className={`pill ${filterTipo==='comida'?'active':''}`}>comida</button>
             <button onClick={()=>setFilterTipo('general')} className={`pill ${filterTipo==='general'?'active':''}`}>general</button>
           </div>
-          <div style={{marginTop:14}}>
+          <div style={{marginTop:6, fontSize:10, color:'#9A9590'}}>💡 Clica en el nombre o logo de cualquier tienda para cargarla en la vista previa bonita de la derecha</div>
+          <div style={{marginTop:10}}>
             {filtered.map(s=>{
               const prods = products.filter(p=>p.store_id===s.id)
               const isOpen = expandedStore===s.id
+              const isSelected = previewSelected?.id===s.id
               const tiendaLink = `https://tiendanica.store/${s.slug}`
               const adminLink = `https://tiendanica.store/${s.slug}/admin`
-              const waShare = `Hola ${s.name}! Tu tienda: ${tiendaLink} - Tu panel para subir productos: ${adminLink}`
               return (
-                <div key={s.id} style={{padding:'12px 0', borderBottom:'1px solid #F0EDE8'}}>
+                <div key={s.id} style={{padding:'12px 0', borderBottom:'1px solid #F0EDE8', background: isSelected ? '#FFFBEB' : 'transparent', borderRadius: isSelected?12:0, paddingLeft: isSelected?8:0, paddingRight: isSelected?8:0}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
-                    <div style={{display:'flex', alignItems:'center', gap:10}}>
-                      <img src={s.logo_url || s.cover_image || ''} style={{width:36, height:36, borderRadius:8, objectFit:'cover', background:'#F7F5F3', border:'1px solid #EAE6E1'}} onError={e=>e.currentTarget.style.display='none'}/>
-                      <div><b style={{fontSize:12}}>{s.name}</b><div style={{fontSize:10, color:'#9A9590'}}>{s.slug} • {s.tipo_tienda} • {prods.length} prod</div></div>
+                    <div style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer'}} onClick={()=>setPreviewSelected(s)}>
+                      <img src={s.logo_url || s.cover_image || ''} style={{width:36, height:36, borderRadius:8, objectFit:'cover', background:'#F7F5F3', border: isSelected ? '2px solid #0A0A0A' : '1px solid #EAE6E1'}} onError={e=>e.currentTarget.style.display='none'}/>
+                      <div><b style={{fontSize:12, textDecoration:'underline', textDecorationStyle:'dotted'}}>{s.name}</b><div style={{fontSize:10, color:'#9A9590'}}>{s.slug} • {s.tipo_tienda} • {prods.length} prod • Clic para vista previa →</div></div>
                     </div>
                     <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
-                      <a href={tiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>ver tienda →</a>
+                      <button onClick={()=>setPreviewSelected(s)} style={{background: isSelected ? '#0A0A0A':'#fff', color: isSelected?'#fff':'#0A0A0A', border:'1px solid #0A0A0A', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>{isSelected ? '✓ en vista previa' : '👁 ver en vista previa'}</button>
+                      <a href={tiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>ver tienda</a>
                       <button onClick={()=>setExpandedStore(isOpen?null:s.id)} style={{background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>{isOpen?'cerrar':'productos / links'}</button>
                       <button onClick={()=>eliminarTienda(s.id, s.slug)} className="btn-red">eliminar</button>
                     </div>
                   </div>
-
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10}}>
-                    <div className="link-box" style={{marginTop:0}}>
-                      <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK TIENDA CLIENTE</div><div className="link-text" style={{maxWidth:'100%'}}>{tiendaLink}</div></div>
-                      <div style={{display:'flex', gap:4}}><CopyBtn text={tiendaLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(waShare)}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA</a></div>
-                    </div>
-                    <div className="link-box" style={{marginTop:0}}>
-                      <div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK ADMIN DUEÑO</div><div className="link-text" style={{maxWidth:'100%'}}>{adminLink}</div></div>
-                      <div style={{display:'flex', gap:4}}><CopyBtn text={adminLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent('Tu panel para subir productos: '+adminLink)}`} target="_blank" style={{background:'#000', color:'#fff', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA admin</a></div>
-                    </div>
+                    <div className="link-box" style={{marginTop:0}}><div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK TIENDA</div><div className="link-text">{tiendaLink}</div></div><div style={{display:'flex', gap:4}}><CopyBtn text={tiendaLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Tu tienda: ${tiendaLink}`)}`} target="_blank" style={{background:'#00E676', color:'#000', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA</a></div></div>
+                    <div className="link-box" style={{marginTop:0}}><div style={{overflow:'hidden'}}><div style={{fontSize:8, fontWeight:800, color:'#9A9590'}}>LINK ADMIN DUEÑO</div><div className="link-text">{adminLink}</div></div><div style={{display:'flex', gap:4}}><CopyBtn text={adminLink} label="Copiar"/><a href={`https://wa.me/${String(s.whatsapp||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Tu panel: ${adminLink}`)}`} target="_blank" style={{background:'#000', color:'#fff', padding:'6px 8px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>WA admin</a></div></div>
                   </div>
-
                   {isOpen && (
                     <div style={{marginTop:12, background:'#FBF9F7', border:'1px solid #EAE6E1', borderRadius:16, padding:12}}>
                       <b style={{fontSize:11}}>Agregar producto para {s.name}</b>
                       <div style={{display:'grid', gridTemplateColumns:'1fr 100px 1fr', gap:8, marginTop:8}}>
                         <input value={prodForm.name} onChange={e=>setProdForm({...prodForm, name:e.target.value})} placeholder="Nombre producto" className="input" style={{fontSize:11}}/>
                         <input value={prodForm.price} onChange={e=>setProdForm({...prodForm, price:e.target.value})} placeholder="Precio C$" type="number" className="input" style={{fontSize:11}}/>
-                        <input value={prodForm.categoria} onChange={e=>setProdForm({...prodForm, categoria:e.target.value})} placeholder={s.tipo_tienda==='comida'?'platos fuertes':'vestidos / blusas'} className="input" style={{fontSize:11}}/>
+                        <input value={prodForm.categoria} onChange={e=>setProdForm({...prodForm, categoria:e.target.value})} placeholder={s.tipo_tienda==='comida'?'platos fuertes':'vestidos'} className="input" style={{fontSize:11}}/>
                       </div>
                       <div style={{display:'flex', gap:8, marginTop:8, alignItems:'center'}}>
                         <input type="file" accept="image/*" onChange={e=>setProdForm({...prodForm, imageFile:e.target.files?.[0]||null})} style={{fontSize:11}}/>
