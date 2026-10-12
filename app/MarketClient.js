@@ -3,13 +3,16 @@ import { useState, useMemo } from 'react'
 
 const CATS = {
   boutique: ['all','vestidos','blusas','jeans','faldas','conjuntos','shorts','accesorios','zapatos','carteras','nuevo','oferta'],
-  comida: ['all','entradas','platos fuertes','pizzas','hamburguesas','pollo','mariscos','bebidas','postres','combos','ofertas'],
   general: ['all','hogar','tecnologia','belleza','juguetes','ferreteria','salud','deportes','libros','otros','oferta','nuevo']
 }
 
 export default function MarketClient({ initialStores, initialProducts }){
-  const [stores] = useState(initialStores)
-  const [products] = useState(initialProducts)
+  // Filtramos comida desde el inicio - solo boutique y general son enviables nacionalmente
+  const boutiqueStores = initialStores.filter(s => (s.tipo_tienda||'boutique') !== 'comida')
+  const boutiqueProducts = initialProducts.filter(p => (p._store?.tipo_tienda||'boutique') !== 'comida')
+
+  const [stores] = useState(boutiqueStores)
+  const [products] = useState(boutiqueProducts)
   const [tipo,setTipo]=useState('boutique')
   const [cat,setCat]=useState('all')
   const [search,setSearch]=useState('')
@@ -55,20 +58,19 @@ export default function MarketClient({ initialStores, initialProducts }){
         <header style={{padding:'16px 0 12px', display:'flex', flexDirection:'column', gap:12}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
             <img src="/tienda-nica-logo.png" alt="Tienda Nica" style={{height:42, objectFit:'contain'}}/>
-            <div style={{fontSize:11, color:'#9A9590', fontWeight:600, background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999}}>{stores.length} tiendas • {products.length} productos</div>
+            <div style={{fontSize:11, color:'#9A9590', fontWeight:600, background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999}}>{stores.length} tiendas • {products.length} productos • Envío nacional</div>
           </div>
 
-          {/* BUSQUEDA + BOTON VENDER (que pediste) */}
           <div style={{display:'flex', gap:8}}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar vestido, pizza, licuadora..." className="input-base"/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar vestido, jeans, licuadora..." className="input-base"/>
             <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'0 18px', borderRadius:999, fontWeight:800, fontSize:12, display:'flex', alignItems:'center', textDecoration:'none', whiteSpace:'nowrap'}}>Vender</a>
           </div>
         </header>
 
+        {/* SOLO BOUTIQUE Y GENERAL - SIN COMIDA */}
         <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none'}}>
           <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>👗 Boutique</button>
-          <button onClick={()=>{setTipo('comida'); setCat('all')}} className={`pill ${tipo==='comida'?'active':''}`}>🍔 Comida</button>
-          <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍️ General / Todo</button>
+          <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍️ Hogar / General</button>
           <button onClick={()=>{setTipo('all'); setCat('all')}} className={`pill ${tipo==='all'?'active':''}`}>✨ Todo</button>
         </div>
 
@@ -78,13 +80,12 @@ export default function MarketClient({ initialStores, initialProducts }){
           ))}
         </div>
 
-        {/* BANNER QUE TENIAS - REGRESADO */}
         <div className="card-white" style={{marginTop:14, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0A0A0A', color:'#fff', borderColor:'#0A0A0A'}}>
           <div>
-            <h2 style={{fontWeight:900, fontSize:18, letterSpacing:'-0.5px', lineHeight:1.1}}>{tipo==='boutique'?'Boutique nicaragüense premium': tipo==='comida'?'Restaurantes y comidas a domicilio':'Todo para tu hogar'} <span style={{color:'#00E676'}}>•</span></h2>
-            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4, fontWeight:500}}>{tipo==='boutique'?'Lo más vendido de tus tiendas favoritas. Compra directo por WhatsApp al dueño.': tipo==='comida'?'Pide directo a la cocina de cada restaurante sin intermediarios.':'Electrodomésticos, belleza, juguetes y más. Todo en un solo lugar.'}</p>
+            <h2 style={{fontWeight:900, fontSize:18, letterSpacing:'-0.5px', lineHeight:1.1}}>{tipo==='boutique'?'Boutique nicaragüense premium': 'Todo para tu hogar'} <span style={{color:'#00E676'}}>•</span></h2>
+            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4, fontWeight:500}}>Todo con envío a toda Nicaragua. Compra directo por WhatsApp al dueño, sin comisiones.</p>
           </div>
-          <div style={{fontSize:24, background:'#1A1A1A', width:48, height:48, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #2A2A2A'}}>{tipo==='boutique'?'👗':tipo==='comida'?'🍔':'🛍️'}</div>
+          <div style={{fontSize:24, background:'#1A1A1A', width:48, height:48, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #2A2A2A'}}>👗</div>
         </div>
 
         <div className="grid" style={{marginTop:14}}>
@@ -109,12 +110,12 @@ export default function MarketClient({ initialStores, initialProducts }){
         </div>
 
         <div style={{marginTop:24}}>
-          <h3 style={{fontWeight:900, fontSize:14, color:'#0A0A0A'}}>🛍️ Tiendas del mercado</h3>
+          <h3 style={{fontWeight:900, fontSize:14, color:'#0A0A0A'}}>🛍️ Tiendas con envío nacional</h3>
           <div style={{display:'flex', gap:10, overflowX:'auto', marginTop:10, paddingBottom:10}}>
             {stores.map(s=>(
               <a key={s.id} href={`/${s.slug}`} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:10, minWidth:140, textDecoration:'none', color:'#0A0A0A', display:'flex', gap:8, alignItems:'center'}}>
                 <img src={s.logo_url||s.cover_image} style={{width:36,height:36,borderRadius:10, objectFit:'cover'}}/>
-                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{products.filter(p=>p._store?.id===s.id).length} prod</span></div>
+                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{products.filter(p=>p._store?.id===s.id).length} productos</span></div>
               </a>
             ))}
           </div>
@@ -124,9 +125,9 @@ export default function MarketClient({ initialStores, initialProducts }){
           <div style={{background:'#FFFFFF', border:'1px dashed #0A0A0A', borderRadius:20, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
             <div style={{flex:1}}>
               <b style={{fontSize:12, color:'#0A0A0A'}}>¿Tienes una tienda en Nicaragua?</b>
-              <p style={{fontSize:11, color:'#9A9590', marginTop:2, lineHeight:1.3}}>Únete a TiendaNica Market. Te creamos tu tienda premium con tu propio WhatsApp.</p>
+              <p style={{fontSize:11, color:'#9A9590', marginTop:2, lineHeight:1.3}}>Únete a TiendaNica Market. Te creamos tu tienda premium con tu propio WhatsApp y vendes en todo el país.</p>
             </div>
-            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:11, textDecoration:'none', whiteSpace:'nowrap'}}>Solicitar tienda →</a>
+            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:11, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Solicitar tienda →</a>
           </div>
         </div>
       </div>
