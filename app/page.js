@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 function getSupabase(){
@@ -28,24 +28,52 @@ export default function TiendaNicaMarket(){
   const load=async()=>{
     const supabase=getSupabase()
     if(!supabase) { setLoading(false); return }
-    const {data: s}=await supabase.from('stores').select('*').order('created_at',{ascending:false})
-    const {data: p}=await supabase.from('products').select('*').eq('is_active',true).order('created_at',{ascending:false})
+
+    // 1. CACHE INSTANTANEO (2 minutos) - abre en 0ms la 2da vez
+    try{
+      const cached = localStorage.getItem('tn_market_cache_v2')
+      const cacheTime = localStorage.getItem('tn_market_cache_time_v2')
+      if(cached && cacheTime && Date.now() - parseInt(cacheTime) < 120000){
+        const {s,p} = JSON.parse(cached)
+        const storeMap={}
+        s?.forEach(st=>storeMap[st.id]=st)
+        setStores(s||[])
+        setProducts((p||[]).map(prod=>({ ...prod, _store: storeMap[prod.store_id] })).filter(x=>x._store))
+        setLoading(false)
+      }
+    }catch{}
+
+    // 2. QUERY OPTIMIZADA - solo campos que usa el market + limit
+    // stores NO tiene is_active en tu base, por eso no filtramos por is_active
+    const {data: s} = await supabase.from('stores').select('id,name,slug,logo_url,cover_image,tipo_tienda,whatsapp').order('created_at',{ascending:false})
+    const {data: p} = await supabase.from('products').select('id,store_id,name,price,image_url,categoria').eq('is_active',true).order('created_at',{ascending:false}).limit(150)
+    
     const storeMap={}
     s?.forEach(st=>storeMap[st.id]=st)
     const enriched = (p||[]).map(prod=>({ ...prod, _store: storeMap[prod.store_id] })).filter(x=>x._store)
     setStores(s||[])
     setProducts(enriched)
     setLoading(false)
+
+    // 3. Guarda cache
+    try{
+      localStorage.setItem('tn_market_cache_v2', JSON.stringify({s,p}))
+      localStorage.setItem('tn_market_cache_time_v2', Date.now().toString())
+    }catch{}
   }
 
-  const filtered = products.filter(pr=>{
+  // useMemo para no filtrar en cada render - acelera busqueda
+  const filtered = useMemo(()=> products.filter(pr=>{
     const st = pr._store
     if(!st) return false
     if(tipo!=='all' && (st.tipo_tienda||'boutique')!==tipo) return false
     if(cat!=='all' && pr.categoria!==cat) return false
-    if(search && !pr.name.toLowerCase().includes(search.toLowerCase()) && !st.name.toLowerCase().includes(search.toLowerCase())) return false
+    if(search){
+      const q=search.toLowerCase()
+      if(!pr.name.toLowerCase().includes(q) && !st.name.toLowerCase().includes(q)) return false
+    }
     return true
-  })
+  }),[products,tipo,cat,search])
 
   const whatsappLink=(pr)=>{
     const st = pr._store
@@ -73,39 +101,33 @@ export default function TiendaNicaMarket(){
         .prod-img{aspect-ratio:1/1; object-fit:cover; border-radius:14px; width:100%; background:#F7F5F3}
       `}</style>
 
-      {/* HEADER STICKY - MAS COLOR ARRIBA */}
-      <header style={{position:'sticky', top:0, zIndex:50, background:'rgba(255,255,255,0.92)', backdropFilter:'blur(16px)', borderBottom:'1px solid #EAE6E1', boxShadow:'0 8px 30px -18px rgba(0,0,0,0.3)'}}>
-        <div className="wrap">
-          <div style={{padding:'14px 0 10px', display:'flex', flexDirection:'column', gap:10}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
-              <img src="/tienda-nica-logo.png" alt="Tienda Nica" style={{height:42, objectFit:'contain'}} onError={(e)=>{e.target.style.display='none'; e.target.nextElementSibling.style.display='flex'}}/>
-              <div style={{display:'none', alignItems:'center', gap:8, fontWeight:900, fontSize:22, letterSpacing:'-0.8px'}}><span style={{fontSize:28}}>👜</span>Tienda<span style={{color:'#00D084'}}>Nica</span></div>
-              <div style={{fontSize:11, color:'#9A9590', fontWeight:600, background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999}}>{stores.length} tiendas • {products.length} productos</div>
-            </div>
-
-            <div style={{display:'flex', gap:8}}>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar vestido, pizza, licuadora..." className="input-base"/>
-              <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'0 18px', borderRadius:999, fontWeight:800, fontSize:12, display:'flex', alignItems:'center', textDecoration:'none', whiteSpace:'nowrap'}}>Vender</a>
-            </div>
-
-            <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none'}}>
-              <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>👗 Boutique</button>
-              <button onClick={()=>{setTipo('comida'); setCat('all')}} className={`pill ${tipo==='comida'?'active':''}`}>🍔 Comida</button>
-              <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍️ General / Todo</button>
-              <button onClick={()=>{setTipo('all'); setCat('all')}} className={`pill ${tipo==='all'?'active':''}`}>✨ Todo</button>
-            </div>
-
-            <div style={{display:'flex', gap:6, overflowX:'auto', paddingBottom:2}}>
-              {(CATS[tipo]||CATS.boutique).map(c=>(
-                <button key={c} onClick={()=>setCat(c)} className={`pill-sub ${cat===c?'active':''}`}>{c}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div className="wrap">
-        {/* HERO */}
+        <header style={{padding:'16px 0 12px', display:'flex', flexDirection:'column', gap:12}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
+            <img src="/tienda-nica-logo.png" alt="Tienda Nica" style={{height:42, objectFit:'contain'}} onError={(e)=>{e.target.style.display='none'; e.target.nextElementSibling.style.display='flex'}}/>
+            <div style={{display:'none', alignItems:'center', gap:8, fontWeight:900, fontSize:22, letterSpacing:'-0.8px'}}><span style={{fontSize:28}}>👜</span>Tienda<span style={{color:'#00D084'}}>Nica</span></div>
+            <div style={{fontSize:11, color:'#9A9590', fontWeight:600, background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999}}>{stores.length} tiendas • {products.length} productos</div>
+          </div>
+
+          <div style={{display:'flex', gap:8}}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar vestido, pizza, licuadora..." className="input-base"/>
+            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'0 18px', borderRadius:999, fontWeight:800, fontSize:12, display:'flex', alignItems:'center', textDecoration:'none', whiteSpace:'nowrap'}}>Vender</a>
+          </div>
+        </header>
+
+        <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none'}}>
+          <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>👗 Boutique</button>
+          <button onClick={()=>{setTipo('comida'); setCat('all')}} className={`pill ${tipo==='comida'?'active':''}`}>🍔 Comida</button>
+          <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍️ General / Todo</button>
+          <button onClick={()=>{setTipo('all'); setCat('all')}} className={`pill ${tipo==='all'?'active':''}`}>✨ Todo</button>
+        </div>
+
+        <div style={{display:'flex', gap:6, overflowX:'auto', marginTop:10, paddingBottom:6}}>
+          {(CATS[tipo]||CATS.boutique).map(c=>(
+            <button key={c} onClick={()=>setCat(c)} className={`pill-sub ${cat===c?'active':''}`}>{c}</button>
+          ))}
+        </div>
+
         <div className="card-white" style={{marginTop:14, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0A0A0A', color:'#fff', borderColor:'#0A0A0A'}}>
           <div>
             <h2 style={{fontWeight:900, fontSize:18, letterSpacing:'-0.5px', lineHeight:1.1}}>{tipo==='boutique'?'Boutique nicaragüense premium': tipo==='comida'?'Restaurantes y comidas a domicilio':'Todo para tu hogar'} <span style={{color:'#00E676'}}>•</span></h2>
@@ -114,13 +136,12 @@ export default function TiendaNicaMarket(){
           <div style={{fontSize:24, background:'#1A1A1A', width:48, height:48, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #2A2A2A'}}>{tipo==='boutique'?'👗':tipo==='comida'?'🍔':'🛍️'}</div>
         </div>
 
-        {/* PRODUCTOS - BLANCO INTACTO */}
         {loading? <div style={{padding:40, textAlign:'center', color:'#9A9590'}}>Cargando mercado...</div> : (
           <div className="grid" style={{marginTop:14}}>
             {filtered.map(pr=>(
               <div key={pr.id} className="card-white" style={{padding:10, overflow:'hidden'}}>
                 <a href={`/${pr._store.slug}`} style={{textDecoration:'none', color:'inherit'}}>
-                  <img src={pr.image_url} className="prod-img"/>
+                  <img src={pr.image_url} className="prod-img" loading="lazy"/>
                 </a>
                 <div style={{padding:'8px 4px 2px'}}>
                   <div style={{display:'flex', justifyContent:'space-between', gap:6}}>
