@@ -50,7 +50,7 @@ export default function TiendaNicaMarket(){
   const whatsappLink=(pr)=>{
     const st = pr._store
     const phone = (st.whatsapp||'').replace(/[^0-9]/g,'')
-    const text = encodeURIComponent(`Hola ${st.name} 👋 vi tu producto "${pr.name}" por C$ ${pr.price} en TiendaNica.store y quiero comprarlo. ¿Está disponible?`)
+    const text = encodeURIComponent(`Hola ${st.name} 👋 vi "${pr.name}" por C$ ${pr.price} en tiendanica.store y lo quiero. ¿Disponible?`)
     return `https://wa.me/${phone}?text=${text}`
   }
 
@@ -89,29 +89,20 @@ export default function TiendaNicaMarket(){
           </div>
         </header>
 
-        {/* NUEVO HERO DIFERENCIAL - ANTI NICACOMERCIO */}
-        <div className="card-white" style={{marginTop:6, padding:20, background:'#0A0A0A', color:'#fff', borderColor:'#0A0A0A', position:'relative', overflow:'hidden'}}>
-          <div style={{maxWidth:600}}>
-            <div style={{display:'inline-flex', background:'#1A1A1A', border:'1px solid #2A2A2A', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800, letterSpacing:'0.5px', color:'#00E676', marginBottom:10}}>0% COMISIÓN • 100% TUYO</div>
-            <h1 style={{fontWeight:900, fontSize:26, lineHeight:1.05, letterSpacing:'-1px'}}>Tu tienda online<br/>en 5 minutos.<br/><span style={{color:'#00E676'}}>Sin comisiones.</span></h1>
-            <p style={{fontSize:13, color:'#B0ABA5', marginTop:8, lineHeight:1.4, fontWeight:500}}>El cliente es tuyo, siempre en tu WhatsApp. Tu link propio: <span style={{color:'#fff', fontWeight:700}}>tiendanica.store/tu-tienda</span></p>
-            
-            <div style={{display:'flex', gap:8, marginTop:16, flexWrap:'wrap'}}>
-              <a href={solicitarTiendaLink} target="_blank" style={{background:'#fff', color:'#000', padding:'12px 20px', borderRadius:999, fontWeight:900, fontSize:13, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6}}>Crea tu tienda gratis →</a>
-              <div style={{display:'flex', alignItems:'center', gap:6, fontSize:11, color:'#9A9590'}}><span style={{background:'#00E676', width:6, height:6, borderRadius:999, display:'inline-block'}}></span> Activa hoy mismo</div>
-            </div>
-
-            <div style={{display:'flex', gap:8, marginTop:18, flexWrap:'wrap'}}>
-              <div style={{background:'#1A1A1A', border:'1px solid #2A2A2A', padding:'8px 12px', borderRadius:12, fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:6}}>🚫 Sin comisiones por venta</div>
-              <div style={{background:'#1A1A1A', border:'1px solid #2A2A2A', padding:'8px 12px', borderRadius:12, fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:6}}>💬 Vendes por tu WhatsApp</div>
-              <div style={{background:'#1A1A1A', border:'1px solid #2A2A2A', padding:'8px 12px', borderRadius:12, fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:6}}>🔗 Tu link propio premium</div>
+        {/* NUEVO - BARRA COMPACTA ARRIBA con colores de tu logo (blanco + verde) */}
+        <div style={{background:'#fff', border:'1px solid #E6F4EA', borderLeft:'4px solid #00D084', borderRadius:14, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, marginBottom:14}}>
+          <div style={{display:'flex', alignItems:'center', gap:10, flex:1}}>
+            <div style={{background:'#E6F4EA', color:'#00A86B', width:32, height:32, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900}}>0%</div>
+            <div style={{lineHeight:1.2}}>
+              <b style={{fontSize:12, color:'#0A0A0A'}}>Tu tienda online en 5 min • Sin comisiones</b>
+              <p style={{fontSize:10, color:'#6B6B6B', marginTop:1}}>Tu cliente en tu WhatsApp • Link: tiendanica.store/tu-tienda</p>
             </div>
           </div>
-          <div style={{position:'absolute', right:-20, top:-20, fontSize:120, opacity:0.05}}>👜</div>
+          <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'8px 14px', borderRadius:999, fontWeight:800, fontSize:11, textDecoration:'none', whiteSpace:'nowrap'}}>Crear gratis →</a>
         </div>
 
         {/* CATEGORIAS PRINCIPALES */}
-        <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none', marginTop:16}}>
+        <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none'}}>
           <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>👗 Boutique</button>
           <button onClick={()=>{setTipo('comida'); setCat('all')}} className={`pill ${tipo==='comida'?'active':''}`}>🍔 Comida</button>
           <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍️ General / Todo</button>
@@ -125,7 +116,7 @@ export default function TiendaNicaMarket(){
           ))}
         </div>
 
-        {/* PRODUCTOS CON SKELETON EN VEZ DE CARGANDO */}
+        {/* PRODUCTOS - AHORA ARRIBA, PRIORIDAD */}
         {loading? (
           <div className="grid" style={{marginTop:14}}>
             {Array.from({length:8}).map((_,i)=>(
@@ -133,10 +124,6 @@ export default function TiendaNicaMarket(){
                 <div className="skeleton" style={{aspectRatio:'1/1', borderRadius:14}}/>
                 <div className="skeleton" style={{height:12, borderRadius:6, marginTop:10, width:'80%'}}/>
                 <div className="skeleton" style={{height:10, borderRadius:6, marginTop:8, width:'60%'}}/>
-                <div style={{display:'flex', justifyContent:'space-between', marginTop:10}}>
-                  <div className="skeleton" style={{height:12, width:50, borderRadius:6}}/>
-                  <div className="skeleton" style={{height:24, width:70, borderRadius:999}}/>
-                </div>
               </div>
             ))}
           </div>
@@ -151,11 +138,11 @@ export default function TiendaNicaMarket(){
                   <b style={{fontSize:12, lineHeight:1.2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', color:'#0A0A0A', minHeight:28}}>{pr.name}</b>
                   <div style={{display:'flex', alignItems:'center', gap:6, marginTop:6}}>
                     <img src={pr._store.logo_url||pr._store.cover_image} style={{width:18,height:18,borderRadius:999, objectFit:'cover', border:'1px solid #EAE6E1'}}/>
-                    <span style={{fontSize:10, color:'#9A9590', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{pr._store.name} • {pr.categoria}</span>
+                    <span style={{fontSize:10, color:'#9A9590', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{pr._store.name}</span>
                   </div>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8}}>
                     <b style={{fontSize:13, color:'#0A0A0A'}}>C$ {pr.price}</b>
-                    <a href={whatsappLink(pr)} target="_blank" style={{background:'#00E676', color:'#000', fontSize:10, fontWeight:800, padding:'7px 10px', borderRadius:999, textDecoration:'none'}}>Hablar con la dueña</a>
+                    <a href={whatsappLink(pr)} target="_blank" style={{background:'#00D084', color:'#fff', fontSize:10, fontWeight:800, padding:'7px 10px', borderRadius:999, textDecoration:'none'}}>Hablar con la dueña</a>
                   </div>
                 </div>
               </div>
@@ -163,36 +150,38 @@ export default function TiendaNicaMarket(){
           </div>
         )}
 
-        {filtered.length===0 && !loading && (
-          <div className="card-white" style={{marginTop:14, padding:24, textAlign:'center'}}>
-            <p style={{fontSize:13, fontWeight:700}}>Aún no hay productos en {tipo}</p>
-            <p style={{fontSize:11, color:'#9A9590', marginTop:4}}>Cuando tus tiendas añadan productos aparecerán aquí automáticamente</p>
-          </div>
-        )}
-
-        {/* TIENDAS */}
-        <div style={{marginTop:24}}>
-          <h3 style={{fontWeight:900, fontSize:14, color:'#0A0A0A'}}>🛍️ Tiendas del mercado</h3>
-          <div style={{display:'flex', gap:10, overflowX:'auto', marginTop:10, paddingBottom:10}}>
-            {stores.map(s=>(
-              <a key={s.id} href={`/${s.slug}`} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:10, minWidth:140, textDecoration:'none', color:'#0A0A0A', display:'flex', gap:8, alignItems:'center', boxShadow:'0 4px 12px rgba(0,0,0,0.04)'}}>
-                <img src={s.logo_url||s.cover_image} style={{width:36,height:36,borderRadius:10, objectFit:'cover'}}/>
-                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{s.tipo_tienda||'boutique'} • {products.filter(p=>p._store?.id===s.id).length} prod</span></div>
-              </a>
-            ))}
+        {/* HERO GRANDE AHORA ABAJO - con colores logo (blanco + verde) */}
+        <div className="card-white" style={{marginTop:28, padding:20, background:'#fff', border:'1px solid #E6F4EA', position:'relative', overflow:'hidden'}}>
+          <div style={{position:'absolute', top:-30, right:-30, width:120, height:120, background:'#E6F4EA', borderRadius:'50%'}}/>
+          <div style={{position:'absolute', bottom:-20, left:-20, width:80, height:80, background:'#F0F9F2', borderRadius:'50%'}}/>
+          <div style={{position:'relative', maxWidth:600}}>
+            <div style={{display:'inline-flex', background:'#E6F4EA', border:'1px solid #C8EACF', padding:'4px 10px', borderRadius:999, fontSize:10, fontWeight:800, color:'#00A86B', marginBottom:10}}>0% COMISIÓN • 100% TUYO • SIN INTERMEDIARIOS</div>
+            <h2 style={{fontWeight:900, fontSize:22, lineHeight:1.1, letterSpacing:'-0.8px', color:'#0A0A0A'}}>¿Tienes una tienda<br/>en Nicaragua?<br/><span style={{color:'#00D084'}}>Vende hoy mismo.</span></h2>
+            <p style={{fontSize:12, color:'#6B6B6B', marginTop:8, lineHeight:1.5}}>Te creamos tu boutique online en 5 minutos. Sin comisiones. Tus clientes te escriben directo a tu WhatsApp. Tu link propio: <b style={{color:'#0A0A0A'}}>tiendanica.store/tu-tienda</b></p>
+            <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
+              <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'12px 20px', borderRadius:999, fontWeight:900, fontSize:13, textDecoration:'none'}}>Crea tu tienda gratis →</a>
+              <span style={{display:'flex', alignItems:'center', gap:6, fontSize:11, color:'#9A9590'}}><span style={{width:6,height:6,background:'#00D084',borderRadius:999,display:'inline-block'}}></span> Activa hoy • Sin costo inicial</span>
+            </div>
+            <div style={{display:'flex', gap:8, marginTop:16, flexWrap:'wrap'}}>
+              <span style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'7px 11px', borderRadius:999, fontSize:11, fontWeight:600}}>🚫 Sin comisiones por venta</span>
+              <span style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'7px 11px', borderRadius:999, fontSize:11, fontWeight:600}}>💬 Vendes por tu WhatsApp</span>
+              <span style={{background:'#F7F5F3', border:'1px solid #EAE6E1', padding:'7px 11px', borderRadius:999, fontSize:11, fontWeight:600}}>🔗 Link propio premium</span>
+            </div>
           </div>
         </div>
 
-        {/* ANUNCIO SOLICITAR TIENDA */}
-        <div style={{marginTop:28, marginBottom:24}}>
-          <div style={{background:'#FFFFFF', border:'1px dashed #0A0A0A', borderRadius:20, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
-            <div style={{flex:1}}>
-              <b style={{fontSize:12, color:'#0A0A0A'}}>¿Tienes una tienda en Nicaragua?</b>
-              <p style={{fontSize:11, color:'#9A9590', marginTop:2, lineHeight:1.3}}>Únete a TiendaNica Market. Sin comisiones. Tu cliente siempre en tu WhatsApp.</p>
-            </div>
-            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:11, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Solicitar tienda →</a>
+        {/* TIENDAS */}
+        <div style={{marginTop:20, marginBottom:24}}>
+          <h3 style={{fontWeight:900, fontSize:13, color:'#0A0A0A'}}>🛍️ Tiendas del mercado</h3>
+          <div style={{display:'flex', gap:10, overflowX:'auto', marginTop:10, paddingBottom:10}}>
+            {stores.map(s=>(
+              <a key={s.id} href={`/${s.slug}`} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:10, minWidth:140, textDecoration:'none', color:'#0A0A0A', display:'flex', gap:8, alignItems:'center'}}>
+                <img src={s.logo_url||s.cover_image} style={{width:36,height:36,borderRadius:10, objectFit:'cover'}}/>
+                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{products.filter(p=>p._store?.id===s.id).length} prod</span></div>
+              </a>
+            ))}
           </div>
-          <p style={{fontSize:9, color:'#B0ABA5', textAlign:'center', marginTop:8}}>Mercado 100% nicaragüense • Compras directas por WhatsApp al dueño • Sin comisiones</p>
+          <p style={{fontSize:9, color:'#B0ABA5', textAlign:'center', marginTop:12}}>Mercado 100% nicaragüense • Compras directas por WhatsApp al dueño • Sin comisiones</p>
         </div>
       </div>
     </main>
