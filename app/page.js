@@ -51,7 +51,7 @@ export default function TiendaNicaMarket(){
   const whatsappLink=(pr)=>{
     const st = pr._store
     const phone = (st.whatsapp||'').replace(/[^0-9]/g,'')
-    const text = encodeURIComponent(`Hola ${st.name} ðŸ‘‹ vi tu producto "${pr.name}" por C$ ${pr.price} en TiendaNica Market (tiendanica.store) y quiero comprarlo. Â¿EstÃ¡ disponible?`)
+    const text = encodeURIComponent(`Hola ${st.name} 👋 vi tu producto "${pr.name}" por C$ ${pr.price} en TiendaNica Market (tiendanica.store) y quiero comprarlo. ¿Está disponible?`)
     return `https://wa.me/${phone}?text=${text}`
   }
 
@@ -79,8 +79,8 @@ export default function TiendaNicaMarket(){
         <header style={{padding:'16px 0 12px', display:'flex', flexDirection:'column', gap:12}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
             <img src="/tienda-nica-logo.png" alt="Tienda Nica" style={{height:42, objectFit:'contain'}} onError={(e)=>{e.target.style.display='none'; e.target.nextElementSibling.style.display='flex'}}/>
-            <div style={{display:'none', alignItems:'center', gap:8, fontWeight:900, fontSize:22, letterSpacing:'-0.8px'}}><span style={{fontSize:28}}>ðŸ‘œ</span>Tienda<span style={{color:'#00D084'}}>Nica</span></div>
-            <div style={{fontSize:11, color:'#9A9590', fontWeight:600, background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999}}>{stores.length} tiendas â€¢ {products.length} productos</div>
+            <div style={{display:'none', alignItems:'center', gap:8, fontWeight:900, fontSize:22, letterSpacing:'-0.8px'}}><span style={{fontSize:28}}>👜</span>Tienda<span style={{color:'#00D084'}}>Nica</span></div>
+            <div style={{fontSize:11, color:'#9A9590', fontWeight:600, background:'#fff', border:'1px solid #EAE6E1', padding:'6px 10px', borderRadius:999}}>{stores.length} tiendas • {products.length} productos</div>
           </div>
 
           <div style={{display:'flex', gap:8}}>
@@ -91,10 +91,10 @@ export default function TiendaNicaMarket(){
 
         {/* CATEGORIAS PRINCIPALES */}
         <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none'}}>
-          <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>ðŸ‘— Boutique</button>
-          <button onClick={()=>{setTipo('comida'); setCat('all')}} className={`pill ${tipo==='comida'?'active':''}`}>ðŸ” Comida</button>
-          <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>ðŸ›ï¸ General / Todo</button>
-          <button onClick={()=>{setTipo('all'); setCat('all')}} className={`pill ${tipo==='all'?'active':''}`}>âœ¨ Todo</button>
+          <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>👗 Boutique</button>
+          <button onClick={()=>{setTipo('comida'); setCat('all')}} className={`pill ${tipo==='comida'?'active':''}`}>🍔 Comida</button>
+          <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍️ General / Todo</button>
+          <button onClick={()=>{setTipo('all'); setCat('all')}} className={`pill ${tipo==='all'?'active':''}`}>✨ Todo</button>
         </div>
 
         {/* SUBCATEGORIAS */}
@@ -107,10 +107,10 @@ export default function TiendaNicaMarket(){
         {/* HERO */}
         <div className="card-white" style={{marginTop:14, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0A0A0A', color:'#fff', borderColor:'#0A0A0A'}}>
           <div>
-            <h2 style={{fontWeight:900, fontSize:18, letterSpacing:'-0.5px', lineHeight:1.1}}>{tipo==='boutique'?'Boutique nicaragÃ¼ense premium': tipo==='comida'?'Restaurantes y comidas a domicilio':'Todo para tu hogar'} <span style={{color:'#00E676'}}>â€¢</span></h2>
-            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4, fontWeight:500}}>{tipo==='boutique'?'Lo mÃ¡s vendido de tus tiendas favoritas. Compra directo por WhatsApp al dueÃ±o.': tipo==='comida'?'Pide directo a la cocina de cada restaurante sin intermediarios.':'ElectrodomÃ©sticos, belleza, juguetes y mÃ¡s. Todo en un solo lugar.'}</p>
+            <h2 style={{fontWeight:900, fontSize:18, letterSpacing:'-0.5px', lineHeight:1.1}}>{tipo==='boutique'?'Tus productos, Tu tienda, tus clientes': tipo==='comida'?'Restaurantes y comidas a domicilio':'Todo para tu hogar'} <span style={{color:'#00E676'}}>•</span></h2>
+            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4, fontWeight:500}}>{tipo==='boutique'?'Lo más vendido de tus tiendas favoritas. Compra directo por WhatsApp al dueño.': tipo==='comida'?'Pide directo a la cocina de cada restaurante sin intermediarios.':'Electrodomésticos, belleza, juguetes y más. Todo en un solo lugar.'}</p>
           </div>
-          <div style={{fontSize:24, background:'#1A1A1A', width:48, height:48, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #2A2A2A'}}>{tipo==='boutique'?'ðŸ‘—':tipo==='comida'?'ðŸ”':'ðŸ›ï¸'}</div>
+          <div style={{fontSize:24, background:'#1A1A1A', width:48, height:48, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #2A2A2A'}}>{tipo==='boutique'?'👗':tipo==='comida'?'🍔':'🛍️'}</div>
         </div>
 
         {/* PRODUCTOS */}
@@ -127,7 +127,7 @@ export default function TiendaNicaMarket(){
                   </div>
                   <div style={{display:'flex', alignItems:'center', gap:6, marginTop:6}}>
                     <img src={pr._store.logo_url||pr._store.cover_image} style={{width:18,height:18,borderRadius:999, objectFit:'cover', border:'1px solid #EAE6E1'}}/>
-                    <span style={{fontSize:10, color:'#9A9590', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{pr._store.name} â€¢ {pr.categoria}</span>
+                    <span style={{fontSize:10, color:'#9A9590', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{pr._store.name} • {pr.categoria}</span>
                   </div>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8}}>
                     <b style={{fontSize:13, color:'#0A0A0A'}}>C$ {pr.price}</b>
@@ -141,19 +141,19 @@ export default function TiendaNicaMarket(){
 
         {filtered.length===0 && !loading && (
           <div className="card-white" style={{marginTop:14, padding:24, textAlign:'center'}}>
-            <p style={{fontSize:13, fontWeight:700}}>AÃºn no hay productos en {tipo}</p>
-            <p style={{fontSize:11, color:'#9A9590', marginTop:4}}>Cuando tus tiendas aÃ±adan productos aparecerÃ¡n aquÃ­ automÃ¡ticamente</p>
+            <p style={{fontSize:13, fontWeight:700}}>Aún no hay productos en {tipo}</p>
+            <p style={{fontSize:11, color:'#9A9590', marginTop:4}}>Cuando tus tiendas añadan productos aparecerán aquí automáticamente</p>
           </div>
         )}
 
         {/* TIENDAS */}
         <div style={{marginTop:24}}>
-          <h3 style={{fontWeight:900, fontSize:14, color:'#0A0A0A'}}>ðŸ›ï¸ Tiendas del mercado</h3>
+          <h3 style={{fontWeight:900, fontSize:14, color:'#0A0A0A'}}>🛍️ Tiendas del mercado</h3>
           <div style={{display:'flex', gap:10, overflowX:'auto', marginTop:10, paddingBottom:10}}>
             {stores.map(s=>(
               <a key={s.id} href={`/${s.slug}`} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:10, minWidth:140, textDecoration:'none', color:'#0A0A0A', display:'flex', gap:8, alignItems:'center', boxShadow:'0 4px 12px rgba(0,0,0,0.04)'}}>
                 <img src={s.logo_url||s.cover_image} style={{width:36,height:36,borderRadius:10, objectFit:'cover'}}/>
-                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{s.tipo_tienda||'boutique'} â€¢ {products.filter(p=>p._store?.id===s.id).length} prod</span></div>
+                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{s.tipo_tienda||'boutique'} • {products.filter(p=>p._store?.id===s.id).length} prod</span></div>
               </a>
             ))}
           </div>
@@ -163,12 +163,12 @@ export default function TiendaNicaMarket(){
         <div style={{marginTop:28, marginBottom:24}}>
           <div style={{background:'#FFFFFF', border:'1px dashed #0A0A0A', borderRadius:20, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
             <div style={{flex:1}}>
-              <b style={{fontSize:12, color:'#0A0A0A'}}>Â¿Tienes una tienda en Nicaragua?</b>
-              <p style={{fontSize:11, color:'#9A9590', marginTop:2, lineHeight:1.3}}>Ãšnete a TiendaNica Market. Te creamos tu tienda premium con tu propio WhatsApp y vendes en el mercado y por tu link.</p>
+              <b style={{fontSize:12, color:'#0A0A0A'}}>¿Tienes una tienda en Nicaragua?</b>
+              <p style={{fontSize:11, color:'#9A9590', marginTop:2, lineHeight:1.3}}>Únete a TiendaNica Market. Te creamos tu tienda premium con tu propio WhatsApp y vendes en el mercado y por tu link.</p>
             </div>
-            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:11, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Solicitar tienda â†’</a>
+            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:11, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Solicitar tienda →</a>
           </div>
-          <p style={{fontSize:9, color:'#B0ABA5', textAlign:'center', marginTop:8}}>Mercado 100% nicaragÃ¼ense â€¢ Compras directas por WhatsApp al dueÃ±o â€¢ Sin comisiones</p>
+          <p style={{fontSize:9, color:'#B0ABA5', textAlign:'center', marginTop:8}}>Mercado 100% nicaragüense • Compras directas por WhatsApp al dueño • Sin comisiones</p>
         </div>
       </div>
     </main>
