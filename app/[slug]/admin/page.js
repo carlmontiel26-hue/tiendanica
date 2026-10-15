@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase' // ajusta tu import
+import { getSupabase } from '../../../lib/supabaseclient.js'
+const supabase = getSupabase()
 
 // COMPONENTE PARA EL PANEL DEL DUEÑO DE TIENDA
 // Pega esto en tu archivo de agregar/editar producto: app/[slug]/dashboard/page.js o components/AddProductForm.js
