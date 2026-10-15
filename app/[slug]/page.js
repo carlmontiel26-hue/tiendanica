@@ -32,8 +32,11 @@ export default function StoreBannerTransparenteAngosto(){
     })
   },[slug])
 
+  // SOLO BOUTIQUE MUESTRA TALLAS - fix sin romper nada
+  const isBoutique = store?.tipo_tienda?.toLowerCase() === 'boutique'
+
   const add=(p,t=null)=>{
-    if(p.tallas?.length>0 && store.tipo_tienda==='boutique' && !t) return false
+    if(isBoutique && p.tallas?.length>0 && !t) return false
     const key=t? p.id+'-'+t : p.id
     setCart(v=>{
       const ex=v.find(i=>i.cid===key)
@@ -46,12 +49,12 @@ export default function StoreBannerTransparenteAngosto(){
   const wa=(msg)=> window.open(`https://api.whatsapp.com/send?phone=${store.whatsapp}&text=${encodeURIComponent(msg)}`,'_blank')
   const waCart=()=>{
     let m=`Hola ${store.name}! Quiero:\n`
-    cart.forEach(i=>m+=`• ${i.qty}x ${i.name}${i.tallaSel?' Talla '+i.tallaSel:''} - C$ ${i.price*i.qty}\n`)
+    cart.forEach(i=>m+=`• ${i.qty}x ${i.name}${isBoutique && i.tallaSel?' Talla '+i.tallaSel:''} - C$ ${i.price*i.qty}\n`)
     m+=`\nTotal C$ ${total}\nhttps://tiendanica.store/${slug}`
     wa(m)
   }
   const waOne=()=>{
-    let m=`Hola ${store.name}! Quiero: ${sel.name}${talla? ' Talla '+talla:''} - C$ ${sel.price} https://tiendanica.store/${slug}`
+    let m=`Hola ${store.name}! Quiero: ${sel.name}${isBoutique && talla? ' Talla '+talla:''} - C$ ${sel.price} https://tiendanica.store/${slug}`
     wa(m)
   }
   const imgs=(p)=> [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,4)
@@ -95,7 +98,6 @@ export default function StoreBannerTransparenteAngosto(){
           box-shadow: 0 20px 40px rgba(0,0,0,0.35);
           z-index: 4;
         }
-        /* MOVIL: TRANSPARENTE Y MAS ANGOSTO */
         @media (max-width: 768px) {
           .banner-wrap {
             height: auto !important;
@@ -148,11 +150,10 @@ export default function StoreBannerTransparenteAngosto(){
         <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: 'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
 
         <div style={{position:'absolute',top:10,left:10,right:10, display:'flex', justifyContent:'space-between', zIndex:4}}>
-          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>BOUTIQUE</div>
+          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{(store.tipo_tienda||'BOUTIQUE').toUpperCase()}</div>
           <div style={{background:'rgba(255,255,255,0.9)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800}}>● Abierto</div>
         </div>
 
-        {/* BANNER TRANSPARENTE ANGOSTO */}
         <div className="info-card">
           <div style={{display:'flex', gap:8, alignItems:'center', flex:1, minWidth:0}}>
             {store.logo_url && <img src={store.logo_url} className="info-logo" style={{width:46,height:46,borderRadius:10,background:'#fff',objectFit:'cover', flexShrink:0}}/>}
@@ -167,7 +168,7 @@ export default function StoreBannerTransparenteAngosto(){
           <div style={{display:'flex',justifyContent:'space-between'}}><b>Carrito ({count})</b><button onClick={()=>setShowCart(false)} style={{border:'none',background:'#eee',borderRadius:999,width:28,height:28}}>X</button></div>
           <div style={{marginTop:10, display:'grid', gap:8, maxHeight:300, overflowY:'auto'}}>
             {cart.length===0 && <p style={{fontSize:12, opacity:0.6}}>Vacío</p>}
-            {cart.map(i=><div key={i.cid} style={{display:'flex',gap:8, background:'#F6F3F0', padding:8, borderRadius:12}}><img src={i.image_url} style={{width:44,height:44,borderRadius:8,objectFit:'cover'}}/><div style={{flex:1,fontSize:12}}><b>{i.name}</b>{i.tallaSel&&<span style={{background:'#000',color:'#fff',fontSize:9,padding:'2px 6px',borderRadius:99,marginLeft:6}}>{i.tallaSel}</span>}<br/>{i.qty} x C$ {i.price}</div><button onClick={()=>setCart(v=>v.filter(x=>x.cid!==i.cid))} style={{border:'none',background:'none'}}>🗑</button></div>)}
+            {cart.map(i=><div key={i.cid} style={{display:'flex',gap:8, background:'#F6F3F0', padding:8, borderRadius:12}}><img src={i.image_url} style={{width:44,height:44,borderRadius:8,objectFit:'cover'}}/><div style={{flex:1,fontSize:12}}><b>{i.name}</b>{isBoutique && i.tallaSel&&<span style={{background:'#000',color:'#fff',fontSize:9,padding:'2px 6px',borderRadius:99,marginLeft:6}}>{i.tallaSel}</span>}<br/>{i.qty} x C$ {i.price}</div><button onClick={()=>setCart(v=>v.filter(x=>x.cid!==i.cid))} style={{border:'none',background:'none'}}>🗑</button></div>)}
           </div>
           <div style={{marginTop:10,display:'flex',justifyContent:'space-between',fontWeight:900}}><span>Total</span><span>C$ {total}</span></div>
           <button onClick={waCart} style={{marginTop:10,width:'100%',background:'#000',color:'#fff',padding:12,borderRadius:999,fontWeight:900,border:'none'}}>Enviar por WhatsApp</button>
@@ -183,7 +184,7 @@ export default function StoreBannerTransparenteAngosto(){
         <div style={{marginTop:14, display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14}}>
           {filtered.map(p=>{
             const im=imgs(p)
-            return <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}><button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'4/5',border:'none',background:'#FBF9F7',position:'relative', overflow:'hidden'}}><img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'cover'}}/>{im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}{p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>{p.tallas.join(' ')}</span>}</button><div style={{padding:12, background:'#fff'}}><p style={{fontSize:12,fontWeight:600, color:'#000'}}>{p.name}</p><p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p><button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Comprar</button></div></div>
+            return <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}><button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'4/5',border:'none',background:'#FBF9F7',position:'relative', overflow:'hidden'}}><img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'cover'}}/>{im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}{isBoutique && p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>{p.tallas.join(' ')}</span>}</button><div style={{padding:12, background:'#fff'}}><p style={{fontSize:12,fontWeight:600, color:'#000'}}>{p.name}</p><p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p><button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Comprar</button></div></div>
           })}
         </div>
       </div>
@@ -194,9 +195,9 @@ export default function StoreBannerTransparenteAngosto(){
           <div style={{padding:16,overflowY:'auto', background:'#fff'}}>
             <h2 style={{fontWeight:900,fontSize:18}}>{sel.name}</h2><p style={{fontWeight:900,fontSize:20,marginTop:4}}>C$ {sel.price}</p>
             {sel.categoria&&<span style={{display:'inline-block',marginTop:6,background:'#F6F3F0',padding:'4px 10px',borderRadius:999,fontSize:11,textTransform:'capitalize'}}>{sel.categoria}</span>}
-            {sel.tallas?.length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{sel.tallas.map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
+            {isBoutique && sel.tallas?.length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{sel.tallas.map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
             <div style={{display:'flex',gap:10,marginTop:16}}><button onClick={()=>setSel(null)} style={{flex:1,background:'#F0F0F0',border:'none',padding:12,borderRadius:999,fontWeight:700}}>Cerrar</button><button onClick={waOne} style={{flex:1,background:'#25D366',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:900}}>WhatsApp</button></div>
-            <button onClick={()=>{ if(add(sel,talla)){ setShowCart(true); setSel(null) } else alert('Elige talla')}} style={{marginTop:8,width:'100%',background:'#000',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:800}}>Añadir al carrito {talla?`(${talla})`:''}</button>
+            <button onClick={()=>{ if(add(sel,talla)){ setShowCart(true); setSel(null) } else alert('Elige talla')}} style={{marginTop:8,width:'100%',background:'#000',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:800}}>Añadir al carrito {isBoutique && talla?`(${talla})`:''}</button>
           </div>
         </div>
       </div>}
