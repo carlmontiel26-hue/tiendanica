@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getSupabase } from '../../../lib/supabaseclient'
+import { getSupabase } from '@/lib/supabaseclient'
 import { useParams } from 'next/navigation'
 
 export default function AdminPage(){
@@ -13,7 +13,6 @@ export default function AdminPage(){
   const [showForm,setShowForm]=useState(false)
   const [editing,setEditing]=useState(null)
 
-  // form states
   const [name,setName]=useState('')
   const [price,setPrice]=useState('')
   const [categoria,setCategoria]=useState('vestidos')
@@ -35,12 +34,9 @@ export default function AdminPage(){
     }
     setLoading(true)
     try{
-      // 1. Buscar tienda por slug
       const { data: storeData, error: storeErr } = await supabase.from('stores').select('*').eq('slug', slug).single()
       if(storeErr) throw storeErr
       setStore(storeData)
-
-      // 2. Productos de esa tienda
       const { data: prodData, error: prodErr } = await supabase.from('products').select('*').eq('store_id', storeData.id).order('created_at',{ascending:false})
       if(prodErr) throw prodErr
       setProducts(prodData||[])
@@ -132,7 +128,6 @@ export default function AdminPage(){
       `}</style>
 
       <div style={{maxWidth:1100, margin:'0 auto'}}>
-        {/* HEADER TIENDA - ESTA ES LA PORTADA PROPIA DEL DUEÑO, NO LA DEL MARKET */}
         <div className="card" style={{padding:16, display:'flex', gap:12, alignItems:'center', justifyContent:'space-between', marginBottom:16}}>
           <div style={{display:'flex', gap:12, alignItems:'center'}}>
             <img src={store.logo_url||store.cover_image||'/tienda-nica-logo.png'} style={{width:48,height:48, borderRadius:12, objectFit:'cover', border:'1px solid #EAE6E1'}}/>
@@ -147,7 +142,6 @@ export default function AdminPage(){
           </div>
         </div>
 
-        {/* FORMULARIO COMPLETO CON DESCRIPCION */}
         {showForm && (
           <div className="card" style={{padding:18, marginBottom:16, border:'2px solid #0A0A0A'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
@@ -211,7 +205,6 @@ export default function AdminPage(){
           </div>
         )}
 
-        {/* LISTA DE PRODUCTOS */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:12}}>
           {products.map(p=>(
             <div key={p.id} className="card" style={{padding:10, overflow:'hidden'}}>
