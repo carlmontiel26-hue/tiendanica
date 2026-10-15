@@ -23,15 +23,13 @@ export default function MarketClient({ initialStores, initialProducts }){
   useEffect(()=>{
     try{ const c = JSON.parse(localStorage.getItem('tiendanica_market_cart')||'[]'); setCart(c) }catch{}
   },[])
-  useEffect(()=>{
-    localStorage.setItem('tiendanica_market_cart', JSON.stringify(cart))
-  },[cart])
+  useEffect(()=>{ localStorage.setItem('tiendanica_market_cart', JSON.stringify(cart)) },[cart])
 
   const addToCart = (pr, q=1)=>{
     setCart(prev=>{
       const idx = prev.findIndex(i=>i.id===pr.id)
       if(idx>=0){ const n=[...prev]; n[idx].qty+=q; return n }
-      return [...prev, { id:pr.id, storeId:pr._store.id, storeSlug:pr._store.slug, storeName:pr._store.name, storeWhatsapp:pr._store.whatsapp, name:pr.name, price:pr.price, image:pr.image_url, categoria:pr.categoria, qty:q }]
+      return [...prev, { id:pr.id, storeId:pr._store.id, storeSlug:pr._store.slug, storeName:pr._store.name, storeWhatsapp:pr._store.whatsapp, name:pr.name, description:pr.description||'', price:pr.price, image:pr.image_url, categoria:pr.categoria, qty:q }]
     })
     setShowCart(true)
   }
@@ -47,7 +45,7 @@ export default function MarketClient({ initialStores, initialProducts }){
     if(cat!=='all' && pr.categoria!==cat) return false
     if(search){
       const q=search.toLowerCase()
-      if(!pr.name.toLowerCase().includes(q) && !st.name.toLowerCase().includes(q)) return false
+      if(!pr.name.toLowerCase().includes(q) && !st.name.toLowerCase().includes(q) && !(pr.description||'').toLowerCase().includes(q)) return false
     }
     return true
   }),[products,tipo,cat,search])
@@ -61,14 +59,15 @@ export default function MarketClient({ initialStores, initialProducts }){
   const whatsappForGroup = (group)=>{
     const phone = (group.whatsapp||'').replace(/[^0-9]/g,'')
     let txt = `Hola ${group.storeName} 👋 vi estos productos en TiendaNica Market (tiendanica.store) y quiero comprarlos:%0A%0A`
-    group.items.forEach(it=>{ txt+=`• ${it.name} x${it.qty} - C$ ${it.price*it.qty}%0A` })
+    group.items.forEach(it=>{ txt+=`• ${it.name} x${it.qty} - C$ ${it.price*it.qty}%0A`; if(it.description) txt+=`  _${it.description}_%0A` })
     txt+=`%0ATotal: C$ ${group.items.reduce((a,b)=>a+b.price*b.qty,0)}%0AEnvío a: [mi dirección]%0A`
     return `https://wa.me/${phone}?text=${txt}`
   }
 
   const directWhatsapp = (pr, q=1)=>{
     const phone = (pr._store.whatsapp||'').replace(/[^0-9]/g,'')
-    const text = encodeURIComponent(`Hola ${pr._store.name} 👋 vi "${pr.name}" x${q} por C$ ${pr.price*q} en TiendaNica Market (tiendanica.store) y lo quiero comprar. Envío a: [mi dirección]`)
+    const desc = pr.description ? ` - ${pr.description}` : ''
+    const text = encodeURIComponent(`Hola ${pr._store.name} 👋 vi "${pr.name}${desc}" x${q} por C$ ${pr.price*q} en TiendaNica Market (tiendanica.store) y lo quiero comprar. Envío a: [mi dirección]`)
     return `https://wa.me/${phone}?text=${text}`
   }
 
@@ -81,8 +80,8 @@ export default function MarketClient({ initialStores, initialProducts }){
         *{box-sizing:border-box}
         .wrap{max-width:1200px; margin:0 auto; padding:0 14px; width:100%}
         .card-white{background:#fff; border:1px solid #EAE6E1; border-radius:20px; box-shadow:0 8px 28px rgba(0,0,0,0.05)}
-        .pill{padding:9px 16px; border-radius:999px; border:1px solid #EAE6E1; background:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:all 0.2s}
-        .pill.active{background:#0A0A0A; color:#fff; border-color:#0A0A0A; box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+        .pill{padding:9px 16px; border-radius:999px; border:1px solid #EAE6E1; background:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap}
+        .pill.active{background:#0A0A0A; color:#fff; border-color:#0A0A0A}
         .pill-sub{padding:7px 12px; font-size:11px; border-radius:999px; border:1px solid #EAE6E1; background:#FBF9F7; cursor:pointer; font-weight:600}
         .pill-sub.active{background:#0A0A0A; color:#fff}
         .input-base{padding:13px 16px; border-radius:999px; border:1px solid #EAE6E1; background:#fff; font-size:13px; width:100%; outline:none}
@@ -94,18 +93,14 @@ export default function MarketClient({ initialStores, initialProducts }){
         .hero-title i{font-style:italic; color:#00E676}
         .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(8px); z-index:50; display:flex; align-items:center; justify-content:center; padding:12px}
         .modal{max-width:900px; width:100%; background:#fff; border-radius:24px; overflow:hidden; max-height:90vh; overflow-y:auto}
+        .desc-line{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:10.5px; color:#6B6B6B; line-height:1.3; margin-top:4px; min-height:28px}
       `}</style>
 
       {/* PORTADA VERSION A */}
-      <div style={{
-        background:'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 42%, #0A5C36 72%, #00C853 88%, #00E676 100%)',
-        borderRadius:'0 0 24px 24px',
-        position:'relative',
-        overflow:'hidden'
-      }}>
-        <div style={{position:'absolute', top:-40, right:120, width:180, height:180, background:'rgba(0,230,118,0.18)', filter:'blur(30px)', borderRadius:'50%', pointerEvents:'none'}}></div>
+      <div style={{background:'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 42%, #0A5C36 72%, #00C853 88%, #00E676 100%)', borderRadius:'0 0 24px 24px', position:'relative', overflow:'hidden'}}>
+        <div style={{position:'absolute', top:-40, right:120, width:180, height:180, background:'rgba(0,230,118,0.18)', filter:'blur(30px)', borderRadius:'50%'}}></div>
         <div className="wrap" style={{padding:'14px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:14, minHeight:110, position:'relative', zIndex:1}}>
-          <div style={{background:'#fff', borderRadius:16, padding:'10px 18px', boxShadow:'0 8px 24px rgba(0,0,0,0.22)', display:'flex', alignItems:'center', flexShrink:0}}>
+          <div style={{background:'#fff', borderRadius:16, padding:'10px 18px', boxShadow:'0 8px 24px rgba(0,0,0,0.22)', display:'flex', alignItems:'center'}}>
             <img src="/tienda-nica-logo.png" alt="Tienda Nica" style={{height:40, objectFit:'contain'}}/>
           </div>
           <div style={{flex:1, minWidth:0}}>
@@ -115,7 +110,7 @@ export default function MarketClient({ initialStores, initialProducts }){
               <span style={{fontSize:11, color:'#A8A29E', fontWeight:500}}>Boutique • Hogar • {stores.length} tiendas • {products.length} productos</span>
             </div>
           </div>
-          <div style={{display:'flex', alignItems:'center', gap:8, flexShrink:0}} className="hide-mobile">
+          <div style={{display:'flex', alignItems:'center', gap:8}} className="hide-mobile">
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{padding:'10px 14px', borderRadius:999, border:'1px solid rgba(255,255,255,0.15)', background:'rgba(255,255,255,0.12)', color:'#fff', fontSize:12, width:160, outline:'none'}}/>
             <button onClick={()=>setShowCart(true)} style={{background:'#fff', color:'#0A0A0A', padding:'10px 14px', borderRadius:999, fontWeight:900, fontSize:12, border:'none', cursor:'pointer', position:'relative'}}>🛒 {cartCount>0 && <span style={{position:'absolute', top:-6, right:-6, background:'#00E676', color:'#000', fontSize:10, width:18, height:18, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>{cartCount}</span>}</button>
             <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:900, fontSize:11, textDecoration:'none', border:'1px solid #333'}}>Vender →</a>
@@ -145,7 +140,7 @@ export default function MarketClient({ initialStores, initialProducts }){
         <div className="card-white" style={{marginTop:14, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0A0A0A', color:'#fff', borderColor:'#0A0A0A'}}>
           <div>
             <h2 style={{fontWeight:900, fontSize:14}}>{tipo==='boutique'?'Boutique nicaragüense premium': tipo==='general'?'Todo para tu hogar':'Todo el mercado'} <span style={{color:'#00E676'}}>• {filtered.length}</span></h2>
-            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4}}>Ahora puedes comprar desde el market sin salir • Carrito agrupado por tienda</p>
+            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4}}>Con descripciones cortas de cada producto • Carrito agrupado por tienda</p>
           </div>
           <button onClick={()=>setShowCart(true)} style={{background:'#00E676', color:'#000', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:900, fontSize:11, cursor:'pointer'}}>🛒 Ver carrito ({cartCount})</button>
         </div>
@@ -153,9 +148,11 @@ export default function MarketClient({ initialStores, initialProducts }){
         <div className="grid" style={{marginTop:14}}>
           {filtered.map(pr=>(
             <div key={pr.id} className="card-white" style={{padding:10, overflow:'hidden', cursor:'pointer'}} onClick={()=>{setSelected(pr); setQty(1)}}>
-              <img src={pr.image_url} alt={pr.name} className="prod-img" loading="lazy"/>
+              <img src={pr.image_url} alt={`${pr.name} - ${pr._store.name}`} className="prod-img" loading="lazy"/>
               <div style={{padding:'8px 4px 2px'}}>
-                <b style={{fontSize:12, lineHeight:1.2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', color:'#0A0A0A', minHeight:28}}>{pr.name}</b>
+                <b style={{fontSize:12, lineHeight:1.2, display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical', overflow:'hidden', color:'#0A0A0A'}}>{pr.name}</b>
+                {/* NUEVA DESCRIPCION CORTA */}
+                {pr.description ? <span className="desc-line">{pr.description}</span> : <span className="desc-line" style={{color:'#BBB'}}>Sin descripción • Pregunta al dueño</span>}
                 <div style={{display:'flex', alignItems:'center', gap:6, marginTop:6}}>
                   <img src={pr._store.logo_url||pr._store.cover_image} style={{width:18,height:18,borderRadius:999, objectFit:'cover', border:'1px solid #EAE6E1'}}/>
                   <span style={{fontSize:10, color:'#9A9590', fontWeight:600}}>{pr._store.name} • {pr.categoria}</span>
@@ -168,21 +165,8 @@ export default function MarketClient({ initialStores, initialProducts }){
             </div>
           ))}
         </div>
-
-        <div style={{marginTop:24}}>
-          <h3 style={{fontWeight:900, fontSize:14, color:'#0A0A0A'}}>🛍 Tiendas con envío nacional</h3>
-          <div style={{display:'flex', gap:10, overflowX:'auto', marginTop:10, paddingBottom:10}}>
-            {stores.map(s=>(
-              <a key={s.id} href={`/${s.slug}`} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:10, minWidth:140, textDecoration:'none', color:'#0A0A0A', display:'flex', gap:8, alignItems:'center'}}>
-                <img src={s.logo_url||s.cover_image} style={{width:36,height:36,borderRadius:10, objectFit:'cover'}}/>
-                <div><b style={{fontSize:11, display:'block'}}>{s.name}</b><span style={{fontSize:9, color:'#9A9590'}}>{products.filter(p=>p._store?.id===s.id).length} productos</span></div>
-              </a>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* MODAL PRODUCTO */}
       {selected && (
         <div className="modal-bg" onClick={()=>setSelected(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
@@ -195,7 +179,8 @@ export default function MarketClient({ initialStores, initialProducts }){
                   <span style={{fontSize:10, background:'#F7F5F3', padding:'3px 8px', borderRadius:999}}>{selected.categoria}</span>
                 </div>
                 <h2 style={{fontSize:18, fontWeight:900, lineHeight:1.1, color:'#0A0A0A'}}>{selected.name}</h2>
-                <p style={{fontSize:11, color:'#9A9590', marginTop:6}}>Compra desde el market • Se envía directo por la tienda</p>
+                {/* DESCRIPCION COMPLETA EN MODAL */}
+                {selected.description && <p style={{fontSize:13, color:'#444', marginTop:10, lineHeight:1.4, background:'#FBF9F7', padding:'10px 12px', borderRadius:12, border:'1px solid #EAE6E1'}}>{selected.description}</p>}
                 <b style={{fontSize:22, display:'block', marginTop:12}}>C$ {selected.price}</b>
                 <div style={{display:'flex', alignItems:'center', gap:12, marginTop:14}}>
                   <span style={{fontSize:12, fontWeight:700}}>Cantidad:</span>
@@ -216,7 +201,6 @@ export default function MarketClient({ initialStores, initialProducts }){
         </div>
       )}
 
-      {/* CARRITO */}
       {showCart && (
         <div className="modal-bg" onClick={()=>setShowCart(false)}>
           <div className="modal" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
@@ -225,7 +209,7 @@ export default function MarketClient({ initialStores, initialProducts }){
               <button onClick={()=>setShowCart(false)} style={{width:32,height:32,borderRadius:999,border:'1px solid #EAE6E1',background:'#fff',cursor:'pointer'}}>✕</button>
             </div>
             <div style={{padding:12, maxHeight:'60vh', overflowY:'auto'}}>
-              {cart.length===0 ? <p style={{textAlign:'center', color:'#9A9590', padding:40, fontSize:13}}>Tu carrito está vacío. Agrega productos desde el market.</p> :
+              {cart.length===0 ? <p style={{textAlign:'center', color:'#9A9590', padding:40, fontSize:13}}>Tu carrito está vacío.</p> :
                 groupedByStore.map(group=>(
                   <div key={group.storeName} style={{background:'#FBF9F7', border:'1px solid #EAE6E1', borderRadius:16, padding:12, marginBottom:12}}>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
@@ -237,7 +221,8 @@ export default function MarketClient({ initialStores, initialProducts }){
                         <img src={it.image} style={{width:48,height:48,borderRadius:10, objectFit:'cover'}}/>
                         <div style={{flex:1}}>
                           <b style={{fontSize:11, display:'block'}}>{it.name}</b>
-                          <span style={{fontSize:11}}>C$ {it.price} x {it.qty} = C$ {it.price*it.qty}</span>
+                          {it.description && <span style={{fontSize:10, color:'#666'}}>{it.description.slice(0,60)}</span>}
+                          <span style={{fontSize:11, display:'block'}}>C$ {it.price} x {it.qty}</span>
                         </div>
                         <div style={{display:'flex', flexDirection:'column', gap:4, alignItems:'center'}}>
                           <div style={{display:'flex', gap:4}}>
@@ -253,21 +238,10 @@ export default function MarketClient({ initialStores, initialProducts }){
                 ))
               }
             </div>
-            {cart.length>0 && (
-              <div style={{padding:14, borderTop:'1px solid #EAE6E1', background:'#fff'}}>
-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}><b>Total market:</b><b>C$ {cartTotal}</b></div>
-                <div style={{display:'flex', gap:8}}>
-                  <button onClick={()=>setCart([])} style={{flex:1, background:'#fff', border:'1px solid #EAE6E1', padding:'12px', borderRadius:999, fontWeight:700, cursor:'pointer'}}>Vaciar</button>
-                  <button onClick={()=>setShowCart(false)} style={{flex:1, background:'#0A0A0A', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900, cursor:'pointer'}}>Seguir comprando</button>
-                </div>
-                <p style={{fontSize:10, color:'#9A9590', textAlign:'center', marginTop:8}}>Se genera un mensaje de WhatsApp por cada tienda. Cada dueño te responde directo.</p>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* BOTON FLOTANTE CARRITO MOBILE */}
       {cartCount>0 && !showCart && !selected && (
         <button onClick={()=>setShowCart(true)} style={{position:'fixed', bottom:16, right:16, background:'#0A0A0A', color:'#fff', border:'none', padding:'14px 20px', borderRadius:999, fontWeight:900, boxShadow:'0 8px 24px rgba(0,0,0,0.3)', zIndex:40, cursor:'pointer', display:'flex', gap:8, alignItems:'center'}}>
           🛒 {cartCount} • C$ {cartTotal}
