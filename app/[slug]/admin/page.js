@@ -10,6 +10,24 @@ function getSupabase(){
   return createClient(url,key)
 }
 
+// ===== CATEGORIAS POR TIPO DE TIENDA =====
+function getCategoriasPorTipo(store){
+  const tipo = (store?.tipo_tienda || store?.store_type || '').toLowerCase()
+  
+  if(tipo.includes('comida') || tipo.includes('restaurante') || tipo.includes('food')){
+    return ['comidas','desayunos','almuerzos','cenas','bebidas','postres','snacks','combos','entradas','sopas','asados','mariscos','vegetariano','otros']
+  }
+  if(tipo.includes('boutique') || tipo.includes('ropa') || tipo.includes('moda')){
+    return [
+      'vestidos','blusas','jeans','faldas','conjuntos','shorts',
+      'hombres','niños','niñas','bebes','pañalon',
+      'accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros'
+    ]
+  }
+  // GENERAL / ABARROTES / TIENDA GENERAL - como estaba antes genial
+  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','comidas','otros','oferta','nuevo']
+}
+
 export default function AdminPage(){
   const { slug } = useParams()
   const [store,setStore]=useState(null)
@@ -19,14 +37,26 @@ export default function AdminPage(){
   const [editing,setEditing]=useState(null)
   const [name,setName]=useState('')
   const [price,setPrice]=useState('')
-  const [categoria,setCategoria]=useState('vestidos')
+  const [categoria,setCategoria]=useState('')
   const [description,setDescription]=useState('')
   const [images,setImages]=useState([''])
   const [videoUrl,setVideoUrl]=useState('')
   const [saving,setSaving]=useState(false)
   const [uploading,setUploading]=useState(false)
 
+  // categorias dinámicas según tienda
+  const categoriasDisponibles = store ? getCategoriasPorTipo(store) : ['otros']
+
   useEffect(()=>{ if(slug) loadData() },[slug])
+
+  // cuando carga la tienda, setea categoria por defecto si no tiene
+  useEffect(()=>{
+    if(store && categoriasDisponibles.length>0){
+      if(!categoria || !categoriasDisponibles.includes(categoria)){
+        setCategoria(categoriasDisponibles[0])
+      }
+    }
+  },[store])
 
   const loadData = async()=>{
     const supabase=getSupabase()
@@ -74,11 +104,12 @@ export default function AdminPage(){
   }
 
   const resetForm = ()=>{
-    setName(''); setPrice(''); setCategoria('vestidos'); setDescription(''); setImages(['']); setVideoUrl(''); setEditing(null); setShowForm(false)
+    setName(''); setPrice(''); setDescription(''); setImages(['']); setVideoUrl(''); setEditing(null); setShowForm(false)
+    if(store) setCategoria(getCategoriasPorTipo(store)[0])
   }
 
   const openEdit = (p)=>{
-    setEditing(p); setName(p.name||''); setPrice(p.price||''); setCategoria(p.categoria||'vestidos'); setDescription(p.description||'');
+    setEditing(p); setName(p.name||''); setPrice(p.price||''); setCategoria(p.categoria||categoriasDisponibles[0]); setDescription(p.description||'');
     if(p.images && p.images.length>0) setImages(p.images)
     else if(p.image_url) setImages([p.image_url])
     else setImages([''])
@@ -107,7 +138,7 @@ export default function AdminPage(){
       if(editing) res = await supabase.from('products').update(payload).eq('id', editing.id)
       else res = await supabase.from('products').insert(payload)
       if(res.error) throw res.error
-      await loadData(); resetForm(); alert(editing ? 'Actualizado con video!' : 'Producto con carrusel + video creado!')
+      await loadData(); resetForm(); alert(editing ? 'Actualizado!' : 'Producto creado!')
     }catch(e){ alert('Error: '+e.message) } finally{ setSaving(false) }
   }
 
@@ -121,43 +152,52 @@ export default function AdminPage(){
   if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando {slug}...</div>
   if(!store) return <div style={{padding:40, textAlign:'center'}}>Tienda no encontrada: {slug}</div>
 
+  const tipoLabel = (store.tipo_tienda || 'general').toUpperCase()
+
   return (
     <main style={{background:'#F7F5F3', minHeight:'100vh', fontFamily:'Inter, system-ui', padding:14}}>
       <div style={{maxWidth:1100, margin:'0 auto'}}>
         <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
           <div style={{display:'flex', gap:12, alignItems:'center'}}>
             <img src={store.logo_url||'/tienda-nica-logo.png'} style={{width:48,height:48, borderRadius:12, objectFit:'cover'}}/>
-            <div><b>{store.name}</b><div style={{fontSize:11, color:'#9A9590'}}>{slug} • {products.length} productos</div></div>
+            <div><b>{store.name}</b><div style={{fontSize:11, color:'#9A9590'}}>{slug} • {products.length} productos • {tipoLabel}</div></div>
           </div>
-          <button onClick={()=>{resetForm(); setShowForm(true)}} style={{background:'#0A0A0A', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontSize:12, fontWeight:900, cursor:'pointer'}}>+ Nuevo con video</button>
+          <button onClick={()=>{resetForm(); setShowForm(true)}} style={{background:'#0A0A0A', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontSize:12, fontWeight:900, cursor:'pointer'}}>+ Nuevo</button>
         </div>
 
         {showForm && (
           <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:18, marginBottom:16, border:'2px solid #0A0A0A'}}>
             <div style={{display:'flex', justifyContent:'space-between', marginBottom:14}}>
-              <h3 style={{fontWeight:900, fontSize:14}}>{editing ? 'Editar producto Temu-style' : 'Nuevo producto con carrusel + video'}</h3>
+              <h3 style={{fontWeight:900, fontSize:14}}>{editing ? 'Editar producto' : `Nuevo producto - ${tipoLabel}`}</h3>
               <button onClick={resetForm} style={{width:28,height:28, borderRadius:999, border:'1px solid #EAE6E1', background:'#fff'}}>✕</button>
             </div>
             <label style={{fontSize:11, fontWeight:700}}>Nombre *</label>
             <input value={name} onChange={e=>setName(e.target.value)} style={{width:'100%', padding:'11px 12px', borderRadius:12, border:'1px solid #EAE6E1', marginTop:4, marginBottom:12}}/>
-            <label style={{fontSize:11, fontWeight:700}}>Descripción corta estilo Temu</label>
+            <label style={{fontSize:11, fontWeight:700}}>Descripción</label>
             <textarea value={description} onChange={e=>setDescription(e.target.value.slice(0,200))} style={{width:'100%', padding:'11px 12px', borderRadius:12, border:'1px solid #EAE6E1', marginTop:4, marginBottom:12, minHeight:70}}/>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12}}>
               <div><label style={{fontSize:11, fontWeight:700}}>Precio C$ *</label><input type="number" value={price} onChange={e=>setPrice(e.target.value)} style={{width:'100%', padding:'11px 12px', borderRadius:12, border:'1px solid #EAE6E1', marginTop:4}}/></div>
-              <div><label style={{fontSize:11, fontWeight:700}}>Categoría</label><select value={categoria} onChange={e=>setCategoria(e.target.value)} style={{width:'100%', padding:'11px 12px', borderRadius:12, border:'1px solid #EAE6E1', marginTop:4}}><option>vestidos</option><option>blusas</option><option>jeans</option><option>faldas</option><option>accesorios</option><option>zapatos</option><option>hogar</option><option>otros</option></select></div>
+              <div><label style={{fontSize:11, fontWeight:700}}>Categoría ({tipoLabel})</label>
+                <select value={categoria} onChange={e=>setCategoria(e.target.value)} style={{width:'100%', padding:'11px 12px', borderRadius:12, border:'1px solid #EAE6E1', marginTop:4, textTransform:'capitalize'}}>
+                  {categoriasDisponibles.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
             </div>
-            <label style={{fontSize:12, fontWeight:900, marginTop:8, display:'block'}}>📸 Carrusel (hasta 5 fotos)</label>
+
+            <label style={{fontSize:12, fontWeight:900, marginTop:8, display:'block'}}>📸 Carrusel (hasta 5 fotos) - vista completa</label>
             <div style={{display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8, marginTop:8, marginBottom:16}}>
               {[0,1,2,3,4].map(i=>(
-                <div key={i} style={{aspectRatio:'1/1', border:'1px dashed #EAE6E1', borderRadius:12, overflow:'hidden', position:'relative', background:'#FBF9F7'}}>
-                  {images[i] ? <img src={images[i]} style={{width:'100%', height:'100%', objectFit:'cover'}}/> : <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100%', fontSize:10, color:'#9A9590'}}>Foto {i+1}</div>}
+                <div key={i} style={{aspectRatio:'1/1', border:'1px dashed #EAE6E1', borderRadius:12, overflow:'hidden', position:'relative', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  {images[i] ? <img src={images[i]} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/> : <div style={{fontSize:10, color:'#9A9590'}}>Foto {i+1}</div>}
                   <input type="file" accept="image/*" onChange={e=>handleImageUpload(e,i)} style={{position:'absolute', inset:0, opacity:0, cursor:'pointer'}}/>
+                  {images[i] && <button onClick={()=>{const n=[...images]; n[i]=''; setImages(n)}} style={{position:'absolute', top:2, right:2, background:'rgba(0,0,0,0.7)', color:'#fff', border:'none', width:18, height:18, borderRadius:999, fontSize:10}}>✕</button>}
                 </div>
               ))}
             </div>
+
             <label style={{fontSize:12, fontWeight:900, display:'block'}}>🎬 Video corto (15 seg, opcional)</label>
             <div style={{border:'1px dashed #00C853', borderRadius:12, padding:12, marginTop:8, background:'#F0FFF4'}}>
-              {videoUrl ? <video src={videoUrl} controls style={{width:'100%', borderRadius:8, maxHeight:200}}/> : <div style={{fontSize:11, color:'#555'}}>Sube un video corto mostrando el producto puesto.</div>}
+              {videoUrl ? <video src={videoUrl} controls style={{width:'100%', borderRadius:8, maxHeight:200}}/> : <div style={{fontSize:11, color:'#555'}}>Sube un video corto mostrando el producto.</div>}
               <input type="file" accept="video/*" onChange={handleVideoUpload} style={{marginTop:8, fontSize:12}}/>
             </div>
             <button onClick={handleSave} disabled={saving||uploading} style={{width:'100%', marginTop:16, background:'#0A0A0A', color:'#fff', border:'none', padding:'13px', borderRadius:999, fontWeight:900, cursor:'pointer'}}>
@@ -165,11 +205,14 @@ export default function AdminPage(){
             </button>
           </div>
         )}
+
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:12}}>
           {products.map(p=>(
             <div key={p.id} style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:10}}>
-              <div style={{position:'relative'}}><img src={p.images?.[0]||p.image_url} style={{width:'100%', aspectRatio:'1/1', objectFit:'cover', borderRadius:12}}/>
+              <div style={{position:'relative', width:'100%', aspectRatio:'1/1', background:'#fff', borderRadius:12, overflow:'hidden', border:'1px solid #F0F0F0', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                <img src={p.images?.[0]||p.image_url} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/>
                 {p.video_url && <span style={{position:'absolute', top:6, left:6, background:'#000', color:'#fff', fontSize:9, padding:'3px 6px', borderRadius:999}}>▶ VIDEO</span>}
+                <span style={{position:'absolute', bottom:6, right:6, background:'#F7F5F3', color:'#000', fontSize:9, padding:'3px 6px', borderRadius:999, textTransform:'capitalize'}}>{p.categoria}</span>
               </div>
               <b style={{fontSize:12, marginTop:6, display:'block'}}>{p.name}</b>
               <b style={{fontSize:12}}>C$ {p.price}</b>

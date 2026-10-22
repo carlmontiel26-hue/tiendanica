@@ -10,7 +10,7 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-// ===== COMPONENTE CARRUSEL + VIDEO ESTILO TEMU =====
+// ===== COMPONENTE CARRUSEL + VIDEO ESTILO TEMU - IMAGEN COMPLETA =====
 function TemuProductGallery({ images=[], videoUrl, name }){
   const slides = []
   if(images && images.length>0) images.forEach(img=>{ if(img) slides.push({type:'image', url:img}) })
@@ -24,14 +24,14 @@ function TemuProductGallery({ images=[], videoUrl, name }){
   useEffect(()=>{ setCurrent(0) },[images, videoUrl])
 
   return (
-    <div style={{position:'relative', background:'#000'}}>
-      <div style={{display:'flex', overflow:'hidden', aspectRatio:'1/1', position:'relative'}}>
+    <div style={{position:'relative', background:'#fff'}}>
+      <div style={{display:'flex', overflow:'hidden', aspectRatio:'1/1', position:'relative', background:'#fff'}}>
         {slides.map((s,i)=>(
-          <div key={i} style={{minWidth:'100%', display: i===current ? 'block' : 'none', position:'relative'}}>
+          <div key={i} style={{minWidth:'100%', display: i===current ? 'flex' : 'none', position:'relative', background:'#fff', alignItems:'center', justifyContent:'center'}}>
             {s.type==='image' ? (
-              <img src={s.url} alt={name} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+              <img src={s.url} alt={name} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/>
             ) : (
-              <div style={{width:'100%', height:'100%', position:'relative', background:'#000'}}>
+              <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}}>
                 <video 
                   ref={videoRef}
                   src={s.url} 
@@ -39,7 +39,7 @@ function TemuProductGallery({ images=[], videoUrl, name }){
                   loop 
                   muted={muted} 
                   playsInline
-                  style={{width:'100%', height:'100%', objectFit:'cover'}}
+                  style={{width:'100%', height:'100%', objectFit:'contain', background:'#000'}}
                 />
                 <button onClick={()=>setMuted(!muted)} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999, fontSize:14}}>
                   {muted ? '🔇' : '🔊'}
@@ -51,36 +51,21 @@ function TemuProductGallery({ images=[], videoUrl, name }){
         ))}
       </div>
 
-      {/* Dots estilo Temu */}
       <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.35)', padding:'6px 10px', borderRadius:999}}>
         {slides.map((_,i)=>(
-          <button 
-            key={i} 
-            onClick={()=>setCurrent(i)}
-            style={{
-              width: i===current ? 18 : 6, 
-              height:6, 
-              borderRadius:999, 
-              border:'none', 
-              background: i===current ? '#fff' : 'rgba(255,255,255,0.5)',
-              transition:'all 0.2s',
-              cursor:'pointer'
-            }}
-          />
+          <button key={i} onClick={()=>setCurrent(i)} style={{width: i===current ? 18 : 6, height:6, borderRadius:999, border:'none', background: i===current ? '#fff' : 'rgba(255,255,255,0.5)', transition:'all 0.2s', cursor:'pointer'}}/>
         ))}
       </div>
-
       <div style={{position:'absolute', top:12, right:12, display:'flex', gap:6}}>
         <span style={{background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:11, padding:'4px 8px', borderRadius:999}}>{current+1}/{slides.length}</span>
       </div>
-
       <button onClick={()=>setCurrent((current-1+slides.length)%slides.length)} style={{position:'absolute', left:0, top:0, bottom:0, width:'18%', background:'transparent', border:'none'}}/>
       <button onClick={()=>setCurrent((current+1)%slides.length)} style={{position:'absolute', right:0, top:0, bottom:0, width:'18%', background:'transparent', border:'none'}}/>
     </div>
   )
 }
 
-export default function StoreBannerTransparenteAngosto(){
+export default function StorePage(){
   const { slug } = useParams()
   const [store,setStore]=useState(null)
   const [prods,setProds]=useState([])
@@ -102,8 +87,7 @@ export default function StoreBannerTransparenteAngosto(){
     })
   },[slug])
 
-  // SOLO BOUTIQUE MUESTRA TALLAS
-  const isBoutique = store?.tipo_tienda?.toLowerCase() === 'boutique'
+  const isBoutique = store?.tipo_tienda?.toLowerCase() === 'boutique' || store?.tipo_tienda?.toLowerCase().includes('boutique')
 
   const add=(p,t=null)=>{
     if(isBoutique && p.tallas?.length>0 && !t) return false
@@ -124,12 +108,10 @@ export default function StoreBannerTransparenteAngosto(){
     wa(m)
   }
   const waOne=()=>{
-    // con descripcion estilo Temu si existe
     let desc = sel.description ? ` - ${sel.description}` : ''
     let m=`Hola ${store.name}! Quiero: ${sel.name}${isBoutique && talla? ' Talla '+talla:''} - C$ ${sel.price}${desc} https://tiendanica.store/${slug}`
     wa(m)
   }
-  // COMPATIBILIDAD: soporta viejo image_url + extra_images y nuevo images array
   const getProductImages = (p)=>{
     if(p.images && p.images.length>0) return p.images.filter(Boolean)
     return [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
@@ -141,59 +123,26 @@ export default function StoreBannerTransparenteAngosto(){
   if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()))
   if(cat) filtered=filtered.filter(p=>p.categoria===cat)
   const cats=[...new Set(prods.map(p=>p.categoria).filter(Boolean))]
-  const cover=store.cover_image || store.image_url || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200'
 
   return (
-    <main style={{minHeight:'100vh', background:'#F6F3F0', color:'#000', paddingBottom:90}}>
-      <style>{`
-        .banner-wrap { position: relative; height: 520px; background: #0A0A0A; overflow: hidden; }
-        .banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-        .info-card { position: absolute; bottom: 12px; left: 12px; right: 12px; background: linear-gradient(135deg, #ffffff 0%, #faf8f6 100%); border-radius: 20px; padding: 14px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 20px 40px rgba(0,0,0,0.35); z-index: 4; }
-        @media (max-width: 768px) {
-          .banner-wrap { height: auto !important; }
-          .banner-img { position: relative !important; height: auto !important; max-height: 72vh; object-fit: contain !important; background: #0A0A0A; }
-          .info-card { bottom: 8px !important; left: 8px !important; right: 8px !important; padding: 8px 10px !important; border-radius: 14px !important; min-height: 52px !important; max-height: 52px !important; background: rgba(0,0,0,0.42) !important; backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important; border: 1px solid rgba(255,255,255,0.18) !important; box-shadow: 0 8px 20px rgba(0,0,0,0.25) !important; }
-          .info-card h1 { font-size: 13px !important; color: #fff !important; letter-spacing: -0.2px !important; }
-          .info-logo { width: 32px !important; height: 32px !important; border: 1.5px solid rgba(255,255,255,0.8) !important; }
-          .wa-btn { padding: 6px 10px !important; font-size: 10px !important; background: #00E676 !important; color: #000 !important; box-shadow: 0 2px 8px rgba(0,230,118,0.35) !important; }
-        }
-      `}</style>
-
-      <div className="banner-wrap">
-        <div style={{position:'absolute', inset:0, background: 'linear-gradient(180deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%)', zIndex:0}}/>
-        <img src={cover} alt="portada" className="banner-img" style={{zIndex:1, opacity:0.95}}/>
-        <div style={{position:'absolute', inset:0, zIndex:2, background: 'linear-gradient(to top, #0A0A0A 0%, transparent 70%)', pointerEvents:'none'}}/>
-        <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: 'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
-
-        <div style={{position:'absolute',top:10,left:10,right:10, display:'flex', justifyContent:'space-between', zIndex:4}}>
-          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{(store.tipo_tienda||'BOUTIQUE').toUpperCase()}</div>
-          <a href={`https://tiendanica.store`} style={{background:'rgba(255,255,255,0.9)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>tiendanica.store</a>
+    <main style={{background:'#F7F5F3', minHeight:'100vh', fontFamily:'Inter, system-ui'}}>
+      <div style={{background:'#fff', borderBottom:'1px solid #EAE6E1', padding:12, position:'sticky', top:0, zIndex:10, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{display:'flex', gap:10, alignItems:'center'}}>
+          <img src={store.logo_url||'/tienda-nica-logo.png'} style={{width:36,height:36, borderRadius:10, objectFit:'cover'}}/>
+          <b>{store.name}</b>
         </div>
-
-        <div className="info-card">
-          <div style={{display:'flex', gap:10, alignItems:'center'}}>
-            <img src={store.logo_url || store.image_url} className="info-logo" style={{width:44,height:44,borderRadius:12,objectFit:'cover',border:'2px solid #fff'}}/>
-            <div>
-              <h1 style={{fontSize:15,fontWeight:900,margin:0,lineHeight:1.1}}>{store.name}</h1>
-              <p style={{fontSize:10,margin:0,opacity:0.6, marginTop:2}}>{prods.length} productos • {store.municipio||'Nicaragua'}</p>
-            </div>
-          </div>
-          <button onClick={()=>wa(`Hola ${store.name}! Vi tu tienda en tiendanica.store/${slug}`)} className="wa-btn" style={{background:'#00E676',color:'#000',border:'none',padding:'8px 14px',borderRadius:999,fontWeight:900,fontSize:11}}>WhatsApp</button>
-        </div>
+        <button onClick={()=>setShowCart(!showCart)} style={{background:'#000', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:900, border:'none', fontSize:12}}>🛒 {count? `${count} • C$ ${total}`: 'Carrito'}</button>
       </div>
 
-      <div style={{position:'fixed', bottom:16, right:12, zIndex:60}}>
-        {showCart&&<div style={{background:'#fff', width:'92vw', maxWidth:360, borderRadius:20, padding:14, boxShadow:'0 20px 40px rgba(0,0,0,0.3)', marginBottom:10, color:'#000'}}>
-          <div style={{display:'flex',justifyContent:'space-between'}}><b>Carrito ({count})</b><button onClick={()=>setShowCart(false)} style={{border:'none',background:'#eee',borderRadius:999,width:28,height:28}}>X</button></div>
-          <div style={{marginTop:10, display:'grid', gap:8, maxHeight:300, overflowY:'auto'}}>
-            {cart.length===0 && <p style={{fontSize:12, opacity:0.6}}>Vacío</p>}
-            {cart.map(i=><div key={i.cid} style={{display:'flex',gap:8, background:'#F6F3F0', padding:8, borderRadius:12}}><img src={i.image_url} style={{width:44,height:44,borderRadius:8,objectFit:'cover'}}/><div style={{flex:1,fontSize:12}}><b>{i.name}</b>{isBoutique && i.tallaSel&&<span style={{background:'#000',color:'#fff',fontSize:9,padding:'2px 6px',borderRadius:99,marginLeft:6}}>{i.tallaSel}</span>}<br/>{i.qty} x C$ {i.price}</div><button onClick={()=>setCart(v=>v.filter(x=>x.cid!==i.cid))} style={{border:'none',background:'none'}}>🗑</button></div>)}
-          </div>
-          <div style={{marginTop:10,display:'flex',justifyContent:'space-between',fontWeight:900}}><span>Total</span><span>C$ {total}</span></div>
-          <button onClick={waCart} style={{marginTop:10,width:'100%',background:'#000',color:'#fff',padding:12,borderRadius:999,fontWeight:900,border:'none'}}>Enviar por WhatsApp</button>
-        </div>}
-        <button onClick={()=>setShowCart(!showCart)} style={{background:'#000', color:'#fff', padding:'13px 18px', borderRadius:999, fontWeight:900, border:'none', boxShadow:'0 10px 20px rgba(0,0,0,0.3)', fontSize:13}}>🛒 {count? `${count} • C$ ${total}`: 'Carrito'}</button>
-      </div>
+      {showCart&&<div style={{position:'fixed', right:12, top:60, width:300, background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:12, zIndex:50, boxShadow:'0 10px 30px rgba(0,0,0,0.15)'}}>
+        <b>Carrito</b>
+        <div style={{maxHeight:200, overflowY:'auto', marginTop:8}}>
+          {cart.map(i=><div key={i.cid} style={{display:'flex', justifyContent:'space-between', fontSize:12, padding:'6px 0', borderBottom:'1px solid #f0f0f0'}}><span>{i.qty}x {i.name} {i.tallaSel&&`(${i.tallaSel})`}</span><span>C$ {i.price*i.qty}</span></div>)}
+          {cart.length===0&&<div style={{fontSize:12, color:'#999', textAlign:'center', padding:10}}>Vacío</div>}
+        </div>
+        <div style={{marginTop:10,display:'flex',justifyContent:'space-between',fontWeight:900}}><span>Total</span><span>C$ {total}</span></div>
+        <button onClick={waCart} style={{marginTop:10,width:'100%',background:'#000',color:'#fff',padding:12,borderRadius:999,fontWeight:900,border:'none'}}>Enviar por WhatsApp</button>
+      </div>}
 
       <div style={{maxWidth:1120, margin:'0 auto', padding:14}}>
         <div style={{background:'#fff', borderRadius:16, padding:12, display:'flex', flexDirection:'column', gap:10, boxShadow:'0 1px 3px rgba(0,0,0,0.06)', border:'1px solid #f0f0f0'}}>
@@ -204,12 +153,26 @@ export default function StoreBannerTransparenteAngosto(){
           {filtered.map(p=>{
             const im=getProductImages(p)
             const hasVideo = !!p.video_url
-            return <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}><button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'4/5',border:'none',background:'#FBF9F7',position:'relative', overflow:'hidden'}}><img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'cover'}}/>{im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}{hasVideo&&<span style={{position:'absolute',top:8,right:8,background:'#FF3B30',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>▶ VIDEO</span>}{isBoutique && p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>{p.tallas.join(' ')}</span>}</button><div style={{padding:12, background:'#fff'}}><p style={{fontSize:12,fontWeight:600, color:'#000', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:28}}>{p.name}</p>{p.description&&<p style={{fontSize:10,color:'#666',marginTop:2, display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{p.description}</p>}<p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p><button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Ver fotos y video</button></div></div>
+            return (
+              <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}>
+                <button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'1/1',border:'none',background:'#fff',position:'relative', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  <img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'contain', background:'#fff'}}/>
+                  {im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}
+                  {hasVideo&&<span style={{position:'absolute',top:8,right:8,background:'#FF3B30',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>▶ VIDEO</span>}
+                  {isBoutique && p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800, border:'1px solid #eee'}}>{p.tallas.join(' ')}</span>}
+                </button>
+                <div style={{padding:12, background:'#fff'}}>
+                  <p style={{fontSize:12,fontWeight:600, color:'#000', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:28}}>{p.name}</p>
+                  {p.description&&<p style={{fontSize:10,color:'#666',marginTop:2, display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{p.description}</p>}
+                  <p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p>
+                  <button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Ver fotos y video</button>
+                </div>
+              </div>
+            )
           })}
         </div>
       </div>
 
-      {/* MODAL PRODUCTO ESTILO TEMU CON VIDEO + CARRUSEL + WHATSAPP */}
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setSel(null)}>
         <div style={{background:'#F5F5F5',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column', color:'#000'}} onClick={e=>e.stopPropagation()}>
           <TemuProductGallery images={getProductImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
