@@ -10,57 +10,81 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-// ===== COMPONENTE CARRUSEL + VIDEO ESTILO TEMU - IMAGEN COMPLETA =====
+// ===== CARRUSEL + VIDEO ESTILO TEMU - FIX PARA TODAS LAS TIENDAS =====
 function TemuProductGallery({ images=[], videoUrl, name }){
+  // FIX: video primero para que se vea en TODAS las tiendas (boutique, comida, general)
   const slides = []
-  if(images && images.length>0) images.forEach(img=>{ if(img) slides.push({type:'image', url:img}) })
   if(videoUrl) slides.push({type:'video', url:videoUrl})
+  if(images && images.length>0) images.forEach(img=>{ if(img) slides.push({type:'image', url:img}) })
   if(slides.length===0) slides.push({type:'image', url:'/tienda-nica-logo.png'})
 
   const [current, setCurrent] = useState(0)
   const [muted, setMuted] = useState(true)
+  const [playing, setPlaying] = useState(true)
   const videoRef = useRef(null)
 
-  useEffect(()=>{ setCurrent(0) },[images, videoUrl])
+  useEffect(()=>{ setCurrent(0); setPlaying(true) },[images, videoUrl])
+
+  const togglePlay = ()=>{
+    if(!videoRef.current) return
+    if(videoRef.current.paused){
+      videoRef.current.play()
+      setPlaying(true)
+    } else {
+      videoRef.current.pause()
+      setPlaying(false)
+    }
+  }
 
   return (
     <div style={{position:'relative', background:'#fff'}}>
       <div style={{display:'flex', overflow:'hidden', aspectRatio:'1/1', position:'relative', background:'#fff'}}>
         {slides.map((s,i)=>(
-          <div key={i} style={{minWidth:'100%', display: i===current ? 'flex' : 'none', position:'relative', background:'#fff', alignItems:'center', justifyContent:'center'}}>
+          <div key={i} style={{minWidth:'100%', display: i===current ? 'flex' : 'none', position:'relative', background: s.type==='video' ? '#000' : '#fff', alignItems:'center', justifyContent:'center'}}>
             {s.type==='image' ? (
               <img src={s.url} alt={name} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/>
             ) : (
-              <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}}>
+              <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}} onClick={togglePlay}>
                 <video 
-                  ref={videoRef}
+                  ref={i===current ? videoRef : null}
                   src={s.url} 
                   autoPlay 
                   loop 
                   muted={muted} 
                   playsInline
+                  preload="metadata"
+                  controls={false}
+                  onPlay={()=>setPlaying(true)}
+                  onPause={()=>setPlaying(false)}
                   style={{width:'100%', height:'100%', objectFit:'contain', background:'#000'}}
                 />
-                <button onClick={()=>setMuted(!muted)} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999, fontSize:14}}>
+                {/* Boton Play grande estilo Temu/TikTok */}
+                {!playing && (
+                  <div style={{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.2)'}}>
+                    <div style={{width:60,height:60, borderRadius:999, background:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24}}>▶</div>
+                  </div>
+                )}
+                <button onClick={(e)=>{e.stopPropagation(); setMuted(!muted)}} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999, fontSize:14, zIndex:2}}>
                   {muted ? '🔇' : '🔊'}
                 </button>
-                <span style={{position:'absolute', top:12, left:12, background:'#FF3B30', color:'#fff', fontSize:10, fontWeight:900, padding:'4px 8px', borderRadius:999}}>VIDEO</span>
+                <span style={{position:'absolute', top:12, left:12, background:'#FF3B30', color:'#fff', fontSize:10, fontWeight:900, padding:'4px 8px', borderRadius:999, zIndex:2}}>VIDEO</span>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.35)', padding:'6px 10px', borderRadius:999}}>
-        {slides.map((_,i)=>(
-          <button key={i} onClick={()=>setCurrent(i)} style={{width: i===current ? 18 : 6, height:6, borderRadius:999, border:'none', background: i===current ? '#fff' : 'rgba(255,255,255,0.5)', transition:'all 0.2s', cursor:'pointer'}}/>
+      <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.45)', padding:'6px 10px', borderRadius:999, zIndex:2}}>
+        {slides.map((s,i)=>(
+          <button key={i} onClick={()=>setCurrent(i)} style={{width: i===current ? 20 : 6, height:6, borderRadius:999, border:'none', background: i===current ? (s.type==='video' ? '#FF3B30' : '#fff') : 'rgba(255,255,255,0.5)', transition:'all 0.2s', cursor:'pointer'}} title={s.type==='video' ? 'Video' : `Foto ${i+1}`}/>
         ))}
       </div>
-      <div style={{position:'absolute', top:12, right:12, display:'flex', gap:6}}>
-        <span style={{background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:11, padding:'4px 8px', borderRadius:999}}>{current+1}/{slides.length}</span>
+      <div style={{position:'absolute', top:12, right:12, display:'flex', gap:6, zIndex:2}}>
+        <span style={{background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:11, padding:'4px 8px', borderRadius:999}}>{current+1}/{slides.length} {slides[current]?.type==='video' ? '• VIDEO' : ''}</span>
       </div>
-      <button onClick={()=>setCurrent((current-1+slides.length)%slides.length)} style={{position:'absolute', left:0, top:0, bottom:0, width:'18%', background:'transparent', border:'none'}}/>
-      <button onClick={()=>setCurrent((current+1)%slides.length)} style={{position:'absolute', right:0, top:0, bottom:0, width:'18%', background:'transparent', border:'none'}}/>
+      {/* Zonas invisibles para swipe */}
+      <button onClick={()=>setCurrent((current-1+slides.length)%slides.length)} style={{position:'absolute', left:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none', zIndex:1}}/>
+      <button onClick={()=>setCurrent((current+1)%slides.length)} style={{position:'absolute', right:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none', zIndex:1}}/>
     </div>
   )
 }
@@ -87,7 +111,7 @@ export default function StorePage(){
     })
   },[slug])
 
-  const isBoutique = store?.tipo_tienda?.toLowerCase() === 'boutique' || store?.tipo_tienda?.toLowerCase().includes('boutique')
+  const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique')
 
   const add=(p,t=null)=>{
     if(isBoutique && p.tallas?.length>0 && !t) return false
@@ -158,14 +182,14 @@ export default function StorePage(){
                 <button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'1/1',border:'none',background:'#fff',position:'relative', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center'}}>
                   <img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'contain', background:'#fff'}}/>
                   {im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}
-                  {hasVideo&&<span style={{position:'absolute',top:8,right:8,background:'#FF3B30',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>▶ VIDEO</span>}
+                  {hasVideo&&<span style={{position:'absolute',top:8,right:8,background:'#FF3B30',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800, animation:'pulse 1.5s infinite'}}>▶ VIDEO</span>}
                   {isBoutique && p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800, border:'1px solid #eee'}}>{p.tallas.join(' ')}</span>}
                 </button>
                 <div style={{padding:12, background:'#fff'}}>
                   <p style={{fontSize:12,fontWeight:600, color:'#000', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:28}}>{p.name}</p>
                   {p.description&&<p style={{fontSize:10,color:'#666',marginTop:2, display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{p.description}</p>}
                   <p style={{fontWeight:900,marginTop:4, color:'#000'}}>C$ {p.price}</p>
-                  <button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background:'#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>Ver fotos y video</button>
+                  <button onClick={()=>setSel(p)} style={{marginTop:8,width:'100%',background: hasVideo ? '#FF3B30' : '#111',color:'#fff',padding:10,borderRadius:999,fontSize:11,fontWeight:800,border:'none'}}>{hasVideo ? '▶ Ver video' : 'Ver fotos y video'}</button>
                 </div>
               </div>
             )
@@ -195,6 +219,7 @@ export default function StorePage(){
           </div>
         </div>
       </div>}
+      <style>{`@keyframes pulse {0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)}}`}</style>
     </main>
   )
 }
