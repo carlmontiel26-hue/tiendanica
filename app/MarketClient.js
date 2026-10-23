@@ -26,10 +26,8 @@ function TemuGallery({ images=[], videoUrl, name }){
       setPlaying(false)
     }
   }
-
   const goNext = (e)=>{
     if(e) e.stopPropagation()
-    // Si estamos en video, pausarlo antes de irse
     if(slides[current]?.type==='video') pauseVideo()
     setCurrent((c)=>(c+1)%slides.length)
   }
@@ -42,7 +40,6 @@ function TemuGallery({ images=[], videoUrl, name }){
     if(slides[current]?.type==='video' && idx!==current) pauseVideo()
     setCurrent(idx)
   }
-
   const togglePlay = (e)=>{
     if(e) e.stopPropagation()
     if(!videoRef.current) return
@@ -57,7 +54,6 @@ function TemuGallery({ images=[], videoUrl, name }){
             {s.type==='image' ? <img src={s.url} alt={name} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/> : (
               <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}}>
                 <video ref={videoRef} src={s.url} autoPlay loop muted={muted} playsInline preload="metadata" style={{width:'100%', height:'100%', objectFit:'contain', background:'#000'}} onClick={togglePlay}/>
-                {/* Solo el centro hace play/pause, no todo */}
                 <div onClick={togglePlay} style={{position:'absolute', inset:'30%', background:'transparent', zIndex:2}}/>
                 {!playing && <div onClick={togglePlay} style={{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.15)', zIndex:3}}><div style={{width:60,height:60, borderRadius:999, background:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24}}>▶</div></div>}
                 <button onClick={(e)=>{e.stopPropagation(); setMuted(!muted)}} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999, zIndex:4}}> {muted ? '🔇' : '🔊'} </button>
@@ -67,11 +63,9 @@ function TemuGallery({ images=[], videoUrl, name }){
           </div>
         ))}
       </div>
-      {/* DOTS - no pausan raro */}
       <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.45)', padding:'6px 10px', borderRadius:999, zIndex:5}}>
         {slides.map((s,i)=><button key={i} onClick={()=>goTo(i)} style={{width: i===current ? 20 : 6, height:6, borderRadius:999, border:'none', background: i===current ? (s.type==='video' ? '#FF3B30' : '#fff') : 'rgba(255,255,255,0.5)'}}/>)}
       </div>
-      {/* ZONAS LATERALES PARA NAVEGAR - no hacen toggle */}
       <button onClick={goPrev} style={{position:'absolute', left:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none', zIndex:4}}/>
       <button onClick={goNext} style={{position:'absolute', right:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none', zIndex:4}}/>
     </div>
@@ -211,7 +205,7 @@ export default function MarketClient(){
   if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando TiendaNica...</div>
 
   return (
-    <main style={{minHeight:'100vh', background:'#F5F1ED', fontFamily:'Inter, system-ui', paddingBottom:90}}>
+    <main style={{minHeight:'100vh', background:'#F5F1ED', fontFamily:'Inter, system-ui', paddingBottom:40}}>
       <style>{`
         .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; }
         .portada-img{ width:100%; height:auto; display:block; }
@@ -232,6 +226,7 @@ export default function MarketClient(){
         @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } }
       `}</style>
 
+      {/* PORTADA */}
       <div className="portada-wrap">
         <img src="/opengraph-image.png" alt="TiendaNica" className="portada-img"/>
         <button onClick={abrirVender} className="btn-vender-azul">
@@ -244,12 +239,13 @@ export default function MarketClient(){
         </button>
       </div>
 
+      {/* CINTA DEGRADADA */}
       <div className="cinta-degradada">
-        <span>✨ Más de {products.length} productos reales</span>
+        <span>🛡️ Tiendas verificadas con video y cédula</span>
         <span style={{opacity:0.6}}>•</span>
         <span>📦 Envío a toda Nicaragua</span>
         <span style={{opacity:0.6}}>•</span>
-        <span>💬 WhatsApp directo sin comisiones</span>
+        <span>⚖️ Reporte antifraude 24h</span>
       </div>
 
       <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
@@ -290,6 +286,21 @@ export default function MarketClient(){
         </div>
       </div>
 
+      {/* FOOTER LEGAL PREMIUM */}
+      <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 30px', textAlign:'center'}}>
+        <div style={{maxWidth:800, margin:'0 auto'}}>
+          <p style={{fontWeight:900, fontSize:16, letterSpacing:0.5}}>TiendaNica.store</p>
+          <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua • Proyecto personal de Carlos Montiel y socio • Desde 2024 hacia ser el #1</p>
+          <div style={{display:'flex', gap:14, justifyContent:'center', flexWrap:'wrap', marginTop:16, fontSize:12, fontWeight:700}}>
+            <a href="/terminos" style={{color:'#fff', textDecoration:'none', opacity:0.8}}>Términos</a>
+            <a href="/privacidad" style={{color:'#fff', textDecoration:'none', opacity:0.8}}>Privacidad</a>
+            <a href="/vendedores" style={{color:'#FF8A00', textDecoration:'none'}}>Vendedores ✓</a>
+            <a href="/reportar" style={{color:'#FF3B30', textDecoration:'none', background:'#fff', padding:'4px 10px', borderRadius:999}}>🚨 Reportar fraude</a>
+          </div>
+          <p style={{fontSize:10, opacity:0.4, marginTop:16}}>🛡️ Sistema antifraude: verificación con cédula + video + depósito C$250 + blacklist interna • 0% comisión por WhatsApp • Envío a toda Nicaragua</p>
+        </div>
+      </div>
+
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={closeModal}>
         <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
           <TemuGallery images={getImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
@@ -313,7 +324,7 @@ export default function MarketClient(){
                       {['XS','S','M','L','XL'].map(t=>(
                         <button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>
                       ))}
-                      <span style={{fontSize:11, color:'#999', alignSelf:'center'}}>• Preguntar por disponibilidad</span>
+                      <span style={{fontSize:11, color:'#999', alignSelf:'center'}}>• Preguntar disponibilidad</span>
                     </>
                   )}
                 </div>
@@ -328,10 +339,9 @@ export default function MarketClient(){
             
             <div style={{display:'flex', gap:8, marginTop:8}}>
               <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar al market</button>
-              {/* BOTON VER TIENDA NARANJA */}
               <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13, boxShadow:'0 4px 12px rgba(255,106,0,0.35)'}}>Ver tienda 🛍️</a>
             </div>
-            <p style={{fontSize:10, color:'#999', textAlign:'center', marginTop:8}}>Flecha atrás del celular regresa al market • Tallas solo en boutique</p>
+            <p style={{fontSize:10, color:'#999', textAlign:'center', marginTop:8}}>Flecha atrás del celular regresa al market • Tallas solo boutique</p>
           </div>
         </div>
       </div>}
