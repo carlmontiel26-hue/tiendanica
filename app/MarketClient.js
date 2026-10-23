@@ -60,21 +60,33 @@ export default function MarketClient(){
   useEffect(()=>{
     const supabase=getSupabase()
     if(!supabase) return
-    supabase.from('stores').select('*').eq('is_active',true).then(({data})=>{
-      // SOLO BOUTIQUE Y GENERAL EN MARKET, COMIDA FUERA
-      const filtradas = (data||[]).filter(s=>{
-        const t=(s.tipo_tienda||'').toLowerCase()
-        return !t.includes('comida') && !t.includes('restaurante') && !t.includes('food')
+    // FIX CONTEO: no filtrar por is_active porque tu tabla no lo tiene, trae todas y luego quita solo comida
+    supabase.from('stores').select('*').then(({data, error})=>{
+      if(error){ console.error('stores error', error); return }
+      const all = data||[]
+      console.log('stores total', all.length)
+      const filtradas = all.filter(s=>{
+        const t=(s.tipo_tienda||s.type||'').toLowerCase()
+        const esComida = t.includes('comida') || t.includes('restaurante') || t.includes('food')
+        return !esComida
       })
-      setStores(filtradas)
+      setStores(filtradas.length>0 ? filtradas : all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') })) // fallback
+      // Si aun 0, muestra todas menos comida, si no hay tipo, muestra todas
+      if(filtradas.length===0 && all.length>0){
+        // si no tienen tipo_tienda, muestra todas
+        const sinTipo = all.filter(s=>!s.tipo_tienda || s.tipo_tienda==='')
+        setStores(sinTipo.length>0 ? all : all)
+      }
     })
-    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,cover_image)').eq('is_active',true).order('created_at',{ascending:false}).limit(250).then(({data})=>{
-      // FILTRO: quitar comida del market
-      const sinComida = (data||[]).filter(p=>{
+    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp)').order('created_at',{ascending:false}).limit(300).then(({data, error})=>{
+      if(error){ console.error('products error', error); setLoading(false); return }
+      const all = data||[]
+      const sinComida = all.filter(p=>{
         const t=(p.stores?.tipo_tienda||'').toLowerCase()
         return !t.includes('comida') && !t.includes('restaurante') && !t.includes('food')
       })
-      setProducts(sinComida)
+      // Si no hay tipo_tienda, muestra todos
+      setProducts(sinComida.length>0 ? sinComida : all)
       setLoading(false)
     })
   },[])
@@ -105,48 +117,32 @@ export default function MarketClient(){
         .market-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
         .product-card-img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
         .product-card-wrap { aspect-ratio: 1/1; background: #fff; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 16px 16px 0 0; }
-        .market-banner { position: relative; height: 460px; background: #0A0A0A; overflow: hidden; }
-        .market-banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-        @media (max-width: 1024px) { .market-grid { grid-template-columns: repeat(3, 1fr); } .market-banner { height: 400px; } }
+        .portada-real { width: 100%; height: auto; display: block; }
+        .portada-wrap { width: 100%; background: #000; line-height: 0; }
+        @media (max-width: 1024px) { .market-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 768px) {
           .market-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
           .product-card-wrap { aspect-ratio: 1/1; border-radius: 14px 14px 0 0; }
-          .market-banner { height: auto !important; }
-          .market-banner-img { position: relative !important; height: auto !important; max-height: 62vh; object-fit: contain !important; background: #0A0A0A; }
-          .market-banner-content { padding: 14px !important; }
-          .market-banner-content h1 { font-size: 22px !important; }
         }
       `}</style>
 
-      {/* ===== PORTADA MARKET RESTAURADA - SIN CORTARSE ===== */}
-      <div className="market-banner">
-        <div style={{position:'absolute', inset:0, background:'linear-gradient(180deg, #0A0A0A 0%, #1A1A1A 50%, #0A0A0A 100%)', zIndex:0}}/>
-        <img src="/opengraph-image.png" alt="TiendaNica" className="market-banner-img" style={{zIndex:1, opacity:0.9}}/>
-        <div style={{position:'absolute', inset:0, zIndex:2, background:'linear-gradient(to top, #0A0A0A 85%, transparent 100%)'}}/>
-        <div style={{position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
-        <div className="market-banner-content" style={{position:'absolute', bottom:0, left:0, right:0, zIndex:4, padding:'28px 24px', color:'#fff'}}>
-          <div style={{maxWidth:1200, margin:'0 auto'}}>
-            <div style={{display:'flex', gap:12, alignItems:'center', marginBottom:10}}>
-              <img src="/tienda-nica-logo.png" style={{width:48,height:48, borderRadius:12, border:'2px solid rgba(255,255,255,0.8)'}}/>
-              <div><h1 style={{fontSize:32, fontWeight:900, margin:0, lineHeight:1}}>TIENDANICA.STORE</h1><p style={{fontSize:12, opacity:0.8, margin:'4px 0 0 0'}}>Market de Boutique y Tiendas Generales • {stores.length} tiendas • Envíos a toda Nicaragua</p></div>
-            </div>
-            <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:12}}>
-              <span style={{background:'#00E676', color:'#000', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:900}}>BOUTIQUE</span>
-              <span style={{background:'rgba(255,255,255,0.15)', backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.2)', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700}}>GENERAL</span>
-              <span style={{background:'rgba(255,255,255,0.9)', color:'#000', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:800}}>{filtered.length} productos con video</span>
-            </div>
-          </div>
-        </div>
+      {/* ===== PORTADA REAL - TU IMAGEN opengraph-image.png EXACTA ===== */}
+      <div className="portada-wrap">
+        <img src="/opengraph-image.png" alt="TiendaNica - El mercado mas grande de Nicaragua" className="portada-real"/>
       </div>
 
-      <div style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', position:'sticky', top:0, zIndex:20, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{display:'flex', gap:10, alignItems:'center'}}><b style={{fontSize:13}}>MARKET</b><span style={{fontSize:10, opacity:0.6}}>Sin comida • Solo boutique y general</span></div>
-        <div style={{fontSize:11, opacity:0.7}}>{filtered.length} productos</div>
+      <div style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{display:'flex', gap:10, alignItems:'center'}}>
+          <b style={{fontSize:13}}>MARKET</b>
+          <span style={{fontSize:10, background:'#00E676', color:'#000', padding:'3px 8px', borderRadius:999, fontWeight:900}}>{stores.length} TIENDAS</span>
+          <span style={{fontSize:10, opacity:0.6}}>{filtered.length} productos • Sin comida</span>
+        </div>
+        <div style={{fontSize:11, opacity:0.7}}>Boutique y General</div>
       </div>
 
       <div style={{maxWidth:1200, margin:'0 auto', padding:14}}>
         <div style={{background:'#fff', borderRadius:16, padding:12, border:'1px solid #EAE6E1', display:'flex', flexDirection:'column', gap:10}}>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar producto o tienda (boutique y general)..." style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'12px 16px', fontSize:14}}/>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar producto o tienda..." style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'12px 16px', fontSize:14}}/>
           <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
             <button onClick={()=>{setCat(null); setTipo(null)}} style={{padding:'6px 12px', borderRadius:999, border:'1px solid #000', background: !cat && !tipo ? '#000' : '#fff', color: !cat && !tipo ? '#fff' : '#000', fontSize:12, fontWeight:700}}>Todo</button>
             {cats.map(c=><button key={c} onClick={()=>setCat(c===cat?null:c)} style={{padding:'6px 12px', borderRadius:999, border:'1px solid #eee', background: cat===c ? '#000' : '#fff', color: cat===c ? '#fff' : '#000', fontSize:12, fontWeight:700, textTransform:'capitalize'}}>{c}</button>)}
@@ -176,7 +172,7 @@ export default function MarketClient(){
           })}
         </div>
 
-        {filtered.length===0 && <div style={{background:'#fff', borderRadius:16, padding:30, textAlign:'center', marginTop:16}}><p style={{fontWeight:700}}>No hay productos de boutique/general con ese filtro</p><p style={{fontSize:12, color:'#999', marginTop:6}}>Comida está en otro sitio aparte</p></div>}
+        {filtered.length===0 && <div style={{background:'#fff', borderRadius:16, padding:30, textAlign:'center', marginTop:16}}><p style={{fontWeight:700}}>No hay productos</p><p style={{fontSize:12, color:'#999'}}>Tienes {stores.length} tiendas, revisa que tengan productos activos</p></div>}
       </div>
 
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setSel(null)}>
@@ -185,7 +181,7 @@ export default function MarketClient(){
           <div style={{padding:16, overflowY:'auto'}}>
             <b style={{fontSize:20}}>C$ {sel.price}</b>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
-            <p style={{fontSize:12, color:'#666', marginTop:2}}>Tienda: {sel.stores?.name} • {sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
+            <p style={{fontSize:12, color:'#666', marginTop:2}}>Tienda: {sel.stores?.name} • {sel.categoria}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
             <div style={{display:'flex', gap:8, marginTop:12}}>
               <button onClick={()=>setSel(null)} style={{flex:1, background:'#F0F0F0', border:'none', padding:12, borderRadius:999, fontWeight:700}}>Cerrar</button>
