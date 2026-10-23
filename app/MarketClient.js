@@ -60,32 +60,20 @@ export default function MarketClient(){
   useEffect(()=>{
     const supabase=getSupabase()
     if(!supabase) return
-    // FIX CONTEO: no filtrar por is_active porque tu tabla no lo tiene, trae todas y luego quita solo comida
-    supabase.from('stores').select('*').then(({data, error})=>{
-      if(error){ console.error('stores error', error); return }
-      const all = data||[]
-      console.log('stores total', all.length)
+    supabase.from('stores').select('*').then(({data})=>{
+      const all=data||[]
       const filtradas = all.filter(s=>{
-        const t=(s.tipo_tienda||s.type||'').toLowerCase()
-        const esComida = t.includes('comida') || t.includes('restaurante') || t.includes('food')
-        return !esComida
+        const t=(s.tipo_tienda||'').toLowerCase()
+        return !t.includes('comida') && !t.includes('restaurante') && !t.includes('food')
       })
-      setStores(filtradas.length>0 ? filtradas : all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') })) // fallback
-      // Si aun 0, muestra todas menos comida, si no hay tipo, muestra todas
-      if(filtradas.length===0 && all.length>0){
-        // si no tienen tipo_tienda, muestra todas
-        const sinTipo = all.filter(s=>!s.tipo_tienda || s.tipo_tienda==='')
-        setStores(sinTipo.length>0 ? all : all)
-      }
+      setStores(filtradas.length>0 ? filtradas : all)
     })
-    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp)').order('created_at',{ascending:false}).limit(300).then(({data, error})=>{
-      if(error){ console.error('products error', error); setLoading(false); return }
-      const all = data||[]
+    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp)').order('created_at',{ascending:false}).limit(300).then(({data})=>{
+      const all=data||[]
       const sinComida = all.filter(p=>{
         const t=(p.stores?.tipo_tienda||'').toLowerCase()
         return !t.includes('comida') && !t.includes('restaurante') && !t.includes('food')
       })
-      // Si no hay tipo_tienda, muestra todos
       setProducts(sinComida.length>0 ? sinComida : all)
       setLoading(false)
     })
@@ -109,6 +97,11 @@ export default function MarketClient(){
     wa(m, sel.stores)
   }
 
+  const abrirVender = ()=>{
+    const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'
+    window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank')
+  }
+
   if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando TiendaNica...</div>
 
   return (
@@ -118,7 +111,7 @@ export default function MarketClient(){
         .product-card-img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
         .product-card-wrap { aspect-ratio: 1/1; background: #fff; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 16px 16px 0 0; }
         .portada-real { width: 100%; height: auto; display: block; }
-        .portada-wrap { width: 100%; background: #000; line-height: 0; }
+        .portada-wrap { width: 100%; background: #000; line-height: 0; position: relative; }
         @media (max-width: 1024px) { .market-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 768px) {
           .market-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -126,18 +119,27 @@ export default function MarketClient(){
         }
       `}</style>
 
-      {/* ===== PORTADA REAL - TU IMAGEN opengraph-image.png EXACTA ===== */}
+      {/* ===== PORTADA REAL - TU IMAGEN EXACTA ===== */}
       <div className="portada-wrap">
         <img src="/opengraph-image.png" alt="TiendaNica - El mercado mas grande de Nicaragua" className="portada-real"/>
-      </div>
-
-      <div style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{display:'flex', gap:10, alignItems:'center'}}>
-          <b style={{fontSize:13}}>MARKET</b>
-          <span style={{fontSize:10, background:'#00E676', color:'#000', padding:'3px 8px', borderRadius:999, fontWeight:900}}>{stores.length} TIENDAS</span>
-          <span style={{fontSize:10, opacity:0.6}}>{filtered.length} productos • Sin comida</span>
-        </div>
-        <div style={{fontSize:11, opacity:0.7}}>Boutique y General</div>
+        {/* BOTON VENDER VERDE SOBRE LA PORTADA - ABAJO IZQUIERDA */}
+        <button onClick={abrirVender} style={{
+          position:'absolute',
+          bottom:16,
+          left:16,
+          background:'#00E676',
+          color:'#000',
+          border:'none',
+          padding:'10px 22px',
+          borderRadius:999,
+          fontWeight:900,
+          fontSize:14,
+          letterSpacing:0.5,
+          textTransform:'lowercase',
+          boxShadow:'0 4px 14px rgba(0,230,118,0.4)',
+          cursor:'pointer',
+          zIndex:5
+        }}>vender</button>
       </div>
 
       <div style={{maxWidth:1200, margin:'0 auto', padding:14}}>
@@ -172,7 +174,7 @@ export default function MarketClient(){
           })}
         </div>
 
-        {filtered.length===0 && <div style={{background:'#fff', borderRadius:16, padding:30, textAlign:'center', marginTop:16}}><p style={{fontWeight:700}}>No hay productos</p><p style={{fontSize:12, color:'#999'}}>Tienes {stores.length} tiendas, revisa que tengan productos activos</p></div>}
+        {filtered.length===0 && <div style={{background:'#fff', borderRadius:16, padding:30, textAlign:'center', marginTop:16}}><p style={{fontWeight:700}}>No hay productos</p></div>}
       </div>
 
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setSel(null)}>
