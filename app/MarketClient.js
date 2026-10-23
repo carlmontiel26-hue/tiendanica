@@ -19,29 +19,61 @@ function TemuGallery({ images=[], videoUrl, name }){
   const [playing, setPlaying] = useState(true)
   const videoRef = useRef(null)
   useEffect(()=>{ setCurrent(0); setPlaying(true) },[images, videoUrl])
-  const togglePlay = ()=>{
+
+  const pauseVideo = ()=>{
+    if(videoRef.current){
+      videoRef.current.pause()
+      setPlaying(false)
+    }
+  }
+
+  const goNext = (e)=>{
+    if(e) e.stopPropagation()
+    // Si estamos en video, pausarlo antes de irse
+    if(slides[current]?.type==='video') pauseVideo()
+    setCurrent((c)=>(c+1)%slides.length)
+  }
+  const goPrev = (e)=>{
+    if(e) e.stopPropagation()
+    if(slides[current]?.type==='video') pauseVideo()
+    setCurrent((c)=>(c-1+slides.length)%slides.length)
+  }
+  const goTo = (idx)=>{
+    if(slides[current]?.type==='video' && idx!==current) pauseVideo()
+    setCurrent(idx)
+  }
+
+  const togglePlay = (e)=>{
+    if(e) e.stopPropagation()
     if(!videoRef.current) return
     if(videoRef.current.paused){ videoRef.current.play(); setPlaying(true) } else { videoRef.current.pause(); setPlaying(false) }
   }
+
   return (
     <div style={{position:'relative', background:'#fff'}}>
       <div style={{display:'flex', overflow:'hidden', aspectRatio:'1/1', position:'relative', background:'#fff'}}>
         {slides.map((s,i)=>(
           <div key={i} style={{minWidth:'100%', display: i===current ? 'flex' : 'none', position:'relative', background: s.type==='video' ? '#000' : '#fff', alignItems:'center', justifyContent:'center'}}>
             {s.type==='image' ? <img src={s.url} alt={name} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/> : (
-              <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}} onClick={togglePlay}>
-                <video ref={i===current ? videoRef : null} src={s.url} autoPlay loop muted={muted} playsInline preload="metadata" style={{width:'100%', height:'100%', objectFit:'contain', background:'#000'}}/>
-                {!playing && <div style={{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.2)'}}><div style={{width:60,height:60, borderRadius:999, background:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24}}>▶</div></div>}
-                <button onClick={(e)=>{e.stopPropagation(); setMuted(!muted)}} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999}}>{muted ? '🔇' : '🔊'}</button>
-                <span style={{position:'absolute', top:12, left:12, background:'#FF3B30', color:'#fff', fontSize:10, fontWeight:900, padding:'4px 8px', borderRadius:999}}>VIDEO</span>
+              <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                <video ref={videoRef} src={s.url} autoPlay loop muted={muted} playsInline preload="metadata" style={{width:'100%', height:'100%', objectFit:'contain', background:'#000'}} onClick={togglePlay}/>
+                {/* Solo el centro hace play/pause, no todo */}
+                <div onClick={togglePlay} style={{position:'absolute', inset:'30%', background:'transparent', zIndex:2}}/>
+                {!playing && <div onClick={togglePlay} style={{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.15)', zIndex:3}}><div style={{width:60,height:60, borderRadius:999, background:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24}}>▶</div></div>}
+                <button onClick={(e)=>{e.stopPropagation(); setMuted(!muted)}} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999, zIndex:4}}> {muted ? '🔇' : '🔊'} </button>
+                <span style={{position:'absolute', top:12, left:12, background:'#FF3B30', color:'#fff', fontSize:10, fontWeight:900, padding:'4px 8px', borderRadius:999, zIndex:4}}>VIDEO</span>
               </div>
             )}
           </div>
         ))}
       </div>
-      <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.45)', padding:'6px 10px', borderRadius:999}}>
-        {slides.map((s,i)=><button key={i} onClick={()=>setCurrent(i)} style={{width: i===current ? 20 : 6, height:6, borderRadius:999, border:'none', background: i===current ? (s.type==='video' ? '#FF3B30' : '#fff') : 'rgba(255,255,255,0.5)'}}/>)}
+      {/* DOTS - no pausan raro */}
+      <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.45)', padding:'6px 10px', borderRadius:999, zIndex:5}}>
+        {slides.map((s,i)=><button key={i} onClick={()=>goTo(i)} style={{width: i===current ? 20 : 6, height:6, borderRadius:999, border:'none', background: i===current ? (s.type==='video' ? '#FF3B30' : '#fff') : 'rgba(255,255,255,0.5)'}}/>)}
       </div>
+      {/* ZONAS LATERALES PARA NAVEGAR - no hacen toggle */}
+      <button onClick={goPrev} style={{position:'absolute', left:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none', zIndex:4}}/>
+      <button onClick={goNext} style={{position:'absolute', right:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none', zIndex:4}}/>
     </div>
   )
 }
@@ -94,7 +126,6 @@ export default function MarketClient(){
   }
 
   const getImages = (p)=> p.images?.length>0 ? p.images.filter(Boolean) : [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
-
   const getTallas = (p)=>{
     const raw = p.tallas || p.sizes || p.talla || p.size || p.sizes_available || p.tallas_disponibles || []
     if(Array.isArray(raw) && raw.length>0) return raw
@@ -201,10 +232,8 @@ export default function MarketClient(){
         @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } }
       `}</style>
 
-      {/* PORTADA SIN DEGRADADO - LIMPIA */}
       <div className="portada-wrap">
         <img src="/opengraph-image.png" alt="TiendaNica" className="portada-img"/>
-        {/* BOTON VENDER AZUL SOLIDO CON BOLSITA - PEQUEÑO BONITO */}
         <button onClick={abrirVender} className="btn-vender-azul">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
@@ -215,7 +244,6 @@ export default function MarketClient(){
         </button>
       </div>
 
-      {/* CINTA DEGRADADA NARANJA ROJO AZUL CON TEXTO QUE TE GUSTO */}
       <div className="cinta-degradada">
         <span>✨ Más de {products.length} productos reales</span>
         <span style={{opacity:0.6}}>•</span>
@@ -230,7 +258,6 @@ export default function MarketClient(){
             <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar vestido, jeans, farmacia..." style={{flex:1, border:'1.5px solid #EEE6DF', borderRadius:999, padding:'12px 18px', fontSize:14, outline:'none'}}/>
             <button onClick={()=>setShowCart(true)} style={{background:'#111', color:'#fff', border:'none', padding:'0 16px', borderRadius:999, fontWeight:800, fontSize:13, position:'relative'}}>🛒 {cart.length>0 && <span style={{background:'#0066FF', color:'#fff', borderRadius:999, padding:'2px 6px', fontSize:10, marginLeft:4}}>{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
           </div>
-          {/* CATEGORIAS ORDENADAS - RESTAURADAS COMO TE GUSTARON */}
           <div className="cat-scroll" style={{marginTop:10}}>
             <button onClick={()=>{setCat(null); setTipo(null)}} className={`chip ${!cat && !tipo ? 'active' : ''}`} style={{textTransform:'none'}}>Todo</button>
             {catsOrdenadas.map(c=><button key={c} onClick={()=>setCat(c===cat?null:c)} className={`chip ${cat===c ? 'active' : ''}`}>{c}</button>)}
@@ -263,7 +290,6 @@ export default function MarketClient(){
         </div>
       </div>
 
-      {/* VISTA PREVIA CON TALLAS SOLO BOUTIQUE + CARRITO + FIX BACK */}
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={closeModal}>
         <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
           <TemuGallery images={getImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
@@ -276,7 +302,6 @@ export default function MarketClient(){
             <p style={{fontSize:12, color:'#666', marginTop:2}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
             
-            {/* SOLO BOUTIQUE MUESTRA TALLAS */}
             {isBoutique(sel) && (
               <div style={{marginTop:12}}>
                 <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Selecciona talla:</p>
@@ -303,14 +328,14 @@ export default function MarketClient(){
             
             <div style={{display:'flex', gap:8, marginTop:8}}>
               <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar al market</button>
-              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#fff', color:'#111', border:'1px solid #111', padding:11, borderRadius:999, fontWeight:700, textDecoration:'none', fontSize:13}}>Ver tienda</a>
+              {/* BOTON VER TIENDA NARANJA */}
+              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13, boxShadow:'0 4px 12px rgba(255,106,0,0.35)'}}>Ver tienda 🛍️</a>
             </div>
             <p style={{fontSize:10, color:'#999', textAlign:'center', marginTop:8}}>Flecha atrás del celular regresa al market • Tallas solo en boutique</p>
           </div>
         </div>
       </div>}
 
-      {/* CARRITO */}
       {showCart && <div style={{position:'fixed', inset:0, zIndex:120, background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'flex-end'}} onClick={()=>setShowCart(false)}>
         <div style={{background:'#fff', width:'100%', maxWidth:380, height:'100%', padding:16, display:'flex', flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #eee', paddingBottom:12}}>
