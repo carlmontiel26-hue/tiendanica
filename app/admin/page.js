@@ -9,7 +9,9 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-export default function SuperAdminCompleto(){
+const DEPARTAMENTOS_NI = ['Managua','León','Granada','Masaya','Chinandega','Estelí','Matagalpa','Jinotega','Carazo','Rivas','Boaco','Chontales','Madriz','Nueva Segovia','Río San Juan','RAAN','RAAS','Otro']
+
+export default function SuperAdminConEdicion(){
   const [auth,setAuth]=useState(false)
   const [pass,setPass]=useState('')
   const [tab,setTab]=useState('tiendas')
@@ -19,150 +21,165 @@ export default function SuperAdminCompleto(){
   const [reportes,setReportes]=useState([])
   const [loading,setLoading]=useState(false)
   const [qTienda,setQTienda]=useState('')
+  const [editingStore,setEditingStore]=useState(null) // tienda que se está editando
   const [selectedStoreForProduct,setSelectedStoreForProduct]=useState('')
   const fileLogoRef = useRef(null)
+  const fileEditLogoRef = useRef(null)
   const fileProductRef = useRef(null)
 
-  // Form crear tienda
   const [formTienda,setFormTienda]=useState({
     name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', 
-    departamento:'Managua', direccion:'', lat:'', lng:'',
-    logo_file:null, logo_preview:'', logo_url:''
+    departamento:'Managua', municipio:'', direccion:'',
+    logo_file:null, logo_preview:''
   })
-  
-  // Form crear producto
+  const [formEdit,setFormEdit]=useState({})
   const [formProd,setFormProd]=useState({
     name:'', price:'', categoria:'vestidos', descripcion:'', 
-    tipo:'boutique', tallas:'S,M,L,XL', video_url:'',
-    image_files:[], image_previews:[]
+    tallas:'S,M,L,XL', video_url:'', image_files:[], image_previews:[]
   })
 
   const CATEGORIAS = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','comida','otros','nuevo']
-  const TIPOS = ['boutique','general','comida']
 
   const login = ()=>{
     if(pass === 'tiendanica2025' || pass === 'admin123' || pass === 'Nica2024'){
       setAuth(true)
       cargarTodo()
-    } else alert('Clave incorrecta - prueba tiendanica2025')
+    } else alert('Clave incorrecta')
   }
 
   const cargarTodo = async ()=>{
     setLoading(true)
     const supabase = getSupabase()
     if(!supabase){ setLoading(false); return }
-    const {data: s} = await supabase.from('stores').select('*').order('created_at',{ascending:false}).limit(200)
-    const {data: p} = await supabase.from('products').select('*, stores(name,slug)').order('created_at',{ascending:false}).limit(200)
-    const {data: v} = await supabase.from('store_verifications').select('*, stores(name, whatsapp, slug)').in('status',['pendiente','revision']).order('created_at',{ascending:false}).limit(50)
-    const {data: r} = await supabase.from('fraud_reports').select('*, stores(name, whatsapp)').in('status',['abierto','investigando']).order('created_at',{ascending:false}).limit(50)
-    setStores(s||[])
-    setProducts(p||[])
-    setPendientes(v||[])
-    setReportes(r||[])
-    setLoading(false)
+    const {data: s} = await supabase.from('stores').select('*').order('created_at',{ascending:false}).limit(300)
+    const {data: p} = await supabase.from('products').select('*, stores(name,slug)').order('created_at',{ascending:false}).limit(300)
+    const {data: v} = await supabase.from('store_verifications').select('*, stores(name, whatsapp, slug)').in('status',['pendiente','revision']).order('created_at',{ascending:false}).limit(100)
+    const {data: r} = await supabase.from('fraud_reports').select('*, stores(name, whatsapp)').in('status',['abierto','investigando']).order('created_at',{ascending:false}).limit(100)
+    setStores(s||[]); setProducts(p||[]); setPendientes(v||[]); setReportes(r||[]); setLoading(false)
   }
 
-  // --- CREAR TIENDA CON FOTO LOCAL ---
-  const handleLogoFile = (e)=>{
-    const file = e.target.files[0]
-    if(!file) return
-    setFormTienda({...formTienda, logo_file:file, logo_preview: URL.createObjectURL(file)})
-  }
-
-  const uploadLogo = async (file)=>{
+  const uploadFile = async (file, bucket='product-images')=>{
     const supabase = getSupabase()
-    if(!file) return null
-    const fileName = `store-${Date.now()}-${file.name}`
-    // Intenta subir a bucket store-logos, si no existe usa product-images o devuelve local
-    let bucket = 'store-logos'
-    let {data, error} = await supabase.storage.from(bucket).upload(fileName, file)
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`
+    const {error} = await supabase.storage.from(bucket).upload(fileName, file)
     if(error){
-      // fallback a bucket publico que seguro existe
-      bucket = 'product-images'
-      const res2 = await supabase.storage.from(bucket).upload(fileName, file)
-      if(res2.error) {
-        console.log('Error upload logo', res2.error)
-        return null
-      }
-      data = res2.data
+      // intenta con el otro bucket
+      const other = bucket==='store-logos' ? 'product-images' : 'store-logos'
+      const res2 = await supabase.storage.from(other).upload(fileName, file)
+      if(res2.error) return null
+      const {data} = supabase.storage.from(other).getPublicUrl(fileName)
+      return data.publicUrl
     }
-    const {data: urlData} = supabase.storage.from(bucket).getPublicUrl(fileName)
-    return urlData.publicUrl
+    const {data} = supabase.storage.from(bucket).getPublicUrl(fileName)
+    return data.publicUrl
   }
 
   const crearTienda = async (e)=>{
     e.preventDefault()
     const supabase = getSupabase()
-    if(!supabase) return alert('Falta env')
     if(!formTienda.name || !formTienda.slug || !formTienda.whatsapp) return alert('Falta nombre, slug, whatsapp')
-
-    let finalLogoUrl = formTienda.logo_url
+    let logoUrl = '/tienda-nica-logo.png'
     if(formTienda.logo_file){
-      finalLogoUrl = await uploadLogo(formTienda.logo_file)
-      if(!finalLogoUrl) return alert('Error subiendo logo, verifica buckets en Supabase Storage')
+      const uploaded = await uploadFile(formTienda.logo_file, 'store-logos')
+      if(uploaded) logoUrl = uploaded
     }
-    if(!finalLogoUrl) finalLogoUrl = '/tienda-nica-logo.png'
-
     const payload = {
       name: formTienda.name,
       slug: formTienda.slug.toLowerCase().replace(/ /g,'-').replace(/[^a-z0-9-]/g,''),
       whatsapp: formTienda.whatsapp,
       tipo_tienda: formTienda.tipo_tienda,
-      logo_url: finalLogoUrl,
+      logo_url: logoUrl,
       departamento: formTienda.departamento,
-      direccion: formTienda.direccion,
-      lat: formTienda.lat ? parseFloat(formTienda.lat) : null,
-      lng: formTienda.lng ? parseFloat(formTienda.lng) : null,
+      municipio: formTienda.municipio, // NUEVO: municipio/comunidad libre
+      direccion: formTienda.direccion, // ahora es opcional y libre
       verification_status: 'nueva',
       verification_badge: 'nueva'
     }
-
-    const {data, error} = await supabase.from('stores').insert(payload).select()
+    const {error} = await supabase.from('stores').insert(payload)
     if(error) alert('Error: '+error.message)
     else {
-      alert('Tienda creada ✓ '+formTienda.name)
-      setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', direccion:'', lat:'', lng:'', logo_file:null, logo_preview:'', logo_url:''})
+      alert('Tienda creada ✓ '+formTienda.name+' en '+formTienda.departamento+' - '+formTienda.municipio)
+      setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', municipio:'', direccion:'', logo_file:null, logo_preview:''})
       if(fileLogoRef.current) fileLogoRef.current.value=''
-      cargarTodo()
-      setTab('tiendas')
+      cargarTodo(); setTab('tiendas')
     }
   }
 
-  // --- CREAR PRODUCTO CON FOTOS LOCALES ---
-  const handleProductFiles = (e)=>{
-    const files = Array.from(e.target.files)
-    const previews = files.map(f=>URL.createObjectURL(f))
-    setFormProd({...formProd, image_files:files, image_previews:previews})
+  // --- EDITAR TIENDA ---
+  const abrirEdicion = (store)=>{
+    setEditingStore(store)
+    setFormEdit({
+      name: store.name, slug: store.slug, whatsapp: store.whatsapp, tipo_tienda: store.tipo_tienda,
+      departamento: store.departamento || 'Managua', municipio: store.municipio || '', direccion: store.direccion || '',
+      logo_url: store.logo_url, logo_file: null, logo_preview: ''
+    })
   }
 
-  const uploadProductImages = async (files)=>{
+  const guardarEdicion = async (e)=>{
+    e.preventDefault()
     const supabase = getSupabase()
-    const urls = []
-    for(let file of files){
-      const fileName = `prod-${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`
-      const {error} = await supabase.storage.from('product-images').upload(fileName, file)
-      if(!error){
-        const {data} = supabase.storage.from('product-images').getPublicUrl(fileName)
-        urls.push(data.publicUrl)
-      }
+    let logoUrl = formEdit.logo_url
+    if(formEdit.logo_file){
+      const uploaded = await uploadFile(formEdit.logo_file, 'store-logos')
+      if(uploaded) logoUrl = uploaded
     }
-    return urls
+    const payload = {
+      name: formEdit.name,
+      slug: formEdit.slug.toLowerCase().replace(/[^a-z0-9-]/g,''),
+      whatsapp: formEdit.whatsapp,
+      tipo_tienda: formEdit.tipo_tienda,
+      logo_url: logoUrl,
+      departamento: formEdit.departamento,
+      municipio: formEdit.municipio,
+      direccion: formEdit.direccion,
+    }
+    const {error} = await supabase.from('stores').update(payload).eq('id', editingStore.id)
+    if(error) alert('Error editar: '+error.message)
+    else {
+      alert('Tienda actualizada ✓')
+      setEditingStore(null)
+      cargarTodo()
+    }
+  }
+
+  const eliminarTienda = async (store)=>{
+    if(!confirm(`¿Seguro eliminar ${store.name}? Esto borrará también sus ${products.filter(p=>p.store_id===store.id).length} productos. Usar si es fraude comprobado.`)) return
+    if(!confirm(`CONFIRMACIÓN FINAL: ¿Eliminar ${store.name} y mandarla a blacklist?`)) return
+    const supabase = getSupabase()
+    // Borra productos primero
+    await supabase.from('products').delete().eq('store_id', store.id)
+    await supabase.from('store_verifications').delete().eq('store_id', store.id)
+    const {error} = await supabase.from('stores').delete().eq('id', store.id)
+    if(error) alert('Error: '+error.message)
+    else {
+      // Agrega a blacklist
+      await supabase.from('blacklist').insert({whatsapp: store.whatsapp, nombre: store.name, motivo: 'Eliminada por fraude / admin', evidencia: 'Eliminada desde super admin'})
+      alert('Tienda eliminada y WhatsApp agregado a blacklist ✓')
+      cargarTodo()
+    }
+  }
+
+  const aprobarVerificacion = async (id, store_id)=>{
+    const supabase=getSupabase()
+    await supabase.from('store_verifications').update({status:'verificada', nivel:'verificada', verificada_at:new Date().toISOString()}).eq('id',id)
+    await supabase.from('stores').update({verification_status:'verificada', verification_badge:'verificada'}).eq('id',store_id)
+    setPendientes(p=>p.filter(x=>x.id!==id))
+    alert('¡Tienda verificada! Ahora tiene badge azul ✓')
   }
 
   const crearProducto = async (e)=>{
     e.preventDefault()
     const supabase = getSupabase()
-    if(!supabase) return
-    if(!selectedStoreForProduct) return alert('Selecciona una tienda primero')
+    if(!selectedStoreForProduct) return alert('Selecciona tienda')
     if(!formProd.name || !formProd.price) return alert('Falta nombre y precio')
-
-    const storeObj = stores.find(s=>s.id===selectedStoreForProduct)
     let imageUrls = []
     if(formProd.image_files.length>0){
-      imageUrls = await uploadProductImages(formProd.image_files)
+      for(let file of formProd.image_files){
+        const url = await uploadFile(file, 'product-images')
+        if(url) imageUrls.push(url)
+      }
     }
-    if(imageUrls.length===0) return alert('Sube al menos 1 foto local del producto')
-
+    if(imageUrls.length===0) return alert('Sube al menos 1 foto')
     const payload = {
       store_id: selectedStoreForProduct,
       name: formProd.name,
@@ -173,32 +190,30 @@ export default function SuperAdminCompleto(){
       images: imageUrls,
       extra_images: imageUrls.slice(1),
       video_url: formProd.video_url || null,
-      tallas: formProd.tipo==='boutique' ? formProd.tallas.split(',').map(s=>s.trim()).filter(Boolean) : null,
+      tallas: formProd.categoria==='boutique' || stores.find(s=>s.id===selectedStoreForProduct)?.tipo_tienda==='boutique' ? formProd.tallas.split(',').map(s=>s.trim()).filter(Boolean) : null,
     }
-
     const {error} = await supabase.from('products').insert(payload)
-    if(error) alert('Error producto: '+error.message)
+    if(error) alert('Error: '+error.message)
     else {
-      alert('Producto agregado a '+storeObj?.name+' ✓')
-      setFormProd({name:'', price:'', categoria:'vestidos', descripcion:'', tipo:storeObj?.tipo_tienda||'boutique', tallas:'S,M,L,XL', video_url:'', image_files:[], image_previews:[]})
+      alert('Producto agregado ✓')
+      setFormProd({name:'', price:'', categoria:'vestidos', descripcion:'', tallas:'S,M,L,XL', video_url:'', image_files:[], image_previews:[]})
       if(fileProductRef.current) fileProductRef.current.value=''
       cargarTodo()
     }
   }
 
-  const copiar = (txt)=>{ navigator.clipboard.writeText(txt); alert('Link copiado: '+txt) }
+  const copiar = (txt)=>{ navigator.clipboard.writeText(txt); alert('Copiado: '+txt.slice(0,60)) }
 
-  const tiendasFiltradas = stores.filter(s=> !qTienda || s.name.toLowerCase().includes(qTienda.toLowerCase()) || s.slug.includes(qTienda.toLowerCase()))
+  const tiendasFiltradas = stores.filter(s=> !qTienda || s.name.toLowerCase().includes(qTienda.toLowerCase()) || s.slug.includes(qTienda.toLowerCase()) || (s.municipio||'').toLowerCase().includes(qTienda.toLowerCase()))
 
   if(!auth){
     return (
       <div style={{minHeight:'100vh', background:'#111', display:'flex', alignItems:'center', justifyContent:'center', padding:20, fontFamily:'Inter, system-ui'}}>
         <div style={{background:'#fff', borderRadius:20, padding:24, maxWidth:400, width:'100%'}}>
           <h2 style={{fontWeight:900}}>🛡️ Super Admin TiendaNica</h2>
-          <p style={{fontSize:12, color:'#666', marginTop:6}}>Boutique, General y Comida + productos + ubicación + verificación</p>
-          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Clave admin" style={{width:'100%', border:'1.5px solid #ddd', borderRadius:12, padding:12, marginTop:14}}/>
-          <button onClick={login} style={{width:'100%', marginTop:12, background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Entrar al Super Admin</button>
-          <p style={{fontSize:10, color:'#999', marginTop:10, textAlign:'center'}}>Clave por defecto: tiendanica2025</p>
+          <p style={{fontSize:12, color:'#666', marginTop:6}}>Boutique, General, Comida + Editar + Ubicación Nicaragua</p>
+          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Clave" style={{width:'100%', border:'1.5px solid #ddd', borderRadius:12, padding:12, marginTop:14}}/>
+          <button onClick={login} style={{width:'100%', marginTop:12, background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Entrar</button>
         </div>
       </div>
     )
@@ -206,47 +221,48 @@ export default function SuperAdminCompleto(){
 
   return (
     <div style={{minHeight:'100vh', background:'#F5F1ED', padding:12, fontFamily:'Inter, system-ui'}}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', maxWidth:1200, margin:'0 auto'}}>
-        <h1 style={{fontWeight:900, fontSize:20}}>🛡️ Super Admin TiendaNica • {stores.length} tiendas</h1>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', maxWidth:1250, margin:'0 auto', flexWrap:'wrap', gap:8}}>
+        <h1 style={{fontWeight:900, fontSize:19}}>🛡️ Super Admin • {stores.length} tiendas • {products.length} productos</h1>
         <div style={{display:'flex', gap:6}}>
-          <a href="/" style={{background:'#fff', border:'1px solid #ddd', padding:'8px 12px', borderRadius:999, fontSize:11, textDecoration:'none', color:'#111'}}>Ver Market</a>
+          <a href="/" style={{background:'#fff', border:'1px solid #ddd', padding:'8px 12px', borderRadius:999, fontSize:11, textDecoration:'none', color:'#111'}}>Market</a>
           <button onClick={()=>setAuth(false)} style={{background:'#111', color:'#fff', border:'none', padding:'8px 12px', borderRadius:999, fontSize:11}}>Salir</button>
         </div>
       </div>
 
-      <div style={{display:'flex', gap:6, marginTop:14, maxWidth:1200, marginLeft:'auto', marginRight:'auto', overflowX:'auto', paddingBottom:4}}>
+      <div style={{display:'flex', gap:6, marginTop:14, maxWidth:1250, marginLeft:'auto', marginRight:'auto', overflowX:'auto', paddingBottom:4}}>
         <button onClick={()=>setTab('tiendas')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='tiendas' ? '#111' : '#fff', color: tab==='tiendas' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🏪 Tiendas ({tiendasFiltradas.length})</button>
-        <button onClick={()=>setTab('crear')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='crear' ? '#FF6A00' : '#fff', color: tab==='crear' ? '#fff' : '#111', whiteSpace:'nowrap'}}>➕ Crear Tienda</button>
-        <button onClick={()=>setTab('productos')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='productos' ? '#0066FF' : '#fff', color: tab==='productos' ? '#fff' : '#111', whiteSpace:'nowrap'}}>📦 Agregar Productos</button>
-        <button onClick={()=>setTab('verificaciones')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='verificaciones' ? '#7000FF' : '#fff', color: tab==='verificaciones' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🛡️ Verificaciones ({pendientes.length})</button>
+        <button onClick={()=>setTab('crear')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='crear' ? '#FF6A00' : '#fff', color: tab==='crear' ? '#fff' : '#111', whiteSpace:'nowrap'}}>➕ Crear</button>
+        <button onClick={()=>setTab('productos')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='productos' ? '#0066FF' : '#fff', color: tab==='productos' ? '#fff' : '#111', whiteSpace:'nowrap'}}>📦 Productos</button>
+        <button onClick={()=>setTab('verificaciones')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='verificaciones' ? '#7000FF' : '#fff', color: tab==='verificaciones' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🛡️ Verificar ({pendientes.length})</button>
         <button onClick={()=>setTab('reportes')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='reportes' ? '#FF3B30' : '#fff', color: tab==='reportes' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🚨 Reportes ({reportes.length})</button>
       </div>
 
-      <div style={{maxWidth:1200, margin:'14px auto 0'}}>
+      <div style={{maxWidth:1250, margin:'14px auto 0'}}>
         {tab==='tiendas' && (
           <div style={{background:'#fff', borderRadius:16, padding:12, border:'1px solid #EDE6E3'}}>
             <div style={{display:'flex', gap:8, marginBottom:10}}>
-              <input value={qTienda} onChange={e=>setQTienda(e.target.value)} placeholder="Buscar tienda..." style={{flex:1, border:'1.5px solid #ddd', borderRadius:999, padding:'10px 14px'}}/>
+              <input value={qTienda} onChange={e=>setQTienda(e.target.value)} placeholder="Buscar por nombre, slug o municipio..." style={{flex:1, border:'1.5px solid #ddd', borderRadius:999, padding:'10px 14px'}}/>
               <button onClick={cargarTodo} style={{background:'#F0F0F0', border:'none', padding:'10px 14px', borderRadius:999, fontSize:11}}>↻ Actualizar</button>
             </div>
-            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:10}}>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:10}}>
               {tiendasFiltradas.map(s=>(
-                <div key={s.id} style={{border:'1px solid #eee', borderRadius:14, padding:10, background:'#fff'}}>
+                <div key={s.id} style={{border:'1px solid #eee', borderRadius:14, padding:10, background:'#fff', position:'relative'}}>
                   <div style={{display:'flex', gap:10}}>
                     <img src={s.logo_url || '/tienda-nica-logo.png'} style={{width:50, height:50, borderRadius:10, objectFit:'cover', background:'#f5f5f5'}}/>
                     <div style={{flex:1}}>
                       <b style={{fontSize:13}}>{s.name}</b><br/>
                       <span style={{fontSize:10, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : '#888', color:'#fff', padding:'2px 6px', borderRadius:999, textTransform:'uppercase'}}>{s.tipo_tienda}</span>
-                      <span style={{fontSize:10, color:'#666', marginLeft:6}}>{s.departamento || ''} • {s.verification_status || 'nueva'}</span><br/>
+                      <span style={{fontSize:10, color:'#666', marginLeft:6}}>{s.departamento || ''} {s.municipio ? `• ${s.municipio}` : ''} • {s.verification_status || 'nueva'}</span><br/>
                       <span style={{fontSize:10, color:'#999'}}>{s.whatsapp}</span>
                     </div>
                   </div>
                   {s.direccion && <p style={{fontSize:11, color:'#666', marginTop:6}}>📍 {s.direccion}</p>}
-                  <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
-                    <a href={`/${s.slug}`} target="_blank" style={{background:'#111', color:'#fff', padding:'6px 10px', borderRadius:999, fontSize:10, textDecoration:'none', fontWeight:700}}>👁️ Vista previa</a>
-                    <button onClick={()=>copiar(`https://tiendanica.store/${s.slug}`)} style={{background:'#F0F0F0', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>🔗 Link tienda</button>
-                    <button onClick={()=>copiar(`https://tiendanica.store/${s.slug} - Admin dueño: https://wa.me/50581732620?text=Hola%20soy%20${encodeURIComponent(s.name)}%20quiero%20mi%20panel`)} style={{background:'#FFF7ED', border:'1px solid #FED7AA', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>👑 Link admin dueño</button>
-                    <button onClick={()=>{setSelectedStoreForProduct(s.id); setTab('productos')}} style={{background:'#0066FF', color:'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>➕ Agregar producto</button>
+                  <div style={{display:'flex', gap:5, marginTop:8, flexWrap:'wrap'}}>
+                    <a href={`/${s.slug}`} target="_blank" style={{background:'#111', color:'#fff', padding:'6px 10px', borderRadius:999, fontSize:10, textDecoration:'none', fontWeight:700}}>👁️ Ver</a>
+                    <button onClick={()=>copiar(`https://tiendanica.store/${s.slug}`)} style={{background:'#F0F0F0', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>🔗 Link</button>
+                    <button onClick={()=>copiar(`Hola! Soy ${s.name}, ya tengo mi tienda en TiendaNica: https://tiendanica.store/${s.slug} - Mi panel admin es: https://wa.me/50581732620?text=Hola%20soy%20${encodeURIComponent(s.name)}`)} style={{background:'#FFF7ED', border:'1px solid #FED7AA', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>👑 Admin dueño</button>
+                    <button onClick={()=>abrirEdicion(s)} style={{background:'#0066FF', color:'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>✏️ Editar</button>
+                    <button onClick={()=>eliminarTienda(s)} style={{background:'#FFE0E0', color:'#C00', border:'1px solid #FCC', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>🗑️ Eliminar</button>
                   </div>
                 </div>
               ))}
@@ -257,96 +273,121 @@ export default function SuperAdminCompleto(){
         {tab==='crear' && (
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
             <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800}}>➕ Crear tienda (boutique, general, comida)</h3>
+              <h3 style={{fontWeight:800}}>➕ Crear tienda - Nicaragua</h3>
               <form onSubmit={crearTienda} style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
                 <input required value={formTienda.name} onChange={e=>setFormTienda({...formTienda, name:e.target.value, slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')})} placeholder="Nombre tienda" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                <input required value={formTienda.slug} onChange={e=>setFormTienda({...formTienda, slug:e.target.value})} placeholder="slug (link) ej: ileana-closet" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
+                <input required value={formTienda.slug} onChange={e=>setFormTienda({...formTienda, slug:e.target.value})} placeholder="slug ej: ileana-closet" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
                 <input required value={formTienda.whatsapp} onChange={e=>setFormTienda({...formTienda, whatsapp:e.target.value})} placeholder="WhatsApp 505..." style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
                 <select value={formTienda.tipo_tienda} onChange={e=>setFormTienda({...formTienda, tipo_tienda:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
-                  <option value="boutique">BOUTIQUE (con tallas S,M,L)</option>
-                  <option value="general">GENERAL (sin tallas)</option>
-                  <option value="comida">COMIDA (con ubicación)</option>
+                  <option value="boutique">BOUTIQUE (con tallas)</option>
+                  <option value="general">GENERAL</option>
+                  <option value="comida">COMIDA</option>
                 </select>
-                <input value={formTienda.departamento} onChange={e=>setFormTienda({...formTienda, departamento:e.target.value})} placeholder="Departamento Ej: Managua, León" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                <input value={formTienda.direccion} onChange={e=>setFormTienda({...formTienda, direccion:e.target.value})} placeholder="Dirección exacta / referencia" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-                  <input value={formTienda.lat} onChange={e=>setFormTienda({...formTienda, lat:e.target.value})} placeholder="Latitud (ej: 12.13) - ubicación futura" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
-                  <input value={formTienda.lng} onChange={e=>setFormTienda({...formTienda, lng:e.target.value})} placeholder="Longitud (ej: -86.25)" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
+                  <select value={formTienda.departamento} onChange={e=>setFormTienda({...formTienda, departamento:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
+                    {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <input value={formTienda.municipio} onChange={e=>setFormTienda({...formTienda, municipio:e.target.value})} placeholder="Municipio / Comunidad Ej: Tipitapa, La Dalia, Monimbo" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
                 </div>
-                <div style={{border:'1.5px dashed #0066FF', borderRadius:12, padding:12, background:'#F0F7FF'}}>
-                  <p style={{fontSize:11, fontWeight:700}}>📸 Foto de portada / logo (subida local)</p>
-                  <input ref={fileLogoRef} type="file" accept="image/*" onChange={handleLogoFile} style={{marginTop:6, fontSize:11}}/>
+                <input value={formTienda.direccion} onChange={e=>setFormTienda({...formTienda, direccion:e.target.value})} placeholder="Dirección libre Ej: Frente al parque, 2c al sur (opcional)" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
+                <div style={{border:'1.5px dashed #0066FF', borderRadius:12, padding:10, background:'#F0F7FF'}}>
+                  <p style={{fontSize:11, fontWeight:700}}>📸 Portada / Logo (local)</p>
+                  <input ref={fileLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormTienda({...formTienda, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:6, fontSize:11}}/>
                   {formTienda.logo_preview && <img src={formTienda.logo_preview} style={{width:'100%', height:120, objectFit:'cover', borderRadius:10, marginTop:8}}/>}
                 </div>
-                <button type="submit" style={{background:'#FF6A00', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Crear tienda ahora</button>
+                <button type="submit" style={{background:'#FF6A00', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Crear tienda</button>
               </form>
             </div>
             <div style={{background:'#111', color:'#fff', borderRadius:16, padding:16}}>
-              <h3 style={{fontWeight:800}}>📍 Ubicación (próximamente)</h3>
-              <p style={{fontSize:11, opacity:0.7, marginTop:8}}>Estamos guardando lat/lng y dirección para cuando activemos mapa en TiendaNica. Por ahora se guarda en DB y lo ves en la tarjeta de tienda.</p>
-              <p style={{fontSize:11, marginTop:10}}>Cuando lo actives, la tienda aparecerá con botón "Cómo llegar" que abre Google Maps con esas coordenadas.</p>
+              <h3 style={{fontWeight:800}}>🇳🇮 Sistema Nicaragua</h3>
+              <p style={{fontSize:12, opacity:0.8, marginTop:8}}>Ahora ya no valida dirección. Puedes escribir libremente:</p>
+              <ul style={{fontSize:11, opacity:0.7, marginTop:8, paddingLeft:16, lineHeight:'1.8'}}>
+                <li>Departamento: Lista de Nicaragua</li>
+                <li>Municipio/Comunidad: Texto libre, Ej: "Comunidad La Virgen, Tipitapa" o "Barrio Monimbo"</li>
+                <li>Dirección: Libre, Ej: "Frente a la iglesia, 1c al lago"</li>
+              </ul>
               <div style={{background:'#222', borderRadius:10, padding:10, marginTop:12, fontSize:11}}>
-                <b>Buckets necesarios en Supabase Storage:</b><br/>
-                - store-logos (privado o público)<br/>
-                - product-images (público)<br/>
-                Crea ambos como Public bucket si no existen.
-              </div>
-              <div style={{marginTop:16}}>
-                <p style={{fontSize:12, fontWeight:800}}>🔗 Links que generamos automático:</p>
-                <ul style={{fontSize:11, opacity:0.8, marginTop:6, paddingLeft:16, lineHeight:'1.7'}}>
-                  <li>Link tienda: tiendanica.store/slug</li>
-                  <li>Link admin dueño: WhatsApp con acceso</li>
-                  <li>Vista previa: /slug</li>
-                </ul>
+                <b>Cómo verificar por WhatsApp cuando te piden:</b><br/>
+                1. Te escriben "quiero verificar mi tienda"<br/>
+                2. Le pides: foto cédula + selfie con cédula + video 15s de stock<br/>
+                3. Tú lo subes en pestaña 🛡️ Verificar o directo le das badge azul en Editar<br/>
+                4. Le compartes su link: tiendanica.store/su-slug<br/>
+                5. Si es fraude: botón 🗑️ Eliminar lo manda a blacklist
               </div>
             </div>
           </div>
         )}
 
+        {editingStore && (
+          <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:16}}>
+            <div style={{background:'#fff', borderRadius:20, padding:20, maxWidth:500, width:'100%', maxHeight:'90vh', overflowY:'auto'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <h3 style={{fontWeight:800}}>✏️ Editar tienda: {editingStore.name}</h3>
+                <button onClick={()=>setEditingStore(null)} style={{background:'#F0F0F0', border:'none', width:30, height:30, borderRadius:999}}>X</button>
+              </div>
+              <form onSubmit={guardarEdicion} style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
+                <input required value={formEdit.name} onChange={e=>setFormEdit({...formEdit, name:e.target.value})} placeholder="Nombre" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+                <input required value={formEdit.slug} onChange={e=>setFormEdit({...formEdit, slug:e.target.value})} placeholder="slug" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
+                <input required value={formEdit.whatsapp} onChange={e=>setFormEdit({...formEdit, whatsapp:e.target.value})} placeholder="WhatsApp" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+                <select value={formEdit.tipo_tienda} onChange={e=>setFormEdit({...formEdit, tipo_tienda:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
+                  <option value="boutique">BOUTIQUE</option><option value="general">GENERAL</option><option value="comida">COMIDA</option>
+                </select>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                  <select value={formEdit.departamento} onChange={e=>setFormEdit({...formEdit, departamento:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
+                    {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <input value={formEdit.municipio} onChange={e=>setFormEdit({...formEdit, municipio:e.target.value})} placeholder="Municipio / Comunidad" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+                </div>
+                <input value={formEdit.direccion} onChange={e=>setFormEdit({...formEdit, direccion:e.target.value})} placeholder="Dirección libre" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
+                <div style={{border:'1.5px dashed #0066FF', borderRadius:12, padding:10, background:'#F0F7FF'}}>
+                  <p style={{fontSize:11, fontWeight:700}}>Cambiar portada / logo</p>
+                  <input ref={fileEditLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormEdit({...formEdit, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:6, fontSize:11}}/>
+                  {(formEdit.logo_preview || formEdit.logo_url) && <img src={formEdit.logo_preview || formEdit.logo_url} style={{width:'100%', height:120, objectFit:'cover', borderRadius:10, marginTop:8}}/>}
+                </div>
+                <div style={{display:'flex', gap:8}}>
+                  <button type="button" onClick={()=>setEditingStore(null)} style={{flex:1, background:'#F0F0F0', border:'none', padding:12, borderRadius:999, fontWeight:700}}>Cancelar</button>
+                  <button type="submit" style={{flex:2, background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Guardar cambios</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {tab==='productos' && (
-          <div style={{display:'grid', gridTemplateColumns:'350px 1fr', gap:12}}>
+          <div style={{display:'grid', gridTemplateColumns:'360px 1fr', gap:12}}>
             <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800}}>📦 Agregar producto a cliente</h3>
+              <h3 style={{fontWeight:800}}>📦 Agregar producto</h3>
               <select value={selectedStoreForProduct} onChange={e=>setSelectedStoreForProduct(e.target.value)} style={{width:'100%', border:'1.5px solid #0066FF', borderRadius:10, padding:10, marginTop:10, fontWeight:700}}>
                 <option value="">-- Selecciona tienda --</option>
-                {stores.map(s=><option key={s.id} value={s.id}>{s.name} - {s.tipo_tienda}</option>)}
+                {stores.map(s=><option key={s.id} value={s.id}>{s.name} - {s.tipo_tienda} - {s.municipio || s.departamento}</option>)}
               </select>
               {selectedStoreForProduct && (
                 <form onSubmit={crearProducto} style={{display:'flex', flexDirection:'column', gap:8, marginTop:12}}>
-                  <input required value={formProd.name} onChange={e=>setFormProd({...formProd, name:e.target.value})} placeholder="Nombre producto Ej: Vestido rojo" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                  <input required value={formProd.price} onChange={e=>setFormProd({...formProd, price:e.target.value})} placeholder="Precio C$ Ej: 850" type="number" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+                  <input required value={formProd.name} onChange={e=>setFormProd({...formProd, name:e.target.value})} placeholder="Nombre producto" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+                  <input required value={formProd.price} onChange={e=>setFormProd({...formProd, price:e.target.value})} placeholder="Precio C$" type="number" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
                   <select value={formProd.categoria} onChange={e=>setFormProd({...formProd, categoria:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
                     {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
                   </select>
                   <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, minHeight:60}}/>
-                  <input value={formProd.video_url} onChange={e=>setFormProd({...formProd, video_url:e.target.value})} placeholder="Video URL opcional (mp4)" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
-                  <div style={{display:'flex', gap:6}}>
-                    <select value={formProd.tipo} onChange={e=>setFormProd({...formProd, tipo:e.target.value})} style={{flex:1, border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}>
-                      <option value="boutique">Boutique (con tallas)</option>
-                      <option value="general">General</option>
-                      <option value="comida">Comida</option>
-                    </select>
-                    {formProd.tipo==='boutique' && <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L" style={{flex:1, border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>}
-                  </div>
+                  <input value={formProd.video_url} onChange={e=>setFormProd({...formProd, video_url:e.target.value})} placeholder="Video URL opcional" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
+                  <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L,XL" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
                   <div style={{border:'1.5px dashed #FF6A00', borderRadius:12, padding:10, background:'#FFF7ED'}}>
-                    <p style={{fontSize:11, fontWeight:700}}>📸 Fotos producto (subida local, varias)</p>
-                    <input ref={fileProductRef} type="file" accept="image/*" multiple onChange={handleProductFiles} style={{marginTop:6, fontSize:11}}/>
-                    <div style={{display:'flex', gap:4, marginTop:6, flexWrap:'wrap'}}>
-                      {formProd.image_previews.map((src,i)=><img key={i} src={src} style={{width:50, height:50, objectFit:'cover', borderRadius:6}}/>)}
-                    </div>
+                    <p style={{fontSize:11, fontWeight:700}}>Fotos producto (local)</p>
+                    <input ref={fileProductRef} type="file" accept="image/*" multiple onChange={(e)=>{const files=Array.from(e.target.files); const previews=files.map(f=>URL.createObjectURL(f)); setFormProd({...formProd, image_files:files, image_previews:previews})}} style={{marginTop:6, fontSize:11}}/>
+                    <div style={{display:'flex', gap:4, marginTop:6, flexWrap:'wrap'}}>{formProd.image_previews.map((src,i)=><img key={i} src={src} style={{width:50, height:50, objectFit:'cover', borderRadius:6}}/>)}</div>
                   </div>
-                  <button type="submit" style={{background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Agregar producto a tienda</button>
+                  <button type="submit" style={{background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Agregar producto</button>
                 </form>
               )}
             </div>
             <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800}}>Productos recientes ({products.length})</h3>
+              <h3 style={{fontWeight:800}}>Productos ({products.length})</h3>
               <div style={{maxHeight:700, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, marginTop:10}}>
                 {products.filter(p=> !selectedStoreForProduct || p.store_id===selectedStoreForProduct).map(p=>(
                   <div key={p.id} style={{display:'flex', gap:8, border:'1px solid #f0f0f0', borderRadius:10, padding:8, alignItems:'center'}}>
                     <img src={p.image_url} style={{width:45, height:45, objectFit:'cover', borderRadius:8}}/>
                     <div style={{flex:1}}><b style={{fontSize:12}}>{p.name}</b><br/><span style={{fontSize:10, color:'#666'}}>C$ {p.price} • {p.stores?.name || p.categoria}</span></div>
-                    <a href={`/${p.stores?.slug}`} target="_blank" style={{background:'#F0F0F0', padding:'6px 10px', borderRadius:999, fontSize:10, textDecoration:'none', color:'#111'}}>Ver</a>
+                    <button onClick={async()=>{if(confirm('¿Eliminar producto?')){const supabase=getSupabase(); await supabase.from('products').delete().eq('id',p.id); cargarTodo()}}} style={{background:'#FFE0E0', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10}}>🗑️</button>
                   </div>
                 ))}
               </div>
@@ -356,28 +397,29 @@ export default function SuperAdminCompleto(){
 
         {tab==='verificaciones' && (
           <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-            <h3 style={{fontWeight:800}}>🛡️ Verificaciones pendientes ({pendientes.length})</h3>
+            <h3 style={{fontWeight:800}}>🛡️ Cómo verificar por WhatsApp - Proceso</h3>
+            <div style={{background:'#F0F7FF', border:'1px solid #BFDBFE', borderRadius:12, padding:12, marginTop:10, fontSize:12, lineHeight:'1.6'}}>
+              <b>Cuando te escriben "quiero verificar mi tienda":</b><br/>
+              1️⃣ Pídele por WhatsApp: Foto cédula + selfie con cédula + video 15s mostrando stock real<br/>
+              2️⃣ Si ya te mandó, ve a esta pestaña y verás la solicitud pendiente (si usó el formulario web)<br/>
+              3️⃣ Si no usó formulario (solo WhatsApp), ve a pestaña Tiendas → Editar → cámbiale manualmente verification_status a "verificada" en Supabase o usa botón Aprobar aquí<br/>
+              4️⃣ Dale Aprobar → se activa badge azul ✓ y sube en ranking<br/>
+              5️⃣ Comparte su link: tiendanica.store/su-slug<br/><br/>
+              <b>Si es fraude / tienda fantasma:</b> Usa botón 🗑️ Eliminar en pestaña Tiendas, se va a blacklist automática.
+            </div>
+            <h4 style={{fontWeight:800, marginTop:16}}>Solicitudes pendientes ({pendientes.length})</h4>
             {pendientes.map(v=>(
               <div key={v.id} style={{border:'1px solid #eee', borderRadius:12, padding:12, marginTop:10}}>
                 <b>{v.stores?.name}</b> - {v.stores?.whatsapp} - {v.stores?.slug}<br/>
                 <span style={{fontSize:11, color:'#666'}}>Cédula: {v.cedula_nombre} • {new Date(v.created_at).toLocaleString()}</span>
                 <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
-                  <button onClick={async()=>{
-                    const supabase=getSupabase()
-                    await supabase.from('store_verifications').update({status:'verificada', nivel:'verificada', verificada_at:new Date().toISOString()}).eq('id',v.id)
-                    await supabase.from('stores').update({verification_status:'verificada', verification_badge:'verificada'}).eq('id',v.store_id)
-                    setPendientes(p=>p.filter(x=>x.id!==v.id))
-                  }} style={{background:'#0066FF', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800}}>✓ Aprobar</button>
-                  <button onClick={async()=>{
-                    const supabase=getSupabase()
-                    await supabase.from('store_verifications').update({status:'rechazada'}).eq('id',v.id)
-                    setPendientes(p=>p.filter(x=>x.id!==v.id))
-                  }} style={{background:'#F0F0F0', border:'none', padding:'8px 14px', borderRadius:999, fontSize:12}}>Rechazar</button>
+                  <button onClick={()=>aprobarVerificacion(v.id, v.store_id)} style={{background:'#0066FF', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800}}>✓ Aprobar + Badge azul</button>
+                  <button onClick={async()=>{const supabase=getSupabase(); await supabase.from('store_verifications').update({status:'rechazada'}).eq('id',v.id); setPendientes(p=>p.filter(x=>x.id!==v.id))}} style={{background:'#F0F0F0', border:'none', padding:'8px 14px', borderRadius:999, fontSize:12}}>Rechazar</button>
                   <a href={`https://wa.me/${v.stores?.whatsapp}`} target="_blank" style={{background:'#25D366', color:'#fff', padding:'8px 14px', borderRadius:999, fontSize:12, textDecoration:'none'}}>WhatsApp</a>
                 </div>
               </div>
             ))}
-            {pendientes.length===0 && <p style={{fontSize:12, color:'#999', marginTop:10}}>No hay pendientes.</p>}
+            {pendientes.length===0 && <p style={{fontSize:12, color:'#999', marginTop:10}}>No hay pendientes. Si te piden verificar por WhatsApp directo, edita la tienda en pestaña Tiendas y cambia su estado a verificada manualmente en Supabase o usa este botón después de verificar fotos.</p>}
           </div>
         )}
 
@@ -388,7 +430,8 @@ export default function SuperAdminCompleto(){
               <div key={r.id} style={{border:'1px solid #FFD6D6', background:'#FFF5F5', borderRadius:12, padding:12, marginTop:10}}>
                 <b>{r.stores?.name}</b> - <span style={{background:'#FF3B30', color:'#fff', padding:'2px 6px', borderRadius:999, fontSize:10}}>{r.tipo}</span>
                 <p style={{fontSize:12, marginTop:6}}>{r.descripcion}</p>
-                <p style={{fontSize:10, color:'#666'}}>Reportó: {r.reporter_name} - {r.reporter_whatsapp}</p>
+                <p style={{fontSize:10, color:'#666'}}>Reportó: {r.reporter_name} - {r.reporter_whatsapp} • {new Date(r.created_at).toLocaleString()}</p>
+                <button onClick={()=>{setQTienda(r.stores?.name||''); setTab('tiendas')}} style={{marginTop:6, background:'#111', color:'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10}}>Buscar tienda para eliminar</button>
               </div>
             ))}
             {reportes.length===0 && <p style={{fontSize:12, color:'#999', marginTop:10}}>Sin reportes.</p>}
