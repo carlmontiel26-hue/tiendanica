@@ -5,8 +5,8 @@ export const viewport = {
 }
 
 export const metadata = {
-  title: 'TiendaNica Market - El mercado más grande de Nicaragua',
-  description: 'Boutique nicaragüense premium con envío a toda Nicaragua. Compra directo por WhatsApp al dueño.',
+  title: 'TiendaNica.store - Tiendas verificadas con video y cédula',
+  description: 'Marketplace verificado de Nicaragua: boutique, general y más. Compra directo por WhatsApp al dueño, envío a toda Nicaragua y reporte antifraude 24h.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -16,25 +16,25 @@ export const metadata = {
     apple: '/tienda-nica-logo.png',
   },
   openGraph: {
-    title: 'TiendaNica Market - El mercado más grande de Nicaragua',
-    description: 'Boutique nicaragüense premium con envío a toda Nicaragua.',
+    title: 'TiendaNica.store - Tiendas verificadas con video y cédula',
+    description: 'Marketplace verificado de Nicaragua. Boutique y general con envío a toda Nicaragua y reporte antifraude 24h.',
     url: 'https://tiendanica.store',
     siteName: 'TiendaNica',
     images: [
       {
-        url: '/tienda-nica-logo-og.png',
+        url: '/opengraph-image.png',
         width: 1200,
         height: 630,
-        alt: 'TiendaNica Market',
+        alt: 'TiendaNica.store',
       },
     ],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TiendaNica Market',
-    description: 'Boutique nicaragüense premium',
-    images: ['/tienda-nica-logo-og.png'],
+    title: 'TiendaNica.store',
+    description: 'Tiendas verificadas con video y cédula - Marketplace de Nicaragua',
+    images: ['/opengraph-image.png'],
   },
   appleWebApp: {
     capable: true,
