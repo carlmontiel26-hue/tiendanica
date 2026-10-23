@@ -73,18 +73,22 @@ export default function MarketClient(){
 
   useEffect(()=>{
     const supabase=getSupabase()
-    if(!supabase) return
+    if(!supabase){ setLoading(false); return }
+    // FIX RAPIDO: si Supabase no responde en 2.5s, quitamos el "Cargando" para que no se quede pegado
+    const timeout = setTimeout(()=> setLoading(false), 2500)
     supabase.from('stores').select('*').then(({data})=>{
       const all=data||[]
       setStores(all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
     })
-    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(400).then(({data})=>{
+    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(200).then(({data})=>{
       const all=data||[]
       setProducts(all.filter(p=>{ const t=(p.stores?.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
+      clearTimeout(timeout)
       setLoading(false)
-    })
+    }).catch(()=>{ clearTimeout(timeout); setLoading(false) })
     const saved = typeof window!=='undefined' ? localStorage.getItem('tn_market_cart') : null
     if(saved){ try{ setCart(JSON.parse(saved)) }catch{} }
+    return ()=> clearTimeout(timeout)
   },[])
 
   useEffect(()=>{ localStorage.setItem('tn_market_cart', JSON.stringify(cart)) },[cart])
@@ -141,7 +145,32 @@ export default function MarketClient(){
   const waProductDirect = (p, talla=null)=>{ const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
 
-  if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando TiendaNica...</div>
+  // FIX DEL DIA ENTERO: en vez de pantalla blanca "Cargando...", mostramos esqueleto rapido como teniamos
+  if(loading) return (
+    <main style={{minHeight:'100vh', background:'#F5F1ED', fontFamily:'Inter, system-ui'}}>
+      <div style={{position:'relative', width:'100%', background:'#000', height:180, display:'flex', alignItems:'center', justifyContent:'center'}}>
+        <img src="/opengraph-image.png" alt="TiendaNica" style={{width:'100%', height:'auto', maxHeight:180, objectFit:'contain'}}/>
+      </div>
+      <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
+        <div style={{background:'#fff', borderRadius:20, padding:'12px', border:'1px solid #EDE6DF'}}>
+          <div style={{height:44, background:'#F5F0EB', borderRadius:999, animation:'pulse 1.5s infinite'}}/>
+          <div style={{display:'flex', gap:8, marginTop:12}}>
+            {[1,2,3,4].map(i=><div key={i} style={{width:90, height:36, background:'#F5F0EB', borderRadius:999, animation:'pulse 1.5s infinite'}}/>)}
+          </div>
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginTop:12}}>
+          {[1,2,3,4,5,6].map(i=>(
+            <div key={i} style={{background:'#fff', borderRadius:14, overflow:'hidden', border:'1px solid #F0E9E2'}}>
+              <div style={{aspectRatio:'3/4', background:'#F5F0EB', animation:'pulse 1.5s infinite'}}/>
+              <div style={{padding:10}}><div style={{height:12, background:'#F5F0EB', borderRadius:6, marginBottom:6}}/><div style={{height:12, width:'60%', background:'#F5F0EB', borderRadius:6}}/></div>
+            </div>
+          ))}
+        </div>
+        <p style={{textAlign:'center', fontSize:12, color:'#999', marginTop:16}}>Cargando productos rápidos...</p>
+      </div>
+      <style>{`@keyframes pulse{0%{opacity:0.6}50%{opacity:1}100%{opacity:0.6}}`}</style>
+    </main>
+  )
 
   return (
     <main style={{minHeight:'100vh', background:'#F5F1ED', fontFamily:'Inter, system-ui', paddingBottom:40}}>
@@ -150,11 +179,10 @@ export default function MarketClient(){
         .portada-img{ width:100%; height:auto; display:block; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
         .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
-        .btn-vender-azul:hover{ transform:scale(1.05); background:#0052CC; }
         .cat-scroll{ display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; padding:2px 0 6px; -webkit-overflow-scrolling:touch; }
         .cat-scroll::-webkit-scrollbar{ display:none; }
         .chip{ white-space:nowrap; padding:9px 16px; border-radius:999px; border:1.5px solid #E8E0D9; background:#fff; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; text-transform:capitalize; }
-        .chip.active{ background:#111; color:#fff; border-color:#111; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+        .chip.active{ background:#111; color:#fff; border-color:#111; }
         .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
         .card{ background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06); border:1px solid #F0E9E2; }
         .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
@@ -181,7 +209,7 @@ export default function MarketClient(){
         <div style={{background:'#fff', borderRadius:20, padding:'12px', border:'1px solid #EDE6DF', boxShadow:'0 4px 20px rgba(0,0,0,0.04)'}}>
           <div style={{display:'flex', gap:8}}>
             <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar vestido, jeans, farmacia..." style={{flex:1, border:'1.5px solid #EEE6DF', borderRadius:999, padding:'12px 18px', fontSize:14, outline:'none'}}/>
-            <button onClick={()=>setShowCart(true)} style={{background:'#111', color:'#fff', border:'none', padding:'0 16px', borderRadius:999, fontWeight:800, fontSize:13, position:'relative'}}>🛒 {cart.length>0 && <span style={{background:'#0066FF', color:'#fff', borderRadius:999, padding:'2px 6px', fontSize:10, marginLeft:4}}>{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
+            <button onClick={()=>setShowCart(true)} style={{background:'#111', color:'#fff', border:'none', padding:'0 16px', borderRadius:999, fontWeight:800, fontSize:13}}>🛒 {cart.length>0 && <span style={{background:'#0066FF', color:'#fff', borderRadius:999, padding:'2px 6px', fontSize:10, marginLeft:4}}>{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
           </div>
           <div className="cat-scroll" style={{marginTop:10}}>
             <button onClick={()=>{setCat(null); setTipo(null)}} className={`chip ${!cat && !tipo ? 'active' : ''}`} style={{textTransform:'none'}}>Todo</button>
@@ -202,15 +230,14 @@ export default function MarketClient(){
               <div key={p.id} className="card">
                 <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
-                  {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999, zIndex:3}}>▶ VIDEO</span>}
-                  {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999, zIndex:3}}>TALLAS</span>}
+                  {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
+                  {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS</span>}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
                   {badge.key==='premium' && <p style={{fontSize:11, color:'#FF6A00', fontWeight:800, marginTop:6}}>⭐ Tienda Premium • {p.stores?.municipio || p.stores?.departamento || 'RAAS'}</p>}
-                  {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada • {p.stores?.municipio || p.stores?.departamento || ''}</p>}
-                  {badge.key==='nueva' && <p style={{fontSize:10, color:'#999', marginTop:4}}>{p.stores?.name?.slice(0,22)}</p>}
+                  {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada</p>}
                 </div>
               </div>
             )
@@ -220,14 +247,8 @@ export default function MarketClient(){
 
       <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 30px', textAlign:'center'}}>
         <div style={{maxWidth:800, margin:'0 auto'}}>
-          <p style={{fontWeight:900, fontSize:16, letterSpacing:0.5}}>TiendaNica.store</p>
-          <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua • Proyecto personal de Carlos Montiel y socio • Desde 2024 hacia ser el #1</p>
-          <div style={{display:'flex', gap:14, justifyContent:'center', flexWrap:'wrap', marginTop:16, fontSize:12, fontWeight:700}}>
-            <a href="/terminos" style={{color:'#fff', textDecoration:'none', opacity:0.8}}>Términos</a>
-            <a href="/privacidad" style={{color:'#fff', textDecoration:'none', opacity:0.8}}>Privacidad</a>
-            <a href="/vendedores" style={{color:'#FF8A00', textDecoration:'none'}}>Vendedores ✓</a>
-            <a href="/reportar" style={{color:'#FF3B30', textDecoration:'none', background:'#fff', padding:'4px 10px', borderRadius:999}}>🚨 Reportar fraude</a>
-          </div>
+          <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
+          <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
         </div>
       </div>
 
@@ -240,23 +261,23 @@ export default function MarketClient(){
               <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
             </div>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
-            <p style={{fontSize:12, color:'#666', marginTop:2}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()} {sel.stores?.departamento ? `• ${sel.stores.departamento} ${sel.stores?.municipio ? '- '+sel.stores.municipio : ''}` : ''}</p>
+            <p style={{fontSize:12, color:'#666'}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
             {isBoutique(sel) && (
               <div style={{marginTop:12}}>
                 <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Selecciona talla:</p>
                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-                  {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}<span style={{fontSize:11, color:'#999', alignSelf:'center'}}>• Preguntar disponibilidad</span></>)}
+                  {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}</>)}
                 </div>
               </div>
             )}
             <div style={{display:'flex', gap:8, marginTop:14}}>
-              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar al carrito</button>
+              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar</button>
               <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp</button>
             </div>
             <div style={{display:'flex', gap:8, marginTop:8}}>
-              <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar al market</button>
-              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13}}>Ver tienda 🛍️</a>
+              <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar</button>
+              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13}}>Ver tienda</a>
             </div>
           </div>
         </div>
@@ -273,12 +294,12 @@ export default function MarketClient(){
             {cart.map(i=>(
               <div key={i.cartId} style={{display:'flex', gap:10, border:'1px solid #f0f0f0', borderRadius:12, padding:8, alignItems:'center'}}>
                 <img src={i.image} style={{width:50, height:50, objectFit:'contain', background:'#fff', borderRadius:8}}/>
-                <div style={{flex:1}}><p style={{fontSize:12, fontWeight:700, lineHeight:1.2}}>{i.name.slice(0,38)}{i.talla ? ` - ${i.talla}` : ''}</p><p style={{fontSize:11, color:'#666'}}>{i.storeName}</p><b style={{fontSize:13}}>C$ {i.price}</b></div>
+                <div style={{flex:1}}><p style={{fontSize:12, fontWeight:700}}>{i.name.slice(0,38)}{i.talla ? ` - ${i.talla}` : ''}</p><p style={{fontSize:11, color:'#666'}}>{i.storeName}</p><b style={{fontSize:13}}>C$ {i.price}</b></div>
                 <div style={{display:'flex', alignItems:'center', gap:6}}><button onClick={()=>updateQty(i.cartId,-1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #ddd', background:'#fff'}}>−</button><span style={{fontSize:12, fontWeight:800, minWidth:16, textAlign:'center'}}>{i.qty}</span><button onClick={()=>updateQty(i.cartId,1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #111', background:'#111', color:'#fff'}}>+</button></div>
               </div>
             ))}
           </div>
-          {cart.length>0 && <div style={{borderTop:'1px solid #eee', paddingTop:12}}><div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}><span style={{fontWeight:700}}>Total:</span><b style={{fontSize:18}}>C$ {total}</b></div><button onClick={checkoutWhatsApp} style={{width:'100%', background:'#25D366', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:900, fontSize:14}}>Comprar por WhatsApp</button><button onClick={()=>setCart([])} style={{width:'100%', background:'#fff', color:'#999', border:'none', padding:10, marginTop:6, fontSize:12}}>Vaciar carrito</button></div>}
+          {cart.length>0 && <div style={{borderTop:'1px solid #eee', paddingTop:12}}><div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}><span style={{fontWeight:700}}>Total:</span><b style={{fontSize:18}}>C$ {total}</b></div><button onClick={checkoutWhatsApp} style={{width:'100%', background:'#25D366', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:900}}>Comprar por WhatsApp</button><button onClick={()=>setCart([])} style={{width:'100%', background:'#fff', color:'#999', border:'none', padding:10, marginTop:6, fontSize:12}}>Vaciar carrito</button></div>}
         </div>
       </div>}
 
