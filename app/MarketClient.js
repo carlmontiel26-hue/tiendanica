@@ -19,33 +19,11 @@ function TemuGallery({ images=[], videoUrl, name }){
   const [playing, setPlaying] = useState(true)
   const videoRef = useRef(null)
   useEffect(()=>{ setCurrent(0); setPlaying(true) },[images, videoUrl])
-
-  const pauseVideo = ()=>{
-    if(videoRef.current){
-      videoRef.current.pause()
-      setPlaying(false)
-    }
-  }
-  const goNext = (e)=>{
-    if(e) e.stopPropagation()
-    if(slides[current]?.type==='video') pauseVideo()
-    setCurrent((c)=>(c+1)%slides.length)
-  }
-  const goPrev = (e)=>{
-    if(e) e.stopPropagation()
-    if(slides[current]?.type==='video') pauseVideo()
-    setCurrent((c)=>(c-1+slides.length)%slides.length)
-  }
-  const goTo = (idx)=>{
-    if(slides[current]?.type==='video' && idx!==current) pauseVideo()
-    setCurrent(idx)
-  }
-  const togglePlay = (e)=>{
-    if(e) e.stopPropagation()
-    if(!videoRef.current) return
-    if(videoRef.current.paused){ videoRef.current.play(); setPlaying(true) } else { videoRef.current.pause(); setPlaying(false) }
-  }
-
+  const pauseVideo = ()=>{ if(videoRef.current){ videoRef.current.pause(); setPlaying(false) } }
+  const goNext = (e)=>{ if(e) e.stopPropagation(); if(slides[current]?.type==='video') pauseVideo(); setCurrent((c)=>(c+1)%slides.length) }
+  const goPrev = (e)=>{ if(e) e.stopPropagation(); if(slides[current]?.type==='video') pauseVideo(); setCurrent((c)=>(c-1+slides.length)%slides.length) }
+  const goTo = (idx)=>{ if(slides[current]?.type==='video' && idx!==current) pauseVideo(); setCurrent(idx) }
+  const togglePlay = (e)=>{ if(e) e.stopPropagation(); if(!videoRef.current) return; if(videoRef.current.paused){ videoRef.current.play(); setPlaying(true) } else { videoRef.current.pause(); setPlaying(false) } }
   return (
     <div style={{position:'relative', background:'#fff'}}>
       <div style={{display:'flex', overflow:'hidden', aspectRatio:'1/1', position:'relative', background:'#fff'}}>
@@ -74,16 +52,11 @@ function TemuGallery({ images=[], videoUrl, name }){
 
 const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo']
 
-// --- SOLO AGREGADO: BADGE HELPER SIN ROMPER NADA ---
-function getStoreBadgeStyle(store){
-  const status = (store?.verification_status || store?.verification_badge || 'nueva').toLowerCase()
-  if(status === 'premium'){
-    return { text: '⭐ PREMIUM', bg: 'linear-gradient(135deg,#FF6A00,#FF9500)', color: '#fff', border: 'none' }
-  }
-  if(status === 'verificada'){
-    return { text: '✓ VERIFICADA', bg: '#0066FF', color: '#fff', border: 'none' }
-  }
-  return { text: 'NUEVA', bg: '#F0F0F0', color: '#888', border: '1px solid #E5E5E5' }
+function getBadgeInfo(store){
+  const raw = (store?.verification_status || store?.verification_badge || '').toLowerCase()
+  if(raw.includes('premium')) return { key:'premium', label:'⭐ PREMIUM', bg:'#FF6A00', color:'#fff', show:true }
+  if(raw.includes('verificada')) return { key:'verificada', label:'✓ VERIFICADA', bg:'#0066FF', color:'#fff', show:true }
+  return { key:'nueva', label:'NUEVA', bg:'#F0F0F0', color:'#999', show:false }
 }
 
 export default function MarketClient(){
@@ -105,7 +78,7 @@ export default function MarketClient(){
       const all=data||[]
       setStores(all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
     })
-    // FIX: AHORA PEDIMOS verification_status y verification_badge PARA MOSTRAR ESTRELLA
+    // IMPORTANTE: Traemos verification_status y verification_badge de la tienda
     supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(400).then(({data})=>{
       const all=data||[]
       setProducts(all.filter(p=>{ const t=(p.stores?.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
@@ -116,7 +89,6 @@ export default function MarketClient(){
   },[])
 
   useEffect(()=>{ localStorage.setItem('tn_market_cart', JSON.stringify(cart)) },[cart])
-
   useEffect(()=>{
     if(sel){
       history.pushState({modal:true}, '', window.location.href)
@@ -127,19 +99,12 @@ export default function MarketClient(){
     }
   },[sel])
 
-  const closeModal = ()=>{
-    setSel(null)
-    if(history.state && history.state.modal){ history.back() }
-  }
-
+  const closeModal = ()=>{ setSel(null); if(history.state && history.state.modal){ history.back() } }
   const getImages = (p)=> p.images?.length>0 ? p.images.filter(Boolean) : [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
   const getTallas = (p)=>{
     const raw = p.tallas || p.sizes || p.talla || p.size || p.sizes_available || p.tallas_disponibles || []
     if(Array.isArray(raw) && raw.length>0) return raw
-    if(typeof raw === 'string' && raw.length>0){
-      try{ const j=JSON.parse(raw); if(Array.isArray(j)) return j }catch{}
-      return raw.split(',').map(s=>s.trim()).filter(Boolean)
-    }
+    if(typeof raw === 'string' && raw.length>0){ try{ const j=JSON.parse(raw); if(Array.isArray(j)) return j }catch{}; return raw.split(',').map(s=>s.trim()).filter(Boolean) }
     return []
   }
 
@@ -147,73 +112,37 @@ export default function MarketClient(){
   if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
   if(cat) filtered=filtered.filter(p=>p.categoria===cat)
   if(tipo) filtered=filtered.filter(p=> (p.stores?.tipo_tienda||'').toLowerCase().includes(tipo.toLowerCase()))
+  
+  // ORDENAR: PREMIUM primero, luego VERIFICADA, luego NUEVA - Sin romper nada, solo orden
+  filtered = filtered.sort((a,b)=>{
+    const ba = getBadgeInfo(a.stores).key
+    const bb = getBadgeInfo(b.stores).key
+    const order = { premium:0, verificada:1, nueva:2 }
+    return (order[ba] ?? 2) - (order[bb] ?? 2)
+  })
 
   const catsRaw=[...new Set(products.map(p=>p.categoria).filter(Boolean))]
   const catsOrdenadas = catsRaw.sort((a,b)=>{
-    const ia = ORDEN_PREMIUM.indexOf(a.toLowerCase())
-    const ib = ORDEN_PREMIUM.indexOf(b.toLowerCase())
-    if(ia===-1 && ib===-1) return a.localeCompare(b)
-    if(ia===-1) return 1
-    if(ib===-1) return -1
-    return ia-ib
+    const ia = ORDEN_PREMIUM.indexOf(a.toLowerCase()); const ib = ORDEN_PREMIUM.indexOf(b.toLowerCase())
+    if(ia===-1 && ib===-1) return a.localeCompare(b); if(ia===-1) return 1; if(ib===-1) return -1; return ia-ib
   })
 
   const isBoutique = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('boutique')
-
   const addToCart = (p, talla=null)=>{
-    if(isBoutique(p)){
-      const tallas = getTallas(p)
-      if(tallas.length>0 && !talla){
-        alert('Selecciona una talla primero')
-        return
-      }
-    }
+    if(isBoutique(p)){ const tallas = getTallas(p); if(tallas.length>0 && !talla){ alert('Selecciona una talla primero'); return } }
     setCart(prev=>{
       const idKey = talla ? `${p.id}-${talla}` : p.id
       const idx = prev.findIndex(i=>i.cartId===idKey)
-      if(idx>=0){
-        const copy=[...prev]
-        copy[idx]={...copy[idx], qty: copy[idx].qty+1}
-        return copy
-      }
+      if(idx>=0){ const copy=[...prev]; copy[idx]={...copy[idx], qty: copy[idx].qty+1}; return copy }
       return [...prev, {cartId:idKey, id:p.id, name:p.name, price:p.price, image:p.image_url, storeName:p.stores?.name, storeSlug:p.stores?.slug, whatsapp:p.stores?.whatsapp, qty:1, talla: talla || null}]
-    })
-    setShowCart(true)
+    }); setShowCart(true)
   }
-
-  const updateQty = (cartId, delta)=>{
-    setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean))
-  }
-
+  const updateQty = (cartId, delta)=>{ setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean)) }
   const total = cart.reduce((s,i)=>s+(Number(i.price)||0)*i.qty,0)
-
   const checkoutWhatsApp = ()=>{
-    if(cart.length===0) return
-    let msg = `Hola TiendaNica! Quiero comprar desde el market:\n\n`
-    cart.forEach((i,idx)=>{
-      const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : ''
-      msg += `${idx+1}. ${i.name}${tallaTxt} x${i.qty} - C$ ${i.price} (Tienda: ${i.storeName})\n`
-    })
-    msg += `\nTotal: C$ ${total}\n\nMi direccion: `
-    const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))]
-    if(uniqueWAs.length===1){
-      window.open(`https://wa.me/${uniqueWAs[0]}?text=${encodeURIComponent(msg)}`,'_blank')
-    } else {
-      window.open(`https://wa.me/50581732620?text=${encodeURIComponent(msg + "\n\n(Son de varias tiendas)")}`,'_blank')
-    }
-  }
-
-  const waProductDirect = (p, talla=null)=>{
-    const tallaTxt = talla ? ` Talla: ${talla}` : ''
-    let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`
-    if(p.description) m+=` - ${p.description}`
-    window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank')
-  }
-
-  const abrirVender = ()=>{
-    const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'
-    window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank')
-  }
+    if(cart.length===0) return; let msg = `Hola TiendaNica! Quiero comprar desde el market:\n\n`; cart.forEach((i,idx)=>{ const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : ''; msg += `${idx+1}. ${i.name}${tallaTxt} x${i.qty} - C$ ${i.price} (Tienda: ${i.storeName})\n` }); msg += `\nTotal: C$ ${total}\n\nMi direccion: `; const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))]; if(uniqueWAs.length===1){ window.open(`https://wa.me/${uniqueWAs[0]}?text=${encodeURIComponent(msg)}`,'_blank') } else { window.open(`https://wa.me/50581732620?text=${encodeURIComponent(msg + "\n\n(Son de varias tiendas)")}`,'_blank') } }
+  const waProductDirect = (p, talla=null)=>{ const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
+  const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
 
   if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando TiendaNica...</div>
 
@@ -239,26 +168,16 @@ export default function MarketClient(){
         @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } }
       `}</style>
 
-      {/* PORTADA */}
       <div className="portada-wrap">
         <img src="/opengraph-image.png" alt="TiendaNica" className="portada-img"/>
         <button onClick={abrirVender} className="btn-vender-azul">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <path d="M16 10a4 4 0 0 1-8 0"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span>vender</span>
         </button>
       </div>
 
-      {/* CINTA DEGRADADA */}
       <div className="cinta-degradada">
-        <span>🛡️ Tiendas verificadas con video y cédula</span>
-        <span style={{opacity:0.6}}>•</span>
-        <span>📦 Envío a toda Nicaragua</span>
-        <span style={{opacity:0.6}}>•</span>
-        <span>⚖️ Reporte antifraude 24h</span>
+        <span>🛡️ Tiendas verificadas con video y cédula</span><span style={{opacity:0.6}}>•</span><span>📦 Envío a toda Nicaragua</span><span style={{opacity:0.6}}>•</span><span>⚖️ Reporte antifraude 24h</span>
       </div>
 
       <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
@@ -273,7 +192,7 @@ export default function MarketClient(){
           </div>
           <div className="cat-scroll" style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8}}>
             {['boutique','general'].map(t=><button key={t} onClick={()=>setTipo(t===tipo?null:t)} className="chip" style={{background: tipo===t ? '#0066FF' : '#F7F2EE', color: tipo===t ? '#fff' : '#000', borderColor: tipo===t ? '#0066FF' : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t}</button>)}
-            <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>{filtered.length} productos</span>
+            <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>{filtered.length} productos • Premium primero</span>
           </div>
         </div>
 
@@ -281,20 +200,51 @@ export default function MarketClient(){
           {filtered.map(p=>{
             const hasVideo=!!p.video_url
             const boutique = isBoutique(p)
-            const badge = getStoreBadgeStyle(p.stores)
+            const badge = getBadgeInfo(p.stores)
             return (
-              <div key={p.id} className="card">
+              <div key={p.id} className="card" style={{border: badge.key==='premium' ? '2px solid #FF6A00' : '1px solid #F0E9E2', boxShadow: badge.key==='premium' ? '0 6px 20px rgba(255,106,0,0.18)' : '0 4px 18px rgba(0,0,0,0.06)'}}>
                 <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
-                  {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
-                  <span style={{position:'absolute', bottom:8, left:8, background:'rgba(0,0,0,0.72)', color:'#fff', fontSize:10, fontWeight:700, padding:'4px 8px', borderRadius:999, maxWidth:'65%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.stores?.name?.slice(0,16)}</span>
-                  {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS</span>}
-                  {/* BADGE PREMIUM/VERIFICADA EN ESQUINA SUPERIOR DERECHA DE LA IMAGEN */}
-                  <span style={{position:'absolute', bottom:8, right:8, background: badge.bg, color: badge.color, fontSize:8, fontWeight:900, padding:'4px 7px', borderRadius:999, border: badge.border, boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>{badge.text}</span>
+                  {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999, zIndex:3}}>▶ VIDEO</span>}
+                  
+                  {/* NOMBRE TIENDA ABAJO IZQUIERDA */}
+                  <span style={{position:'absolute', bottom:8, left:8, background:'rgba(0,0,0,0.75)', color:'#fff', fontSize:10, fontWeight:700, padding:'4px 8px', borderRadius:999, zIndex:3, maxWidth:'55%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.stores?.name?.slice(0,18)}</span>
+                  
+                  {/* TALLAS ARRIBA IZQUIERDA */}
+                  {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999, zIndex:3}}>TALLAS</span>}
+                  
+                  {/* ⭐ BADGE PREMIUM/VERIFICADA - AHORA SIEMPRE VISIBLE Y GRANDE */}
+                  {badge.show && (
+                    <span style={{
+                      position:'absolute', 
+                      bottom:8, 
+                      right:8, 
+                      background: badge.bg, 
+                      color: badge.color, 
+                      fontSize:10, 
+                      fontWeight:900, 
+                      padding:'5px 9px', 
+                      borderRadius:999, 
+                      zIndex:4,
+                      boxShadow:'0 2px 10px rgba(0,0,0,0.3)',
+                      border: badge.key==='premium' ? '1.5px solid #fff' : 'none',
+                      letterSpacing:'0.3px'
+                    }}>
+                      {badge.label}
+                    </span>
+                  )}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}>
+                    <b style={{fontSize:14}}>C$ {p.price}</b>
+                    <div style={{display:'flex', gap:4, alignItems:'center'}}>
+                      <span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span>
+                    </div>
+                  </div>
+                  {/* DEPARTAMENTO Y BADGE TEXTO EXTRA PARA PREMIUM */}
+                  {badge.key==='premium' && <p style={{fontSize:10, color:'#FF6A00', fontWeight:800, marginTop:4}}>⭐ Tienda Premium • {p.stores?.departamento || 'Nicaragua'}</p>}
+                  {badge.key==='verificada' && <p style={{fontSize:10, color:'#0066FF', fontWeight:700, marginTop:4}}>✓ Verificada • {p.stores?.departamento || ''}</p>}
                 </div>
               </div>
             )
@@ -302,7 +252,6 @@ export default function MarketClient(){
         </div>
       </div>
 
-      {/* FOOTER LEGAL PREMIUM */}
       <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 30px', textAlign:'center'}}>
         <div style={{maxWidth:800, margin:'0 auto'}}>
           <p style={{fontWeight:900, fontSize:16, letterSpacing:0.5}}>TiendaNica.store</p>
@@ -325,45 +274,29 @@ export default function MarketClient(){
               <b style={{fontSize:20}}>C$ {sel.price}</b>
               <div style={{display:'flex', alignItems:'center', gap:6}}>
                 <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
-                {/* BADGE EN EL MODAL TAMBIÉN */}
-                <span style={{fontSize:9, fontWeight:900, padding:'4px 8px', borderRadius:999, background: getStoreBadgeStyle(sel.stores).bg, color: getStoreBadgeStyle(sel.stores).color}}>
-                  {getStoreBadgeStyle(sel.stores).text}
-                </span>
+                <span style={{fontSize:9, fontWeight:900, padding:'4px 8px', borderRadius:999, background: getBadgeInfo(sel.stores).bg, color: getBadgeInfo(sel.stores).color}}>{getBadgeInfo(sel.stores).label}</span>
               </div>
             </div>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
             <p style={{fontSize:12, color:'#666', marginTop:2}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()} {sel.stores?.departamento ? `• ${sel.stores.departamento} ${sel.stores?.municipio ? '- '+sel.stores.municipio : ''}` : ''}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
-            
             {isBoutique(sel) && (
               <div style={{marginTop:12}}>
                 <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Selecciona talla:</p>
                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-                  {getTallas(sel).length>0 ? getTallas(sel).map(t=>(
-                    <button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>
-                  )) : (
-                    <>
-                      {['XS','S','M','L','XL'].map(t=>(
-                        <button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>
-                      ))}
-                      <span style={{fontSize:11, color:'#999', alignSelf:'center'}}>• Preguntar disponibilidad</span>
-                    </>
-                  )}
+                  {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}<span style={{fontSize:11, color:'#999', alignSelf:'center'}}>• Preguntar disponibilidad</span></>)}
                 </div>
                 {selectedTalla && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Talla {selectedTalla} seleccionada</p>}
               </div>
             )}
-
             <div style={{display:'flex', gap:8, marginTop:14}}>
               <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar al carrito</button>
               <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp</button>
             </div>
-            
             <div style={{display:'flex', gap:8, marginTop:8}}>
               <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar al market</button>
               <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13, boxShadow:'0 4px 12px rgba(255,106,0,0.35)'}}>Ver tienda 🛍️</a>
             </div>
-            <p style={{fontSize:10, color:'#999', textAlign:'center', marginTop:8}}>Flecha atrás del celular regresa al market • Tallas solo boutique</p>
           </div>
         </div>
       </div>}
@@ -379,30 +312,16 @@ export default function MarketClient(){
             {cart.map(i=>(
               <div key={i.cartId} style={{display:'flex', gap:10, border:'1px solid #f0f0f0', borderRadius:12, padding:8, alignItems:'center'}}>
                 <img src={i.image} style={{width:50, height:50, objectFit:'contain', background:'#fff', borderRadius:8}}/>
-                <div style={{flex:1}}>
-                  <p style={{fontSize:12, fontWeight:700, lineHeight:1.2}}>{i.name.slice(0,38)}{i.talla ? ` - ${i.talla}` : ''}</p>
-                  <p style={{fontSize:11, color:'#666'}}>{i.storeName}</p>
-                  <b style={{fontSize:13}}>C$ {i.price}</b>
-                </div>
-                <div style={{display:'flex', alignItems:'center', gap:6}}>
-                  <button onClick={()=>updateQty(i.cartId,-1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #ddd', background:'#fff'}}>−</button>
-                  <span style={{fontSize:12, fontWeight:800, minWidth:16, textAlign:'center'}}>{i.qty}</span>
-                  <button onClick={()=>updateQty(i.cartId,1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #111', background:'#111', color:'#fff'}}>+</button>
-                </div>
+                <div style={{flex:1}}><p style={{fontSize:12, fontWeight:700, lineHeight:1.2}}>{i.name.slice(0,38)}{i.talla ? ` - ${i.talla}` : ''}</p><p style={{fontSize:11, color:'#666'}}>{i.storeName}</p><b style={{fontSize:13}}>C$ {i.price}</b></div>
+                <div style={{display:'flex', alignItems:'center', gap:6}}><button onClick={()=>updateQty(i.cartId,-1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #ddd', background:'#fff'}}>−</button><span style={{fontSize:12, fontWeight:800, minWidth:16, textAlign:'center'}}>{i.qty}</span><button onClick={()=>updateQty(i.cartId,1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #111', background:'#111', color:'#fff'}}>+</button></div>
               </div>
             ))}
           </div>
-          {cart.length>0 && <div style={{borderTop:'1px solid #eee', paddingTop:12}}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}><span style={{fontWeight:700}}>Total:</span><b style={{fontSize:18}}>C$ {total}</b></div>
-            <button onClick={checkoutWhatsApp} style={{width:'100%', background:'#25D366', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:900, fontSize:14}}>Comprar por WhatsApp</button>
-            <button onClick={()=>setCart([])} style={{width:'100%', background:'#fff', color:'#999', border:'none', padding:10, marginTop:6, fontSize:12}}>Vaciar carrito</button>
-          </div>}
+          {cart.length>0 && <div style={{borderTop:'1px solid #eee', paddingTop:12}}><div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}><span style={{fontWeight:700}}>Total:</span><b style={{fontSize:18}}>C$ {total}</b></div><button onClick={checkoutWhatsApp} style={{width:'100%', background:'#25D366', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:900, fontSize:14}}>Comprar por WhatsApp</button><button onClick={()=>setCart([])} style={{width:'100%', background:'#fff', color:'#999', border:'none', padding:10, marginTop:6, fontSize:12}}>Vaciar carrito</button></div>}
         </div>
       </div>}
 
-      {cart.length>0 && !showCart && !sel && <button onClick={()=>setShowCart(true)} style={{position:'fixed', bottom:20, right:20, zIndex:30, background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:900, boxShadow:'0 8px 24px rgba(0,0,0,0.3)', display:'flex', alignItems:'center', gap:8}}>
-        🛒 C$ {total} <span style={{background:'#0066FF', color:'#fff', padding:'2px 8px', borderRadius:999, fontSize:11}}>{cart.reduce((a,b)=>a+b.qty,0)}</span>
-      </button>}
+      {cart.length>0 && !showCart && !sel && <button onClick={()=>setShowCart(true)} style={{position:'fixed', bottom:20, right:20, zIndex:30, background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:900, boxShadow:'0 8px 24px rgba(0,0,0,0.3)', display:'flex', alignItems:'center', gap:8}}>🛒 C$ {total} <span style={{background:'#0066FF', color:'#fff', padding:'2px 8px', borderRadius:999, fontSize:11}}>{cart.reduce((a,b)=>a+b.qty,0)}</span></button>}
     </main>
   )
 }
