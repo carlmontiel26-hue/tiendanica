@@ -74,6 +74,18 @@ function TemuGallery({ images=[], videoUrl, name }){
 
 const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo']
 
+// --- SOLO AGREGADO: BADGE HELPER SIN ROMPER NADA ---
+function getStoreBadgeStyle(store){
+  const status = (store?.verification_status || store?.verification_badge || 'nueva').toLowerCase()
+  if(status === 'premium'){
+    return { text: '⭐ PREMIUM', bg: 'linear-gradient(135deg,#FF6A00,#FF9500)', color: '#fff', border: 'none' }
+  }
+  if(status === 'verificada'){
+    return { text: '✓ VERIFICADA', bg: '#0066FF', color: '#fff', border: 'none' }
+  }
+  return { text: 'NUEVA', bg: '#F0F0F0', color: '#888', border: '1px solid #E5E5E5' }
+}
+
 export default function MarketClient(){
   const [stores,setStores]=useState([])
   const [products,setProducts]=useState([])
@@ -93,7 +105,8 @@ export default function MarketClient(){
       const all=data||[]
       setStores(all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
     })
-    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp)').order('created_at',{ascending:false}).limit(400).then(({data})=>{
+    // FIX: AHORA PEDIMOS verification_status y verification_badge PARA MOSTRAR ESTRELLA
+    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(400).then(({data})=>{
       const all=data||[]
       setProducts(all.filter(p=>{ const t=(p.stores?.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
       setLoading(false)
@@ -268,13 +281,16 @@ export default function MarketClient(){
           {filtered.map(p=>{
             const hasVideo=!!p.video_url
             const boutique = isBoutique(p)
+            const badge = getStoreBadgeStyle(p.stores)
             return (
               <div key={p.id} className="card">
                 <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
-                  <span style={{position:'absolute', bottom:8, left:8, background:'rgba(0,0,0,0.72)', color:'#fff', fontSize:10, fontWeight:700, padding:'4px 8px', borderRadius:999}}>{p.stores?.name?.slice(0,16)}</span>
+                  <span style={{position:'absolute', bottom:8, left:8, background:'rgba(0,0,0,0.72)', color:'#fff', fontSize:10, fontWeight:700, padding:'4px 8px', borderRadius:999, maxWidth:'65%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.stores?.name?.slice(0,16)}</span>
                   {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS</span>}
+                  {/* BADGE PREMIUM/VERIFICADA EN ESQUINA SUPERIOR DERECHA DE LA IMAGEN */}
+                  <span style={{position:'absolute', bottom:8, right:8, background: badge.bg, color: badge.color, fontSize:8, fontWeight:900, padding:'4px 7px', borderRadius:999, border: badge.border, boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>{badge.text}</span>
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
@@ -307,10 +323,16 @@ export default function MarketClient(){
           <div style={{padding:16, overflowY:'auto'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
               <b style={{fontSize:20}}>C$ {sel.price}</b>
-              <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
+              <div style={{display:'flex', alignItems:'center', gap:6}}>
+                <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
+                {/* BADGE EN EL MODAL TAMBIÉN */}
+                <span style={{fontSize:9, fontWeight:900, padding:'4px 8px', borderRadius:999, background: getStoreBadgeStyle(sel.stores).bg, color: getStoreBadgeStyle(sel.stores).color}}>
+                  {getStoreBadgeStyle(sel.stores).text}
+                </span>
+              </div>
             </div>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
-            <p style={{fontSize:12, color:'#666', marginTop:2}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
+            <p style={{fontSize:12, color:'#666', marginTop:2}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()} {sel.stores?.departamento ? `• ${sel.stores.departamento} ${sel.stores?.municipio ? '- '+sel.stores.municipio : ''}` : ''}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
             
             {isBoutique(sel) && (
