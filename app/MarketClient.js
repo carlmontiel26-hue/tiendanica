@@ -54,9 +54,9 @@ const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts'
 
 function getBadgeInfo(store){
   const raw = (store?.verification_status || store?.verification_badge || '').toLowerCase()
-  if(raw.includes('premium')) return { key:'premium', label:'⭐ PREMIUM', bg:'#FF6A00', color:'#fff', show:true }
-  if(raw.includes('verificada')) return { key:'verificada', label:'✓ VERIFICADA', bg:'#0066FF', color:'#fff', show:true }
-  return { key:'nueva', label:'NUEVA', bg:'#F0F0F0', color:'#999', show:false }
+  if(raw.includes('premium')) return { key:'premium' }
+  if(raw.includes('verificada')) return { key:'verificada' }
+  return { key:'nueva' }
 }
 
 export default function MarketClient(){
@@ -78,7 +78,6 @@ export default function MarketClient(){
       const all=data||[]
       setStores(all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
     })
-    // IMPORTANTE: Traemos verification_status y verification_badge de la tienda
     supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(400).then(({data})=>{
       const all=data||[]
       setProducts(all.filter(p=>{ const t=(p.stores?.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
@@ -112,8 +111,6 @@ export default function MarketClient(){
   if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
   if(cat) filtered=filtered.filter(p=>p.categoria===cat)
   if(tipo) filtered=filtered.filter(p=> (p.stores?.tipo_tienda||'').toLowerCase().includes(tipo.toLowerCase()))
-  
-  // ORDENAR: PREMIUM primero, luego VERIFICADA, luego NUEVA - Sin romper nada, solo orden
   filtered = filtered.sort((a,b)=>{
     const ba = getBadgeInfo(a.stores).key
     const bb = getBadgeInfo(b.stores).key
@@ -202,49 +199,18 @@ export default function MarketClient(){
             const boutique = isBoutique(p)
             const badge = getBadgeInfo(p.stores)
             return (
-              <div key={p.id} className="card" style={{border: badge.key==='premium' ? '2px solid #FF6A00' : '1px solid #F0E9E2', boxShadow: badge.key==='premium' ? '0 6px 20px rgba(255,106,0,0.18)' : '0 4px 18px rgba(0,0,0,0.06)'}}>
+              <div key={p.id} className="card">
                 <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999, zIndex:3}}>▶ VIDEO</span>}
-                  
-                  {/* NOMBRE TIENDA ABAJO IZQUIERDA */}
-                  <span style={{position:'absolute', bottom:8, left:8, background:'rgba(0,0,0,0.75)', color:'#fff', fontSize:10, fontWeight:700, padding:'4px 8px', borderRadius:999, zIndex:3, maxWidth:'55%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.stores?.name?.slice(0,18)}</span>
-                  
-                  {/* TALLAS ARRIBA IZQUIERDA */}
                   {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999, zIndex:3}}>TALLAS</span>}
-                  
-                  {/* ⭐ BADGE PREMIUM/VERIFICADA - AHORA SIEMPRE VISIBLE Y GRANDE */}
-                  {badge.show && (
-                    <span style={{
-                      position:'absolute', 
-                      bottom:8, 
-                      right:8, 
-                      background: badge.bg, 
-                      color: badge.color, 
-                      fontSize:10, 
-                      fontWeight:900, 
-                      padding:'5px 9px', 
-                      borderRadius:999, 
-                      zIndex:4,
-                      boxShadow:'0 2px 10px rgba(0,0,0,0.3)',
-                      border: badge.key==='premium' ? '1.5px solid #fff' : 'none',
-                      letterSpacing:'0.3px'
-                    }}>
-                      {badge.label}
-                    </span>
-                  )}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}>
-                    <b style={{fontSize:14}}>C$ {p.price}</b>
-                    <div style={{display:'flex', gap:4, alignItems:'center'}}>
-                      <span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span>
-                    </div>
-                  </div>
-                  {/* DEPARTAMENTO Y BADGE TEXTO EXTRA PARA PREMIUM */}
-                  {badge.key==='premium' && <p style={{fontSize:10, color:'#FF6A00', fontWeight:800, marginTop:4}}>⭐ Tienda Premium • {p.stores?.departamento || 'Nicaragua'}</p>}
-                  {badge.key==='verificada' && <p style={{fontSize:10, color:'#0066FF', fontWeight:700, marginTop:4}}>✓ Verificada • {p.stores?.departamento || ''}</p>}
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
+                  {badge.key==='premium' && <p style={{fontSize:11, color:'#FF6A00', fontWeight:800, marginTop:6}}>⭐ Tienda Premium • {p.stores?.municipio || p.stores?.departamento || 'RAAS'}</p>}
+                  {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada • {p.stores?.municipio || p.stores?.departamento || ''}</p>}
+                  {badge.key==='nueva' && <p style={{fontSize:10, color:'#999', marginTop:4}}>{p.stores?.name?.slice(0,22)}</p>}
                 </div>
               </div>
             )
@@ -262,7 +228,6 @@ export default function MarketClient(){
             <a href="/vendedores" style={{color:'#FF8A00', textDecoration:'none'}}>Vendedores ✓</a>
             <a href="/reportar" style={{color:'#FF3B30', textDecoration:'none', background:'#fff', padding:'4px 10px', borderRadius:999}}>🚨 Reportar fraude</a>
           </div>
-          <p style={{fontSize:10, opacity:0.4, marginTop:16}}>🛡️ Sistema antifraude: verificación con cédula + video + depósito C$250 + blacklist interna • 0% comisión por WhatsApp • Envío a toda Nicaragua</p>
         </div>
       </div>
 
@@ -272,10 +237,7 @@ export default function MarketClient(){
           <div style={{padding:16, overflowY:'auto'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
               <b style={{fontSize:20}}>C$ {sel.price}</b>
-              <div style={{display:'flex', alignItems:'center', gap:6}}>
-                <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
-                <span style={{fontSize:9, fontWeight:900, padding:'4px 8px', borderRadius:999, background: getBadgeInfo(sel.stores).bg, color: getBadgeInfo(sel.stores).color}}>{getBadgeInfo(sel.stores).label}</span>
-              </div>
+              <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
             </div>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
             <p style={{fontSize:12, color:'#666', marginTop:2}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()} {sel.stores?.departamento ? `• ${sel.stores.departamento} ${sel.stores?.municipio ? '- '+sel.stores.municipio : ''}` : ''}</p>
@@ -286,7 +248,6 @@ export default function MarketClient(){
                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
                   {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}<span style={{fontSize:11, color:'#999', alignSelf:'center'}}>• Preguntar disponibilidad</span></>)}
                 </div>
-                {selectedTalla && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Talla {selectedTalla} seleccionada</p>}
               </div>
             )}
             <div style={{display:'flex', gap:8, marginTop:14}}>
@@ -295,7 +256,7 @@ export default function MarketClient(){
             </div>
             <div style={{display:'flex', gap:8, marginTop:8}}>
               <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar al market</button>
-              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13, boxShadow:'0 4px 12px rgba(255,106,0,0.35)'}}>Ver tienda 🛍️</a>
+              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13}}>Ver tienda 🛍️</a>
             </div>
           </div>
         </div>
