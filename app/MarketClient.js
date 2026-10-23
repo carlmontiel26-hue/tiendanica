@@ -1,252 +1,166 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-const CATS = {
-  boutique: ['all','vestidos','blusas','jeans','faldas','conjuntos','shorts','accesorios','zapatos','carteras','nuevo','oferta'],
-  general: ['all','hogar','tecnologia','belleza','juguetes','ferreteria','salud','deportes','libros','otros','oferta','nuevo']
+function getSupabase(){
+  const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim()
+  const key=(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'').trim()
+  if(!url||!key||!url.startsWith('http')) return null
+  return createClient(url,key)
 }
 
-export default function MarketClient({ initialStores, initialProducts }){
-  const boutiqueStores = initialStores.filter(s => (s.tipo_tienda||'boutique') !== 'comida')
-  const boutiqueProducts = initialProducts.filter(p => (p._store?.tipo_tienda||'boutique') !== 'comida')
+function TemuGalleryMarket({ images=[], videoUrl, name }){
+  const slides = []
+  if(videoUrl) slides.push({type:'video', url:videoUrl})
+  if(images && images.length>0) images.forEach(img=>{ if(img) slides.push({type:'image', url:img}) })
+  if(slides.length===0) slides.push({type:'image', url:'/tienda-nica-logo.png'})
+  const [current, setCurrent] = useState(0)
+  const [muted, setMuted] = useState(true)
+  const [playing, setPlaying] = useState(true)
+  const videoRef = useRef(null)
+  useEffect(()=>{ setCurrent(0); setPlaying(true) },[images, videoUrl])
+  const togglePlay = ()=>{
+    if(!videoRef.current) return
+    if(videoRef.current.paused){ videoRef.current.play(); setPlaying(true) } else { videoRef.current.pause(); setPlaying(false) }
+  }
+  return (
+    <div style={{position:'relative', background:'#fff'}}>
+      <div style={{display:'flex', overflow:'hidden', aspectRatio:'1/1', position:'relative', background:'#fff'}}>
+        {slides.map((s,i)=>(
+          <div key={i} style={{minWidth:'100%', display: i===current ? 'flex' : 'none', position:'relative', background: s.type==='video' ? '#000' : '#fff', alignItems:'center', justifyContent:'center'}}>
+            {s.type==='image' ? <img src={s.url} alt={name} style={{width:'100%', height:'100%', objectFit:'contain', background:'#fff'}}/> : (
+              <div style={{width:'100%', height:'100%', position:'relative', background:'#000', display:'flex', alignItems:'center', justifyContent:'center'}} onClick={togglePlay}>
+                <video ref={i===current ? videoRef : null} src={s.url} autoPlay loop muted={muted} playsInline preload="metadata" style={{width:'100%', height:'100%', objectFit:'contain', background:'#000'}}/>
+                {!playing && <div style={{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.2)'}}><div style={{width:60,height:60, borderRadius:999, background:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24}}>▶</div></div>}
+                <button onClick={(e)=>{e.stopPropagation(); setMuted(!muted)}} style={{position:'absolute', bottom:16, right:16, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', width:36, height:36, borderRadius:999}}> {muted ? '🔇' : '🔊'} </button>
+                <span style={{position:'absolute', top:12, left:12, background:'#FF3B30', color:'#fff', fontSize:10, fontWeight:900, padding:'4px 8px', borderRadius:999}}>VIDEO</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{position:'absolute', bottom:12, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6, background:'rgba(0,0,0,0.45)', padding:'6px 10px', borderRadius:999}}>
+        {slides.map((s,i)=><button key={i} onClick={()=>setCurrent(i)} style={{width: i===current ? 20 : 6, height:6, borderRadius:999, border:'none', background: i===current ? (s.type==='video' ? '#FF3B30' : '#fff') : 'rgba(255,255,255,0.5)'}}/>)}
+      </div>
+      <button onClick={()=>setCurrent((current-1+slides.length)%slides.length)} style={{position:'absolute', left:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none'}}/>
+      <button onClick={()=>setCurrent((current+1)%slides.length)} style={{position:'absolute', right:0, top:0, bottom:40, width:'22%', background:'transparent', border:'none'}}/>
+    </div>
+  )
+}
 
-  const [stores] = useState(boutiqueStores)
-  const [products] = useState(boutiqueProducts)
-  const [tipo,setTipo]=useState('boutique')
-  const [cat,setCat]=useState('all')
-  const [search,setSearch]=useState('')
-  const [selected,setSelected]=useState(null)
-  const [showCart,setShowCart]=useState(false)
-  const [cart,setCart]=useState([])
-  const [qty,setQty]=useState(1)
+export default function MarketPage(){
+  const [stores,setStores]=useState([])
+  const [products,setProducts]=useState([])
+  const [sel,setSel]=useState(null)
+  const [q,setQ]=useState('')
+  const [cat,setCat]=useState(null)
+  const [tipo,setTipo]=useState(null)
+  const [loading,setLoading]=useState(true)
 
   useEffect(()=>{
-    try{ const c = JSON.parse(localStorage.getItem('tiendanica_market_cart')||'[]'); setCart(c) }catch{}
+    const supabase=getSupabase()
+    if(!supabase) return
+    supabase.from('stores').select('*').eq('is_active',true).then(({data})=>setStores(data||[]))
+    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp)').eq('is_active',true).order('created_at',{ascending:false}).limit(200).then(({data})=>{ setProducts(data||[]); setLoading(false) })
   },[])
-  useEffect(()=>{ localStorage.setItem('tiendanica_market_cart', JSON.stringify(cart)) },[cart])
 
-  const addToCart = (pr, q=1)=>{
-    setCart(prev=>{
-      const idx = prev.findIndex(i=>i.id===pr.id)
-      if(idx>=0){ const n=[...prev]; n[idx].qty+=q; return n }
-      return [...prev, { id:pr.id, storeId:pr._store.id, storeSlug:pr._store.slug, storeName:pr._store.name, storeWhatsapp:pr._store.whatsapp, name:pr.name, description:pr.description||'', price:pr.price, image:pr.image_url, categoria:pr.categoria, qty:q }]
-    })
-    setShowCart(true)
-  }
-  const removeFromCart = (id)=> setCart(c=>c.filter(i=>i.id!==id))
-  const updateQty = (id, d)=> setCart(c=>c.map(i=> i.id===id ? {...i, qty: Math.max(1, i.qty+d)} : i))
-  const cartCount = cart.reduce((a,b)=>a+b.qty,0)
-  const cartTotal = cart.reduce((a,b)=>a+b.price*b.qty,0)
-
-  const filtered = useMemo(()=> products.filter(pr=>{
-    const st = pr._store
-    if(!st) return false
-    if(tipo!=='all' && (st.tipo_tienda||'boutique')!==tipo) return false
-    if(cat!=='all' && pr.categoria!==cat) return false
-    if(search){
-      const q=search.toLowerCase()
-      if(!pr.name.toLowerCase().includes(q) && !st.name.toLowerCase().includes(q) && !(pr.description||'').toLowerCase().includes(q)) return false
-    }
-    return true
-  }),[products,tipo,cat,search])
-
-  const groupedByStore = useMemo(()=>{
-    const g={}
-    cart.forEach(i=>{ if(!g[i.storeId]) g[i.storeId]={ storeName:i.storeName, whatsapp:i.storeWhatsapp, items:[] }; g[i.storeId].items.push(i) })
-    return Object.values(g)
-  },[cart])
-
-  const whatsappForGroup = (group)=>{
-    const phone = (group.whatsapp||'').replace(/[^0-9]/g,'')
-    let txt = `Hola ${group.storeName} 👋 vi estos productos en TiendaNica Market (tiendanica.store) y quiero comprarlos:%0A%0A`
-    group.items.forEach(it=>{ txt+=`• ${it.name} x${it.qty} - C$ ${it.price*it.qty}%0A`; if(it.description) txt+=`  _${it.description}_%0A` })
-    txt+=`%0ATotal: C$ ${group.items.reduce((a,b)=>a+b.price*b.qty,0)}%0AEnvío a: [mi dirección]%0A`
-    return `https://wa.me/${phone}?text=${txt}`
+  const getImages = (p)=>{
+    if(p.images && p.images.length>0) return p.images.filter(Boolean)
+    return [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
   }
 
-  const directWhatsapp = (pr, q=1)=>{
-    const phone = (pr._store.whatsapp||'').replace(/[^0-9]/g,'')
-    const desc = pr.description ? ` - ${pr.description}` : ''
-    const text = encodeURIComponent(`Hola ${pr._store.name} 👋 vi "${pr.name}${desc}" x${q} por C$ ${pr.price*q} en TiendaNica Market (tiendanica.store) y lo quiero comprar. Envío a: [mi dirección]`)
-    return `https://wa.me/${phone}?text=${text}`
+  let filtered=[...products]
+  if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
+  if(cat) filtered=filtered.filter(p=>p.categoria===cat)
+  if(tipo) filtered=filtered.filter(p=> (p.stores?.tipo_tienda||'').toLowerCase().includes(tipo.toLowerCase()))
+
+  const cats=[...new Set(products.map(p=>p.categoria).filter(Boolean))].slice(0,12)
+  const wa=(msg,store)=> window.open(`https://api.whatsapp.com/send?phone=${store.whatsapp}&text=${encodeURIComponent(msg)}`,'_blank')
+  const waProduct=()=>{
+    let m=`Hola ${sel.stores.name}! Vi en TiendaNica: ${sel.name} - C$ ${sel.price} https://tiendanica.store/${sel.stores.slug}`
+    if(sel.description) m+=` - ${sel.description}`
+    wa(m, sel.stores)
   }
 
-  const solicitarTiendaLink = `https://wa.me/50581732620?text=${encodeURIComponent('Hola TiendaNica, quiero solicitar mi tienda premium en el mercado. Mi nombre es: ')}`
+  if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando market...</div>
 
   return (
-    <main style={{background:'#F7F5F3', minHeight:'100vh', fontFamily:'Inter, system-ui', overflowX:'hidden'}}>
+    <main style={{minHeight:'100vh', background:'#F6F3F0', fontFamily:'Inter, system-ui', paddingBottom:40}}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800;900&display=swap');
-        *{box-sizing:border-box}
-        .wrap{max-width:1200px; margin:0 auto; padding:0 14px; width:100%}
-        .card-white{background:#fff; border:1px solid #EAE6E1; border-radius:20px; box-shadow:0 8px 28px rgba(0,0,0,0.05)}
-        .pill{padding:9px 16px; border-radius:999px; border:1px solid #EAE6E1; background:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap}
-        .pill.active{background:#0A0A0A; color:#fff; border-color:#0A0A0A}
-        .pill-sub{padding:7px 12px; font-size:11px; border-radius:999px; border:1px solid #EAE6E1; background:#FBF9F7; cursor:pointer; font-weight:600}
-        .pill-sub.active{background:#0A0A0A; color:#fff}
-        .input-base{padding:13px 16px; border-radius:999px; border:1px solid #EAE6E1; background:#fff; font-size:13px; width:100%; outline:none}
-        .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px }
-        @media(min-width:640px){ .grid{ grid-template-columns:repeat(3,1fr)} }
-        @media(min-width:1024px){ .grid{ grid-template-columns:repeat(4,1fr)} }
-        .prod-img{aspect-ratio:1/1; object-fit:cover; border-radius:14px; width:100%; background:#F7F5F3}
-        .hero-title{font-family:'Instrument Serif', serif; font-size: clamp(20px, 2.2vw, 28px); line-height:1; letter-spacing:-0.5px; font-weight:400; color:#fff}
-        .hero-title i{font-style:italic; color:#00E676}
-        .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(8px); z-index:50; display:flex; align-items:center; justify-content:center; padding:12px}
-        .modal{max-width:900px; width:100%; background:#fff; border-radius:24px; overflow:hidden; max-height:90vh; overflow-y:auto}
-        .desc-line{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:10.5px; color:#6B6B6B; line-height:1.3; margin-top:4px; min-height:28px}
+        .market-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .product-card-img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+        .product-card-wrap { aspect-ratio: 1/1; background: #fff; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 16px 16px 0 0; }
+        @media (max-width: 1024px) { .market-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) {
+          .market-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .product-card-wrap { aspect-ratio: 1/1; border-radius: 14px 14px 0 0; }
+          .product-card-img { object-fit: contain !important; }
+          .product-card-info { padding: 10px !important; }
+          .product-card-info p { font-size: 12px !important; }
+          .product-card-title { font-size: 13px !important; min-height: 34px !important; line-height: 1.25 !important; }
+        }
+        @media (max-width: 400px) {
+          .market-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        }
       `}</style>
 
-      {/* PORTADA VERSION A */}
-      <div style={{background:'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 42%, #0A5C36 72%, #00C853 88%, #00E676 100%)', borderRadius:'0 0 24px 24px', position:'relative', overflow:'hidden'}}>
-        <div style={{position:'absolute', top:-40, right:120, width:180, height:180, background:'rgba(0,230,118,0.18)', filter:'blur(30px)', borderRadius:'50%'}}></div>
-        <div className="wrap" style={{padding:'14px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:14, minHeight:110, position:'relative', zIndex:1}}>
-          <div style={{background:'#fff', borderRadius:16, padding:'10px 18px', boxShadow:'0 8px 24px rgba(0,0,0,0.22)', display:'flex', alignItems:'center'}}>
-            <img src="/tienda-nica-logo.png" alt="Tienda Nica" style={{height:40, objectFit:'contain'}}/>
-          </div>
-          <div style={{flex:1, minWidth:0}}>
-            <h1 className="hero-title">El mercado más <i>grande</i> de Nicaragua</h1>
-            <div style={{display:'flex', alignItems:'center', gap:8, marginTop:6, flexWrap:'wrap'}}>
-              <span style={{background:'#00E676', color:'#000', fontSize:9, fontWeight:900, padding:'4px 8px', borderRadius:999}}>● MERCADO NACIONAL</span>
-              <span style={{fontSize:11, color:'#A8A29E', fontWeight:500}}>Boutique • Hogar • {stores.length} tiendas • {products.length} productos</span>
-            </div>
-          </div>
-          <div style={{display:'flex', alignItems:'center', gap:8}} className="hide-mobile">
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{padding:'10px 14px', borderRadius:999, border:'1px solid rgba(255,255,255,0.15)', background:'rgba(255,255,255,0.12)', color:'#fff', fontSize:12, width:160, outline:'none'}}/>
-            <button onClick={()=>setShowCart(true)} style={{background:'#fff', color:'#0A0A0A', padding:'10px 14px', borderRadius:999, fontWeight:900, fontSize:12, border:'none', cursor:'pointer', position:'relative'}}>🛒 {cartCount>0 && <span style={{position:'absolute', top:-6, right:-6, background:'#00E676', color:'#000', fontSize:10, width:18, height:18, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>{cartCount}</span>}</button>
-            <a href={solicitarTiendaLink} target="_blank" style={{background:'#0A0A0A', color:'#fff', padding:'10px 16px', borderRadius:999, fontWeight:900, fontSize:11, textDecoration:'none', border:'1px solid #333'}}>Vender →</a>
-          </div>
-        </div>
-        <div className="wrap" style={{padding:'0 14px 12px', display:'none'}} id="mobile-search">
-          <div style={{display:'flex', gap:8}}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar vestido, jeans, licuadora..." className="input-base" style={{background:'rgba(255,255,255,0.92)'}}/>
-            <button onClick={()=>setShowCart(true)} style={{background:'#fff', padding:'0 14px', borderRadius:999, border:'none', fontWeight:900, position:'relative'}}>🛒{cartCount>0 && <span style={{position:'absolute', top:-4, right:-4, background:'#00E676', color:'#000', fontSize:9, width:16, height:16, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center'}}>{cartCount}</span>}</button>
-          </div>
-        </div>
+      <div style={{background:'#0A0A0A', color:'#fff', padding:'14px 16px', position:'sticky', top:0, zIndex:20, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{display:'flex', gap:10, alignItems:'center'}}><img src="/tienda-nica-logo.png" style={{width:32,height:32, borderRadius:8}}/><b style={{fontSize:16}}>TIENDANICA</b><span style={{fontSize:10, background:'#00E676', color:'#000', padding:'3px 7px', borderRadius:999, fontWeight:900}}>MARKET</span></div>
+        <div style={{fontSize:11, opacity:0.7}}>{filtered.length} productos • {stores.length} tiendas</div>
       </div>
-      <style>{`@media(max-width:768px){ .hide-mobile{display:none !important} #mobile-search{display:block !important} .hero-title{font-size:18px} }`}</style>
 
-      <div className="wrap">
-        <div style={{display:'flex', gap:8, overflowX:'auto', marginTop:14, paddingBottom:4}}>
-          <button onClick={()=>{setTipo('boutique'); setCat('all')}} className={`pill ${tipo==='boutique'?'active':''}`}>👗 Boutique</button>
-          <button onClick={()=>{setTipo('general'); setCat('all')}} className={`pill ${tipo==='general'?'active':''}`}>🛍 Hogar / General</button>
-          <button onClick={()=>{setTipo('all'); setCat('all')}} className={`pill ${tipo==='all'?'active':''}`}>✨ Todo</button>
-        </div>
-        <div style={{display:'flex', gap:6, overflowX:'auto', marginTop:10, paddingBottom:6}}>
-          {(CATS[tipo]||CATS.boutique).map(c=>(
-            <button key={c} onClick={()=>setCat(c)} className={`pill-sub ${cat===c?'active':''}`}>{c}</button>
-          ))}
-        </div>
-
-        <div className="card-white" style={{marginTop:14, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0A0A0A', color:'#fff', borderColor:'#0A0A0A'}}>
-          <div>
-            <h2 style={{fontWeight:900, fontSize:14}}>{tipo==='boutique'?'Boutique nicaragüense premium': tipo==='general'?'Todo para tu hogar':'Todo el mercado'} <span style={{color:'#00E676'}}>• {filtered.length}</span></h2>
-            <p style={{fontSize:11, color:'#9A9A9A', marginTop:4}}>Con descripciones cortas de cada producto • Carrito agrupado por tienda</p>
+      <div style={{maxWidth:1200, margin:'0 auto', padding:14}}>
+        <div style={{background:'#fff', borderRadius:16, padding:12, border:'1px solid #EAE6E1', display:'flex', flexDirection:'column', gap:10}}>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar producto o tienda en todo TiendaNica..." style={{border:'1px solid #e8e8e8', borderRadius:999, padding:'12px 16px', fontSize:14}}/>
+          <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+            <button onClick={()=>{setCat(null); setTipo(null)}} style={{padding:'6px 12px', borderRadius:999, border:'1px solid #000', background: !cat && !tipo ? '#000' : '#fff', color: !cat && !tipo ? '#fff' : '#000', fontSize:12, fontWeight:700}}>Todo</button>
+            {cats.map(c=><button key={c} onClick={()=>setCat(c===cat?null:c)} style={{padding:'6px 12px', borderRadius:999, border:'1px solid #eee', background: cat===c ? '#000' : '#fff', color: cat===c ? '#fff' : '#000', fontSize:12, fontWeight:700, textTransform:'capitalize'}}>{c}</button>)}
           </div>
-          <button onClick={()=>setShowCart(true)} style={{background:'#00E676', color:'#000', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:900, fontSize:11, cursor:'pointer'}}>🛒 Ver carrito ({cartCount})</button>
+          <div style={{display:'flex', gap:6, flexWrap:'wrap', borderTop:'1px solid #f0f0f0', paddingTop:10}}>
+            {['boutique','comida','general'].map(t=><button key={t} onClick={()=>setTipo(t===tipo?null:t)} style={{padding:'6px 12px', borderRadius:999, border:'1px solid #EAE6E1', background: tipo===t ? '#00E676' : '#fff', color: tipo===t ? '#000' : '#000', fontSize:11, fontWeight:800, textTransform:'uppercase'}}>{t}</button>)}
+          </div>
         </div>
 
-        <div className="grid" style={{marginTop:14}}>
-          {filtered.map(pr=>(
-            <div key={pr.id} className="card-white" style={{padding:10, overflow:'hidden', cursor:'pointer'}} onClick={()=>{setSelected(pr); setQty(1)}}>
-              <img src={pr.image_url} alt={`${pr.name} - ${pr._store.name}`} className="prod-img" loading="lazy"/>
-              <div style={{padding:'8px 4px 2px'}}>
-                <b style={{fontSize:12, lineHeight:1.2, display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical', overflow:'hidden', color:'#0A0A0A'}}>{pr.name}</b>
-                {/* NUEVA DESCRIPCION CORTA */}
-                {pr.description ? <span className="desc-line">{pr.description}</span> : <span className="desc-line" style={{color:'#BBB'}}>Sin descripción • Pregunta al dueño</span>}
-                <div style={{display:'flex', alignItems:'center', gap:6, marginTop:6}}>
-                  <img src={pr._store.logo_url||pr._store.cover_image} style={{width:18,height:18,borderRadius:999, objectFit:'cover', border:'1px solid #EAE6E1'}}/>
-                  <span style={{fontSize:10, color:'#9A9590', fontWeight:600}}>{pr._store.name} • {pr.categoria}</span>
-                </div>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8}}>
-                  <b style={{fontSize:13, color:'#0A0A0A'}}>C$ {pr.price}</b>
-                  <span style={{background:'#0A0A0A', color:'#fff', fontSize:10, fontWeight:800, padding:'7px 10px', borderRadius:999}}>Comprar</span>
+        <div className="market-grid" style={{marginTop:16}}>
+          {filtered.map(p=>{
+            const hasVideo = !!p.video_url
+            return (
+              <div key={p.id} style={{background:'#fff', borderRadius:16, overflow:'hidden', boxShadow:'0 2px 10px rgba(0,0,0,0.06)', border:'1px solid #f0f0f0'}}>
+                <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="product-card-wrap">
+                  <img src={p.image_url} alt={p.name} className="product-card-img"/>
+                  {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF3B30', color:'#fff', fontSize:9, padding:'4px 8px', borderRadius:999, fontWeight:900, zIndex:2}}>▶ VIDEO</span>}
+                  <span style={{position:'absolute', bottom:8, left:8, background:'rgba(0,0,0,0.7)', color:'#fff', fontSize:9, padding:'3px 7px', borderRadius:999}}>{p.stores?.name?.slice(0,12)}</span>
+                </button>
+                <div className="product-card-info" style={{padding:12}}>
+                  <p className="product-card-title" style={{fontSize:13, fontWeight:700, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:36}}>{p.name}</p>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}>
+                    <b style={{fontSize:14}}>C$ {p.price}</b>
+                    <span style={{fontSize:10, background:'#F6F3F0', padding:'3px 7px', borderRadius:999, textTransform:'capitalize'}}>{p.categoria}</span>
+                  </div>
+                  <button onClick={()=>setSel(p)} style={{marginTop:8, width:'100%', background: hasVideo ? '#FF3B30' : '#111', color:'#fff', padding:'9px', borderRadius:999, fontSize:11, fontWeight:800, border:'none'}}>{hasVideo ? '▶ Ver video' : 'Ver en tienda'}</button>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      {selected && (
-        <div className="modal-bg" onClick={()=>setSelected(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr'}}>
-              <div style={{padding:12}}><img src={selected.image_url} style={{width:'100%', borderRadius:16, aspectRatio:'1/1', objectFit:'cover'}}/></div>
-              <div style={{padding:'20px 16px'}}>
-                <div style={{display:'flex', gap:8, alignItems:'center', marginBottom:10}}>
-                  <img src={selected._store.logo_url||selected._store.cover_image} style={{width:28,height:28,borderRadius:999}}/>
-                  <b style={{fontSize:12}}>{selected._store.name}</b>
-                  <span style={{fontSize:10, background:'#F7F5F3', padding:'3px 8px', borderRadius:999}}>{selected.categoria}</span>
-                </div>
-                <h2 style={{fontSize:18, fontWeight:900, lineHeight:1.1, color:'#0A0A0A'}}>{selected.name}</h2>
-                {/* DESCRIPCION COMPLETA EN MODAL */}
-                {selected.description && <p style={{fontSize:13, color:'#444', marginTop:10, lineHeight:1.4, background:'#FBF9F7', padding:'10px 12px', borderRadius:12, border:'1px solid #EAE6E1'}}>{selected.description}</p>}
-                <b style={{fontSize:22, display:'block', marginTop:12}}>C$ {selected.price}</b>
-                <div style={{display:'flex', alignItems:'center', gap:12, marginTop:14}}>
-                  <span style={{fontSize:12, fontWeight:700}}>Cantidad:</span>
-                  <div style={{display:'flex', gap:8, alignItems:'center', border:'1px solid #EAE6E1', borderRadius:999, padding:'4px 8px'}}>
-                    <button onClick={()=>setQty(Math.max(1,qty-1))} style={{width:28,height:28,borderRadius:999,border:'1px solid #EAE6E1',background:'#fff',cursor:'pointer'}}>−</button>
-                    <b style={{width:20,textAlign:'center'}}>{qty}</b>
-                    <button onClick={()=>setQty(qty+1)} style={{width:28,height:28,borderRadius:999,border:'1px solid #EAE6E1',background:'#fff',cursor:'pointer'}}>+</button>
-                  </div>
-                </div>
-                <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:18}}>
-                  <button onClick={()=>{addToCart(selected, qty); setSelected(null)}} style={{background:'#0A0A0A', color:'#fff', border:'none', padding:'14px', borderRadius:999, fontWeight:900, cursor:'pointer'}}>🛒 Agregar al carrito del market</button>
-                  <a href={directWhatsapp(selected, qty)} target="_blank" style={{background:'#00E676', color:'#000', textAlign:'center', padding:'14px', borderRadius:999, fontWeight:900, textDecoration:'none'}}>Comprar ahora por WhatsApp</a>
-                  <a href={`/${selected._store.slug}`} style={{textAlign:'center', fontSize:11, color:'#9A9590', textDecoration:'none', padding:6}}>Ver tienda completa →</a>
-                </div>
-              </div>
+      {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setSel(null)}>
+        <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+          <TemuGalleryMarket images={getImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
+          <div style={{padding:16, overflowY:'auto'}}>
+            <b style={{fontSize:20}}>C$ {sel.price}</b>
+            <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
+            <p style={{fontSize:12, color:'#666', marginTop:2}}>Tienda: {sel.stores?.name} • {sel.categoria}</p>
+            {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              <button onClick={()=>setSel(null)} style={{flex:1, background:'#F0F0F0', border:'none', padding:12, borderRadius:999, fontWeight:700}}>Cerrar</button>
+              <button onClick={waProduct} style={{flex:1.5, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp Tienda</button>
             </div>
+            <a href={`/${sel.stores?.slug}`} style={{display:'block', marginTop:8, textAlign:'center', background:'#000', color:'#fff', padding:12, borderRadius:999, fontWeight:800, textDecoration:'none'}}>Ir a la tienda →</a>
           </div>
         </div>
-      )}
-
-      {showCart && (
-        <div className="modal-bg" onClick={()=>setShowCart(false)}>
-          <div className="modal" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
-            <div style={{padding:18, borderBottom:'1px solid #EAE6E1', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <h2 style={{fontWeight:900, fontSize:16}}>🛒 Tu carrito del market ({cartCount})</h2>
-              <button onClick={()=>setShowCart(false)} style={{width:32,height:32,borderRadius:999,border:'1px solid #EAE6E1',background:'#fff',cursor:'pointer'}}>✕</button>
-            </div>
-            <div style={{padding:12, maxHeight:'60vh', overflowY:'auto'}}>
-              {cart.length===0 ? <p style={{textAlign:'center', color:'#9A9590', padding:40, fontSize:13}}>Tu carrito está vacío.</p> :
-                groupedByStore.map(group=>(
-                  <div key={group.storeName} style={{background:'#FBF9F7', border:'1px solid #EAE6E1', borderRadius:16, padding:12, marginBottom:12}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
-                      <b style={{fontSize:13}}>📦 {group.storeName}</b>
-                      <span style={{fontSize:10, color:'#9A9590'}}>{group.items.length} productos</span>
-                    </div>
-                    {group.items.map(it=>(
-                      <div key={it.id} style={{display:'flex', gap:10, alignItems:'center', background:'#fff', padding:8, borderRadius:12, marginBottom:8, border:'1px solid #EAE6E1'}}>
-                        <img src={it.image} style={{width:48,height:48,borderRadius:10, objectFit:'cover'}}/>
-                        <div style={{flex:1}}>
-                          <b style={{fontSize:11, display:'block'}}>{it.name}</b>
-                          {it.description && <span style={{fontSize:10, color:'#666'}}>{it.description.slice(0,60)}</span>}
-                          <span style={{fontSize:11, display:'block'}}>C$ {it.price} x {it.qty}</span>
-                        </div>
-                        <div style={{display:'flex', flexDirection:'column', gap:4, alignItems:'center'}}>
-                          <div style={{display:'flex', gap:4}}>
-                            <button onClick={()=>updateQty(it.id,-1)} style={{width:22,height:22,borderRadius:999,border:'1px solid #EAE6E1',background:'#fff'}}>−</button>
-                            <button onClick={()=>updateQty(it.id,1)} style={{width:22,height:22,borderRadius:999,border:'1px solid #EAE6E1',background:'#fff'}}>+</button>
-                          </div>
-                          <button onClick={()=>removeFromCart(it.id)} style={{fontSize:10, color:'#ff5555', background:'none', border:'none', cursor:'pointer'}}>Quitar</button>
-                        </div>
-                      </div>
-                    ))}
-                    <a href={whatsappForGroup(group)} target="_blank" style={{display:'block', background:'#00E676', color:'#000', textAlign:'center', padding:'12px', borderRadius:999, fontWeight:900, fontSize:12, textDecoration:'none', marginTop:8}}>Pedir a {group.storeName} por WhatsApp → C$ {group.items.reduce((a,b)=>a+b.price*b.qty,0)}</a>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      )}
-
-      {cartCount>0 && !showCart && !selected && (
-        <button onClick={()=>setShowCart(true)} style={{position:'fixed', bottom:16, right:16, background:'#0A0A0A', color:'#fff', border:'none', padding:'14px 20px', borderRadius:999, fontWeight:900, boxShadow:'0 8px 24px rgba(0,0,0,0.3)', zIndex:40, cursor:'pointer', display:'flex', gap:8, alignItems:'center'}}>
-          🛒 {cartCount} • C$ {cartTotal}
-        </button>
-      )}
+      </div>}
     </main>
   )
 }
