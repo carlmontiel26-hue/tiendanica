@@ -59,23 +59,26 @@ function getBadgeInfo(store){
   return { key:'nueva' }
 }
 
-export default function MarketClient(){
-  const [stores,setStores]=useState([])
-  const [products,setProducts]=useState([])
+export default function MarketClient({ initialProducts = [], initialStores = [] }){
+  const [stores,setStores]=useState(initialStores)
+  const [products,setProducts]=useState(initialProducts)
   const [sel,setSel]=useState(null)
   const [q,setQ]=useState('')
   const [cat,setCat]=useState(null)
   const [tipo,setTipo]=useState(null)
-  const [loading,setLoading]=useState(true)
+  const [loading,setLoading]=useState(initialProducts.length===0) // Si ya vienen precargados, NO mostramos "Cargando"
   const [cart,setCart]=useState([])
   const [showCart,setShowCart]=useState(false)
   const [selectedTalla,setSelectedTalla]=useState(null)
 
   useEffect(()=>{
+    // Si ya tenemos productos precargados del servidor, no hacemos fetch lento
+    if(initialProducts.length>0){
+      setLoading(false)
+      return
+    }
     const supabase=getSupabase()
     if(!supabase){ setLoading(false); return }
-    // FIX RAPIDO: si Supabase no responde en 2.5s, quitamos el "Cargando" para que no se quede pegado
-    const timeout = setTimeout(()=> setLoading(false), 2500)
     supabase.from('stores').select('*').then(({data})=>{
       const all=data||[]
       setStores(all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
@@ -83,14 +86,14 @@ export default function MarketClient(){
     supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(200).then(({data})=>{
       const all=data||[]
       setProducts(all.filter(p=>{ const t=(p.stores?.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
-      clearTimeout(timeout)
       setLoading(false)
-    }).catch(()=>{ clearTimeout(timeout); setLoading(false) })
-    const saved = typeof window!=='undefined' ? localStorage.getItem('tn_market_cart') : null
-    if(saved){ try{ setCart(JSON.parse(saved)) }catch{} }
-    return ()=> clearTimeout(timeout)
+    }).catch(()=> setLoading(false))
   },[])
 
+  useEffect(()=>{
+    const saved = typeof window!=='undefined' ? localStorage.getItem('tn_market_cart') : null
+    if(saved){ try{ setCart(JSON.parse(saved)) }catch{} }
+  },[])
   useEffect(()=>{ localStorage.setItem('tn_market_cart', JSON.stringify(cart)) },[cart])
   useEffect(()=>{
     if(sel){
@@ -145,30 +148,9 @@ export default function MarketClient(){
   const waProductDirect = (p, talla=null)=>{ const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
 
-  // FIX DEL DIA ENTERO: en vez de pantalla blanca "Cargando...", mostramos esqueleto rapido como teniamos
   if(loading) return (
-    <main style={{minHeight:'100vh', background:'#F5F1ED', fontFamily:'Inter, system-ui'}}>
-      <div style={{position:'relative', width:'100%', background:'#000', height:180, display:'flex', alignItems:'center', justifyContent:'center'}}>
-        <img src="/opengraph-image.png" alt="TiendaNica" style={{width:'100%', height:'auto', maxHeight:180, objectFit:'contain'}}/>
-      </div>
-      <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
-        <div style={{background:'#fff', borderRadius:20, padding:'12px', border:'1px solid #EDE6DF'}}>
-          <div style={{height:44, background:'#F5F0EB', borderRadius:999, animation:'pulse 1.5s infinite'}}/>
-          <div style={{display:'flex', gap:8, marginTop:12}}>
-            {[1,2,3,4].map(i=><div key={i} style={{width:90, height:36, background:'#F5F0EB', borderRadius:999, animation:'pulse 1.5s infinite'}}/>)}
-          </div>
-        </div>
-        <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginTop:12}}>
-          {[1,2,3,4,5,6].map(i=>(
-            <div key={i} style={{background:'#fff', borderRadius:14, overflow:'hidden', border:'1px solid #F0E9E2'}}>
-              <div style={{aspectRatio:'3/4', background:'#F5F0EB', animation:'pulse 1.5s infinite'}}/>
-              <div style={{padding:10}}><div style={{height:12, background:'#F5F0EB', borderRadius:6, marginBottom:6}}/><div style={{height:12, width:'60%', background:'#F5F0EB', borderRadius:6}}/></div>
-            </div>
-          ))}
-        </div>
-        <p style={{textAlign:'center', fontSize:12, color:'#999', marginTop:16}}>Cargando productos rápidos...</p>
-      </div>
-      <style>{`@keyframes pulse{0%{opacity:0.6}50%{opacity:1}100%{opacity:0.6}}`}</style>
+    <main style={{minHeight:'100vh', background:'#F5F1ED'}}>
+      <div style={{maxWidth:1180, margin:'0 auto', padding:40, textAlign:'center'}}>Cargando TiendaNica...</div>
     </main>
   )
 

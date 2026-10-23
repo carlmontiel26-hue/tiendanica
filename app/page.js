@@ -1,25 +1,37 @@
 import { createClient } from '@supabase/supabase-js'
 import MarketClient from './MarketClient'
 
-export const revalidate = 60
+export const revalidate = 60 // Se regenera cada 60 seg, asi entras y ya estan los productos sin "Cargando"
 
 function getSupabase(){
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-}
-
-export const metadata = {
-  title: 'TiendaNica Market - El mercado más grande de Nicaragua',
-  description: 'Boutique nicaragüense premium, comida y productos generales. Compra directo por WhatsApp.',
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
+  const key = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim()
+  if(!url || !key) return null
+  return createClient(url, key)
 }
 
 export default async function Page(){
   const supabase = getSupabase()
-  const { data: stores } = await supabase.from('stores').select('id,name,slug,logo_url,cover_image,tipo_tienda,whatsapp').order('created_at',{ascending:false})
-  const { data: products } = await supabase.from('products').select('id,store_id,name,price,image_url,categoria').eq('is_active',true).order('created_at',{ascending:false}).limit(200)
-
-  const map={}
-  stores?.forEach(s=>map[s.id]=s)
-  const enriched = (products||[]).map(p=>({...p,_store:map[p.store_id]})).filter(x=>x._store)
-
-  return <MarketClient initialStores={stores||[]} initialProducts={enriched} />
+  let initialProducts = []
+  let initialStores = []
+  if(supabase){
+    try{
+      const { data: stores } = await supabase.from('stores').select('*')
+      initialStores = (stores||[]).filter(s=>{
+        const t=(s.tipo_tienda||'').toLowerCase()
+        return !t.includes('comida')
+      })
+      const { data: products } = await supabase.from('products')
+        .select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)')
+        .order('created_at',{ascending:false})
+        .limit(200)
+      initialProducts = (products||[]).filter(p=>{
+        const t=(p.stores?.tipo_tienda||'').toLowerCase()
+        return !t.includes('comida')
+      })
+    }catch(e){
+      console.log('Error precarga', e)
+    }
+  }
+  return <MarketClient initialProducts={initialProducts} initialStores={initialStores} />
 }
