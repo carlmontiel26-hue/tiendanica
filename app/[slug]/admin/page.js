@@ -44,6 +44,12 @@ export default function AdminPage(){
   const [saving,setSaving]=useState(false)
   const [uploading,setUploading]=useState(false)
 
+  // ===== SOLO AGREGADO: EDITAR PORTADA =====
+  const [showCoverEdit,setShowCoverEdit]=useState(false)
+  const [coverPreview,setCoverPreview]=useState('')
+  const [coverUploading,setCoverUploading]=useState(false)
+  const [coverSaving,setCoverSaving]=useState(false)
+
   // categorias dinámicas según tienda
   const categoriasDisponibles = store ? getCategoriasPorTipo(store) : ['otros']
 
@@ -55,6 +61,10 @@ export default function AdminPage(){
       if(!categoria || !categoriasDisponibles.includes(categoria)){
         setCategoria(categoriasDisponibles[0])
       }
+    }
+    if(store){
+      const currentCover = store.cover_url || store.portada_url || store.cover_image || store.portada || store.image_url || ''
+      if(currentCover) setCoverPreview(currentCover)
     }
   },[store])
 
@@ -82,6 +92,58 @@ export default function AdminPage(){
       const { data: urlData } = supabase.storage.from(folder).getPublicUrl(fileName)
       return urlData.publicUrl
     }catch(e){ alert('Error subiendo: '+e.message); return null } finally{ setUploading(false) }
+  }
+
+  // ===== SOLO AGREGADO: upload cover =====
+  const uploadCover = async(file)=>{
+    const supabase=getSupabase()
+    if(!supabase || !store) return null
+    setCoverUploading(true)
+    try{
+      const ext = file.name.split('.').pop()
+      const fileName = `${store.id}/cover-${Date.now()}.${ext}`
+      // intenta bucket covers, si no existe usa productos
+      let bucket = 'covers'
+      let upload = await supabase.storage.from(bucket).upload(fileName, file)
+      if(upload.error){
+        bucket = 'productos'
+        upload = await supabase.storage.from(bucket).upload(fileName, file)
+        if(upload.error) throw upload.error
+      }
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName)
+      return urlData.publicUrl
+    }catch(e){ alert('Error subiendo portada: '+e.message); return null } finally{ setCoverUploading(false) }
+  }
+
+  const handleCoverUpload = async(e)=>{
+    const file = e.target.files[0]
+    if(!file) return
+    if(file.size > 8*1024*1024) return alert('Portada max 8MB')
+    const url = await uploadCover(file)
+    if(url) setCoverPreview(url)
+  }
+
+  const handleSaveCover = async()=>{
+    if(!coverPreview) return alert('Sube una portada primero')
+    const supabase=getSupabase()
+    if(!supabase || !store) return
+    setCoverSaving(true)
+    try{
+      // intenta guardar en todos los campos posibles para compatibilidad
+      const { error } = await supabase.from('stores').update({ 
+        cover_url: coverPreview,
+        portada_url: coverPreview,
+        cover_image: coverPreview
+      }).eq('id', store.id)
+      if(error){
+        // fallback si tu tabla solo tiene cover_url
+        const { error: err2 } = await supabase.from('stores').update({ cover_url: coverPreview }).eq('id', store.id)
+        if(err2) throw err2
+      }
+      setStore(prev=> ({...prev, cover_url: coverPreview, portada_url: coverPreview, cover_image: coverPreview}))
+      setShowCoverEdit(false)
+      alert('Portada actualizada!')
+    }catch(e){ alert('Error: '+e.message) } finally{ setCoverSaving(false) }
   }
 
   const handleImageUpload = async(e, index)=>{
@@ -162,8 +224,30 @@ export default function AdminPage(){
             <img src={store.logo_url||'/tienda-nica-logo.png'} style={{width:48,height:48, borderRadius:12, objectFit:'cover'}}/>
             <div><b>{store.name}</b><div style={{fontSize:11, color:'#9A9590'}}>{slug} • {products.length} productos • {tipoLabel}</div></div>
           </div>
-          <button onClick={()=>{resetForm(); setShowForm(true)}} style={{background:'#0A0A0A', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontSize:12, fontWeight:900, cursor:'pointer'}}>+ Nuevo</button>
+          <div style={{display:'flex', gap:8}}>
+            <button onClick={()=>setShowCoverEdit(true)} style={{background:'#fff', color:'#111', border:'1.5px solid #111', padding:'10px 14px', borderRadius:999, fontSize:11, fontWeight:800, cursor:'pointer'}}>🖼️ Portada</button>
+            <button onClick={()=>{resetForm(); setShowForm(true)}} style={{background:'#0A0A0A', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontSize:12, fontWeight:900, cursor:'pointer'}}>+ Nuevo</button>
+          </div>
         </div>
+
+        {/* SOLO AGREGADO: MODAL PORTADA */}
+        {showCoverEdit && (
+          <div style={{background:'#fff', border:'2px solid #0A0A0A', borderRadius:16, padding:18, marginBottom:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}>
+              <h3 style={{fontWeight:900, fontSize:13}}>🖼️ Editar portada de tienda</h3>
+              <button onClick={()=>setShowCoverEdit(false)} style={{width:28,height:28, borderRadius:999, border:'1px solid #EAE6E1', background:'#fff'}}>✕</button>
+            </div>
+            <div style={{width:'100%', height:160, borderRadius:12, overflow:'hidden', background:'#F0F0F0', border:'1px dashed #ccc', display:'flex', alignItems:'center', justifyContent:'center', position:'relative'}}>
+              {coverPreview ? <img src={coverPreview} style={{width:'100%', height:'100%', objectFit:'cover'}}/> : <span style={{fontSize:11, color:'#999'}}>Sin portada</span>}
+            </div>
+            <p style={{fontSize:10, color:'#666', marginTop:8}}>Recomendado: 1200x400, máx 8MB, JPG/PNG. Esta portada sale en tu tienda.</p>
+            <input type="file" accept="image/*" onChange={handleCoverUpload} style={{marginTop:10, fontSize:12, width:'100%'}}/>
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              <button onClick={()=>setShowCoverEdit(false)} style={{flex:1, background:'#F0F0F0', border:'none', padding:'12px', borderRadius:999, fontWeight:700}}>Cancelar</button>
+              <button onClick={handleSaveCover} disabled={coverUploading||coverSaving} style={{flex:2, background:'#0066FF', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900}}>{coverUploading ? 'Subiendo...' : coverSaving ? 'Guardando...' : 'Guardar portada'}</button>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:18, marginBottom:16, border:'2px solid #0A0A0A'}}>
