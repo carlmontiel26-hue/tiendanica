@@ -227,10 +227,54 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         </div>
       </div>
 
-      <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 30px', textAlign:'center'}}>
-        <div style={{maxWidth:800, margin:'0 auto'}}>
-          <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
-          <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
+      <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 12px'}}>
+        <div style={{maxWidth:900, margin:'0 auto'}}>
+          <div style={{textAlign:'center', marginBottom:18}}>
+            <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
+            <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
+            <div style={{marginTop:10, display:'inline-flex', gap:6, flexWrap:'wrap', justifyContent:'center'}}>
+              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>🛡️ Tiendas verificadas con video y cédula</span>
+              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>📦 Envío a toda Nicaragua</span>
+              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>⚖️ Reporte antifraude 24h</span>
+            </div>
+          </div>
+
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, textAlign:'left', borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:16}}>
+            <div>
+              <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Legal</p>
+              <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                <a href="/terminos" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>Términos y Condiciones</a>
+                <a href="/privacidad" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>Política de Privacidad</a>
+                <a href="/vendedores" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>Política de Vendedores</a>
+                <a href="/reportar" style={{fontSize:11, color:'#FF6B6B', textDecoration:'none', fontWeight:700}}>🚨 Reportar Fraude</a>
+              </div>
+            </div>
+            <div>
+              <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Soporte</p>
+              <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                <a href="/privacidad" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>¿Cómo compramos?</a>
+                <a href="https://wa.me/50581732620" style={{fontSize:11, color:'#25D366', textDecoration:'none', fontWeight:700}}>WhatsApp Soporte: 505 8173 2620</a>
+                <span style={{fontSize:10, color:'rgba(255,255,255,0.4)'}}>Lun-Sáb 9AM-6PM</span>
+              </div>
+            </div>
+          </div>
+
+          <details style={{marginTop:18, background:'rgba(255,255,255,0.06)', borderRadius:12, padding:'12px 14px'}}>
+            <summary style={{fontSize:12, fontWeight:800, cursor:'pointer', listStyle:'none', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <span>📦 Paquete Seguro - Cómo evitamos el fraude</span>
+              <span style={{fontSize:10, background:'#0066FF', padding:'2px 8px', borderRadius:999}}>Abrir ▼</span>
+            </summary>
+            <div style={{marginTop:12, fontSize:11, lineHeight:1.5, color:'rgba(255,255,255,0.75)', textAlign:'left'}}>
+              <p style={{fontWeight:700, color:'#fff', marginBottom:6}}>TiendaNica.store NO es el vendedor, somos el intermediario verificado.</p>
+              <p style={{marginBottom:8}}><b>1. Verificación real:</b> Toda tienda Premium ⭐ y Verificada ✓ pasó KYC: foto de cédula, selfie con cédula y video de 15s mostrando stock real en su casa/tienda. Sin eso no aparece.</p>
+              <p style={{marginBottom:8}}><b>2. WhatsApp Business:</b> Verificamos que el número responde. Llamada de 30s de nuestro equipo. Tiendas fantasma nunca contestan.</p>
+              <p style={{marginBottom:8}}><b>3. Antifraude:</b> 2 reportes comprobados de estafa = suspensión inmediata. Guardamos lista de WhatsApps baneados. Si una tienda usa fotos robadas de Shein/AliExpress como propias, se baja.</p>
+              <p style={{marginBottom:8}}><b>4. Compra segura:</b> Siempre habla por el WhatsApp que aparece en la tienda. Nunca deposites a nombre diferente al de la tienda. Pide guía de envío de CargoTrans / video de empaque.</p>
+              <p><b>¿Fuiste estafado?</b> Usa <a href="/reportar" style={{color:'#FF6B6B', fontWeight:700}}>Reportar Fraude</a> - respondemos en 24h. Intervenimos y suspendemos la tienda si se comprueba.</p>
+            </div>
+          </details>
+
+          <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store - Socio fundador + Equipo TN Sistemas. Hecho en Nicaragua con 🧡</p>
         </div>
       </div>
 

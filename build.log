@@ -1,0 +1,232 @@
+
+> tiendanica@6.3.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./app/app/[tenant]/page.jsx
+Error: 
+  [31mx[0m await isn't allowed in non-async function
+     ,-[[36;1;4mC:\Proyectost\app\app\[tenant]\page.jsx[0m:196:1]
+ [2m196[0m |       if(lastDailyTime){
+ [2m197[0m |         query = query.gte('created_at', lastDailyTime.toISOString());
+ [2m198[0m |       }
+ [2m199[0m |       const { data: sales } = await query;
+     : [31;1m                                    ^^^^^[0m
+ [2m200[0m |       
+ [2m201[0m |       const pendingsToday = getPendingSales().filter(s=>{
+ [2m202[0m |         const d = new Date(s.created_at).toISOString().split('T')[0];
+     `----
+
+  [31mx[0m await isn't allowed in non-async function
+     ,-[[36;1;4mC:\Proyectost\app\app\[tenant]\page.jsx[0m:230:1]
+ [2m230[0m |       if(lastMonthlyTime && lastMonthlyTime > firstDay){
+ [2m231[0m |         monthStart = lastMonthlyTime;
+ [2m232[0m |       }
+ [2m233[0m |       const { data: monthSales } = await supabase.from('pos_sales').select('total, profit, created_at').eq('tenant_id', tenantId).gte('created_at', monthStart.toISOString()).order('created_at');
+     : [31;1m                                         ^^^^^^^^[0m
+ [2m234[0m |       
+ [2m235[0m |       const dailyMap = {};
+ [2m236[0m |       (monthSales||[]).forEach(s=>{
+     `----
+
+  [31mx[0m await isn't allowed in non-async function
+     ,-[[36;1;4mC:\Proyectost\app\app\[tenant]\page.jsx[0m:253:1]
+ [2m253[0m |       setClosures(hist);
+ [2m254[0m | 
+ [2m255[0m |       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-6);
+ [2m256[0m |       const { data: weekSales } = await supabase.from('pos_sales').select('total, created_at').eq('tenant_id', tenantId).gte('created_at', weekAgo.toISOString()).order('created_at');
+     : [31;1m                                        ^^^^^^^^[0m
+ [2m257[0m |       const dailyArr = Array(7).fill(0);
+ [2m258[0m |       if(weekSales){
+ [2m259[0m |         weekSales.forEach(s=>{
+     `----
+
+  [31mx[0m Return statement is not allowed here
+     ,-[[36;1;4mC:\Proyectost\app\app\[tenant]\page.jsx[0m:461:1]
+ [2m461[0m |       }
+ [2m462[0m |     
+ [2m463[0m |       if(!auth){
+ [2m464[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m     return (
+ [2m465[0m | [31;1m|[0m         <div className="min-h-screen flex items-center justify-center p-4 bg-[#f6f7fb]">
+ [2m466[0m | [31;1m|[0m           <div className="bg-white p-8 rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.08)] w-full max-w-sm border border-gray-100">
+ [2m467[0m | [31;1m|[0m             <div className="text-center mb-6"><div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white text-xl font-black shadow-lg">T</div><h1 className="mt-3 font-black uppercase tracking-wider">{tenantId}</h1><div className={`mt-2 text-[10px] font-bold px-3 py-1 rounded-full inline-block ${isOnline?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{isOnline?'● Online':'● Offline'}</div><p className="text-[11px] text-gray-400 mt-2 font-mono">{now.toLocaleString('es-NI',{weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit'})}</p></div>
+ [2m468[0m | [31;1m|[0m             <input type="password" inputMode="numeric" value={pinInput} onChange={e=>setPinInput(e.target.value)} placeholder="PIN" className="w-full border border-gray-200 p-4 rounded-2xl text-center text-2xl font-bold tracking-widest bg-gray-50"/>
+ [2m469[0m | [31;1m|[0m             <button onClick={handlePinLogin} className="w-full mt-3 bg-black text-white py-4 rounded-2xl font-black">ENTRAR</button>
+ [2m470[0m | [31;1m|[0m             {pendingCount>0 && <p className="text-[11px] text-center mt-3 text-orange-600 font-bold">{pendingCount} ventas offline por sincronizar</p>}
+ [2m471[0m | [31;1m|[0m           </div>
+ [2m472[0m | [31;1m|[0m         </div>
+ [2m473[0m | [31;1m`[0m[31;1m-[0m[31;1m>[0m     );
+ [2m474[0m |       }
+ [2m475[0m |     
+ [2m476[0m |       const porCobrarTotal = customers.reduce((s,c)=>s+(c.balance||0),0);
+     `----
+
+  [31mx[0m Return statement is not allowed here
+     ,-[[36;1;4mC:\Proyectost\app\app\[tenant]\page.jsx[0m:475:1]
+ [2m475[0m |     
+ [2m476[0m |       const porCobrarTotal = customers.reduce((s,c)=>s+(c.balance||0),0);
+ [2m477[0m |     
+ [2m478[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m   return (
+ [2m479[0m | [31;1m|[0m       <div className="min-h-screen bg-[#f6f7fb] text-gray-900">
+ [2m480[0m | [31;1m|[0m         <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-gray-100">
+ [2m481[0m | [31;1m|[0m           <div className="px-3 py-2.5 flex justify-between items-center max-w-[1400px] mx-auto">
+ [2m482[0m | [31;1m|[0m             <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-md">T</div><div><p className="font-black text-[11px] uppercase tracking-widest leading-none">{tenantId}</p><div className="flex items-center gap-2"><p className="text-[10px] text-gray-400">POS • {auth.role}</p><span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${isOnline?'bg-green-100 text-green-700':'bg-red-100 text-red-700 animate-pulse'}`}>{isOnline?`● Online${pendingCount>0?` (${pendingCount})`:''}`:'● Offline'}</span></div></div></div>
+ [2m483[0m | [31;1m|[0m             <div className="flex gap-1.5"><button onClick={goToPos} className={`px-4 py-2 rounded-full text-[11px] font-black ${view==='pos'?'bg-black text-white shadow-lg':'bg-gray-100 text-gray-500'}`}>VENDER</button><button onClick={goToConfig} className={`px-4 py-2 rounded-full text-[11px] font-black ${view==='config'?'bg-black text-white shadow-lg':'bg-gray-100 text-gray-500'}`}>CONFIG</button></div>
+ [2m484[0m | [31;1m|[0m           </div>
+ [2m485[0m | [31;1m|[0m           {/* FIX: Solo una hora, discreta a la par de la fecha */}
+ [2m486[0m | [31;1m|[0m           <div className="px-3 py-1.5 bg-gray-50/70 border-t border-gray-50 flex justify-between items-center max-w-[1400px] mx-auto">
+ [2m487[0m | [31;1m|[0m             <p className="text-[11px] text-gray-500 font-mono flex items-center gap-2">
+ [2m488[0m | [31;1m|[0m               <span>📅 {now.toLocaleString('es-NI',{weekday:'short', day:'2-digit', month:'short'})}</span>
+ [2m489[0m | [31;1m|[0m               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+ [2m490[0m | [31;1m|[0m               <span className="font-bold text-gray-700">🕒 {now.toLocaleTimeString('es-NI',{hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
+ [2m491[0m | [31;1m|[0m             </p>
+ [2m492[0m | [31;1m|[0m             {isOnline ? <p className="text-[10px] text-green-600 font-bold">✓ Sincronizado</p> : <p className="text-[10px] text-orange-600 font-bold">Offline • Guardando local</p>}
+ [2m493[0m | [31;1m|[0m           </div>
+ [2m494[0m | [31;1m|[0m           {pendingCount>0 && isOnline && <div className="bg-amber-400 text-black text-center text-[11px] font-black py-1.5 flex justify-center items-center gap-2"><span>{pendingCount} ventas offline por sincronizar</span><button onClick={syncPending} disabled={syncing} className="bg-black text-white px-3 py-1 rounded-full text-[10px] disabled:opacity-50">{syncing?'Sincronizando...':'Sincronizar ahora'}</button></div>}
+ [2m495[0m | [31;1m|[0m           {!isOnline && <div className="bg-red-500 text-white text-center text-[11px] font-black py-1.5">🔴 Sin internet - Vendiendo en modo offline</div>}
+ [2m496[0m | [31;1m|[0m         </header>
+ [2m497[0m | [31;1m|[0m   
+ [2m498[0m | [31;1m|[0m         {view==='pos' ? (
+ [2m499[0m | [31;1m|[0m           <div className="p-3 max-w-[1400px] mx-auto">
+ [2m500[0m | [31;1m|[0m             <div className="grid grid-cols-3 gap-2.5 mb-4">
+ [2m501[0m | [31;1m|[0m               <div className="bg-white rounded-[20px] p-3.5 border border-gray-100 shadow-sm flex justify-between items-center"><div><p className="text-[10px] font-black text-gray-400 uppercase">Hoy</p><p className="font-black text-[16px] mt-1">C$ {stats.todaySales}</p><p className="text-[10px] font-bold mt-1 text-gray-500">{stats.countSales} ventas</p></div><div className="bg-violet-50 rounded-xl p-2 border border-violet-100"><MiniChart data={sparkData} color="#6d28d9"/></div></div>
+ [2m502[0m | [31;1m|[0m               <div className="bg-white rounded-[20px] p-3.5 border border-emerald-100 shadow-sm flex justify-between items-center"><div><p className="text-[10px] font-black text-emerald-600/70 uppercase">Ganancia</p><p className="font-black text-[16px] mt-1 text-emerald-700">C$ {stats.todayProfit}</p><p className="text-[10px] font-bold mt-1 text-emerald-600">Ef: C$ {stats.efectivo}</p></div><div className="bg-emerald-50 rounded-xl p-2 border border-emerald-100"><MiniChart data={sparkData.map(v=>v*0.35)} color="#059669"/></div></div>
+ [2m503[0m | [31;1m|[0m               <div className={`rounded-[20px] p-3.5 border flex justify-between items-center ${porCobrarTotal>0?'bg-gradient-to-br from-amber-400 to-orange-400 border-amber-300 shadow-lg':'bg-white border-gray-100 shadow-sm'}`}><div><p className={`text-[10px] font-black uppercase ${porCobrarTotal>0?'text-black/60':'text-gray-400'}`}>Por Cobrar</p><p className="font-black text-[16px] mt-1">C$ {porCobrarTotal}</p></div><div className={`rounded-xl p-2 ${porCobrarTotal>0?'bg-black/10':'bg-amber-50 border border-amber-100'}`}><MiniChart data={porCobrarTotal>0? sparkData.map(()=>porCobrarTotal) : []} color={porCobrarTotal>0?'#000':'#d97706'}/></div></div>
+ [2m504[0m | [31;1m|[0m             </div>
+ [2m505[0m | [31;1m|[0m   
+ [2m506[0m | [31;1m|[0m             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+ [2m507[0m | [31;1m|[0m               <div className="lg:col-span-2 bg-white rounded-[24px] border border-gray-100 shadow-sm p-3.5">
+ [2m508[0m | [31;1m|[0m                 <div className="flex gap-2 mb-3"><div className="flex-1 relative"><input placeholder="Buscar producto..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-full py-2.5 px-4 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"/><span className="absolute right-4 top-3 text-gray-400">⌕</span></div><button onClick={()=>{setEditingProd(null); setNewProd({ name:'', sell_price:'', cost_price:'', stock:'' }); setShowAddProduct(true);}} className="bg-black text-white px-5 rounded-full text-xs font-black">+ PROD</button></div>
+ [2m509[0m | [31;1m|[0m                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-auto pr-1">
+ [2m510[0m | [31;1m|[0m                   {products.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())).map(p=>{
+ [2m511[0m | [31;1m|[0m                     const style=getProductStyle(p.name);
+ [2m512[0m | [31;1m|[0m                     return (
+ [2m513[0m | [31;1m|[0m                       <div key={p.id} onClick={()=>addToCart(p)} className={`${style.bg} shadow-[0_8px_20px_rgba(0,0,0,0.15)] rounded-[18px] p-3 cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all text-white relative overflow-hidden group ${p.id.startsWith('local_')?'ring-2 ring-amber-400':''}`}>
+ [2m514[0m | [31;1m|[0m                         <div className="absolute inset-0 bg-gradient-to-br from-white/15 to-transparent opacity-60"></div>
+ [2m515[0m | [31;1m|[0m                         <div className="relative"><div className="flex justify-between items-start mb-2"><span className="bg-white/25 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20">{style.icon}</span><span className={`text-[9px] font-black px-2.5 py-1 rounded-full backdrop-blur-md border ${p.stock<=5?'bg-red-500 border-red-400':'bg-white/25 border-white/20'}`}>{p.stock} stock</span></div><p className="font-black text-[12.5px] leading-tight line-clamp-2 drop-shadow">{p.name} {p.id.startsWith('local_') && '(offline)'}</p><p className="font-black text-[16px] mt-1">C$ {p.sell_price}</p></div>
+ [2m516[0m | [31;1m|[0m                       </div>
+ [2m517[0m | [31;1m|[0m                     );
+ [2m518[0m | [31;1m|[0m                   })}
+ [2m519[0m | [31;1m|[0m                 </div>
+ [2m520[0m | [31;1m|[0m               </div>
+ [2m521[0m | [31;1m|[0m   
+ [2m522[0m | [31;1m|[0m               <div ref={cartRef} className={`bg-white rounded-[24px] border shadow-sm p-4 transition-all duration-300 ${cartFlash ? 'border-violet-500 shadow-[0_0_0_4px_rgba(124,58,237,0.15)] scale-[1.01]' : 'border-gray-100 shadow-sm'}`}>
+ [2m523[0m | [31;1m|[0m                 <div className="flex justify-between items-center mb-3"><h2 className="font-black text-sm flex items-center gap-2">Carrito {cart.length>0 && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse">{cart.length}</span>}</h2><span className="bg-black text-white text-[11px] font-black px-3 py-1 rounded-full">C$ {total}</span></div>
+ [2m524[0m | [31;1m|[0m                 <div className="max-h-[18vh] overflow-auto divide-y divide-gray-50">
+ [2m525[0m | [31;1m|[0m                   {cart.map(i=><div key={i.id} className="flex justify-between items-center py-2 text-[12px]"><span className="font-bold">{i.name} x{i.qty}</span><div className="flex items-center gap-2"><span className="font-black">C$ {i.sell_price*i.qty}</span><button onClick={()=>setCart(cart.filter(c=>c.id!==i.id))} className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">✕</button></div></div>)}
+ [2m526[0m | [31;1m|[0m                   {cart.length===0 && <p className="text-center text-gray-400 text-xs py-6">Toca un producto para agregarlo 👆</p>}
+ [2m527[0m | [31;1m|[0m                 </div>
+ [2m528[0m | [31;1m|[0m                 <div className="grid grid-cols-3 gap-2 mt-4">
+ [2m529[0m | [31;1m|[0m                   <button onClick={()=>handleSell('efectivo')} className="bg-black text-white py-3.5 rounded-full font-black text-[11px] shadow-lg">EFECTIVO</button>
+ [2m530[0m | [31;1m|[0m                   <button onClick={()=>setShowAbonos(true)} className="bg-gradient-to-br from-amber-400 to-orange-500 text-black py-3.5 rounded-full font-black text-[11px] shadow">FIADO</button>
+ [2m531[0m | [31;1m|[0m                   <button onClick={()=>{ if(cart.length>0){ setLastSale({ id:'PREV', items:[...cart], total, profit, type:'prev', date:new Date() }); setShowTicketModal(true);} }} className="bg-gray-100 py-3.5 rounded-full font-black text-[11px]">TICKET</button>
+ [2m532[0m | [31;1m|[0m                 </div>
+ [2m533[0m | [31;1m|[0m                 <div className="mt-5 pt-4 border-t border-gray-100">
+ [2m534[0m | [31;1m|[0m                   <h3 className="font-black text-[11px] tracking-widest uppercase text-gray-400 mb-2">Deudas</h3>
+ [2m535[0m | [31;1m|[0m                   <div className="max-h-[32vh] overflow-auto space-y-2">
+ [2m536[0m | [31;1m|[0m                     {customers.filter(c=>c.balance>0).map(c=>(
+ [2m537[0m | [31;1m|[0m                       <div key={c.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-3">
+ [2m538[0m | [31;1m|[0m                         <div className="flex justify-between items-start"><div><p className="font-black text-xs">{c.name} {c.id.startsWith('local_') && '(offline)'}</p><p className="text-[11px] font-black text-red-600">Debe C$ {c.balance}</p></div><button onClick={()=>{setAbonoData({customerId:c.id, amount:''}); setShowAbonos(true);}} className="bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-black">ABONAR</button></div>
+ [2m539[0m | [31;1m|[0m                         <div className="grid grid-cols-3 gap-1.5 mt-2.5">
+ [2m540[0m | [31;1m|[0m                           <button onClick={()=>sendWhatsAppFiado(c)} className="bg-[#25D366] text-white py-2 rounded-full text-[10px] font-black">WA</button>
+ [2m541[0m | [31;1m|[0m                           <button onClick={()=>callCustomer(c)} className="bg-blue-500 text-white py-2 rounded-full text-[10px] font-black">LLAMAR</button>
+ [2m542[0m | [31;1m|[0m                           <button onClick={()=>smsCustomer(c)} className="bg-zinc-800 text-white py-2 rounded-full text-[10px] font-black">SMS</button>
+ [2m543[0m | [31;1m|[0m                         </div>
+ [2m544[0m | [31;1m|[0m                       </div>
+ [2m545[0m | [31;1m|[0m                     ))}
+ [2m546[0m | [31;1m|[0m                   </div>
+ [2m547[0m | [31;1m|[0m                 </div>
+ [2m548[0m | [31;1m|[0m               </div>
+ [2m549[0m | [31;1m|[0m             </div>
+ [2m550[0m | [31;1m|[0m           </div>
+ [2m551[0m | [31;1m|[0m         ) : (
+ [2m552[0m | [31;1m|[0m           <div className="p-3 max-w-[800px] mx-auto">
+ [2m553[0m | [31;1m|[0m             <div className="flex items-center gap-3 mb-4"><button onClick={goToPos} className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">←</button><h2 className="font-black tracking-widest uppercase text-sm">Configuración</h2><div className={`ml-auto text-[10px] font-black px-3 py-1 rounded-full ${isOnline?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{isOnline?'● Online':'● Offline'} {pendingCount>0 && `(${pendingCount})`}</div></div>
+ [2m554[0m | [31;1m|[0m             <div className="flex gap-2 mb-4 bg-white p-1.5 rounded-full border border-gray-100 shadow-sm w-fit">
+ [2m555[0m | [31;1m|[0m               <button onClick={()=>setConfigTab('clientes')} className={`px-4 py-2 rounded-full text-[11px] font-black ${configTab==='clientes'?'bg-black text-white shadow':'bg-transparent text-gray-500'}`}>Clientes</button>
+ [2m556[0m | [31;1m|[0m               <button onClick={()=>setConfigTab('productos')} className={`px-4 py-2 rounded-full text-[11px] font-black ${configTab==='productos'?'bg-black text-white shadow':'bg-transparent text-gray-500'}`}>Productos</button>
+ [2m557[0m | [31;1m|[0m               <button onClick={()=>setConfigTab('cierres')} className={`px-4 py-2 rounded-full text-[11px] font-black ${configTab==='cierres'?'bg-black text-white shadow':'bg-transparent text-gray-500'}`}>📊 Cierres</button>
+ [2m558[0m | [31;1m|[0m             </div>
+ [2m559[0m | [31;1m|[0m   
+ [2m560[0m | [31;1m|[0m             {configTab==='clientes' && (<div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-4"><input placeholder="Buscar cliente..." value={searchConfig} onChange={e=>setSearchConfig(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-full py-2.5 px-4 text-sm mb-3"/><div className="space-y-2 max-h-[60vh] overflow-auto">{customers.filter(c=>c.name.toLowerCase().includes(searchConfig.toLowerCase())).map(c=>(<div key={c.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-3"><div className="flex justify-between"><div><p className="font-black text-xs">{c.name}</p><p className={`text-[11px] font-bold ${c.balance>0?'text-red-600':'text-gray-500'}`}>{c.balance>0?`Debe C$ ${c.balance}`:'Al día ✅'} • {c.phone||'Sin tel'}</p></div><button onClick={()=>deleteCustomer(c.id)} className="bg-white border px-3 py-1 rounded-full text-[10px] font-black">Borrar</button></div></div>))}</div><button onClick={()=>setShowAddCustomer(true)} className="mt-3 w-full bg-black text-white py-3 rounded-full text-sm font-black">+ Agregar Cliente</button></div>)}
+ [2m561[0m | [31;1m|[0m   
+ [2m562[0m | [31;1m|[0m             {configTab==='productos' && (<div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-4"><h3 className="font-black text-xs uppercase tracking-widest mb-3">Productos ({products.length})</h3><input placeholder="Buscar producto..." value={searchConfig} onChange={e=>setSearchConfig(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-full py-2.5 px-4 text-sm mb-3"/><div className="max-h-[60vh] overflow-auto divide-y">{products.filter(p=>p.name.toLowerCase().includes(searchConfig.toLowerCase())).map(p=>{ const style=getProductStyle(p.name); return (<div key={p.id} className="flex justify-between items-center py-2.5"><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-full ${style.bg} flex items-center justify-center text-white text-[12px]`}>{style.icon}</div><div><p className="font-bold text-xs">{p.name} {p.id.startsWith('local_') && '(offline)'}</p><p className="text-[10px] text-gray-500">C$ {p.sell_price} • Stock {p.stock}</p></div></div><div className="flex gap-1"><button onClick={()=>startEditProduct(p)} className="bg-gray-100 px-3 py-1 rounded-full text-[10px] font-black">Editar</button><button onClick={()=>deleteProduct(p.id)} className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-[10px] font-black">Borrar</button></div></div>); })}</div></div>)}
+ [2m563[0m | [31;1m|[0m   
+ [2m564[0m | [31;1m|[0m             {configTab==='cierres' && (
+ [2m565[0m | [31;1m|[0m               <div className="space-y-3">
+ [2m566[0m | [31;1m|[0m                 <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-4">
+ [2m567[0m | [31;1m|[0m                   <div className="flex justify-between items-center mb-3"><h3 className="font-black text-xs uppercase tracking-widest">Cierre Diario - Hoy</h3><button onClick={handleCierreDiario} className="bg-black text-white px-4 py-2 rounded-full text-[11px] font-black">🔒 Cerrar Día</button></div>
+ [2m568[0m | [31;1m|[0m                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs"><div className="bg-gray-50 p-3 rounded-xl"><p className="text-[10px] text-gray-500 uppercase font-black">Total Ventas</p><p className="font-black text-sm">C$ {stats.todaySales}</p></div><div className="bg-green-50 p-3 rounded-xl"><p className="text-[10px] text-green-700 uppercase font-black">Ganancia</p><p className="font-black text-sm text-green-700">C$ {stats.todayProfit}</p></div><div className="bg-blue-50 p-3 rounded-xl"><p className="text-[10px] text-blue-700 uppercase font-black">Efectivo</p><p className="font-black text-sm text-blue-700">C$ {stats.efectivo}</p></div><div className="bg-orange-50 p-3 rounded-xl"><p className="text-[10px] text-orange-700 uppercase font-black">Fiado + Abonos</p><p className="font-black text-sm text-orange-700">C$ {stats.fiado+stats.abonos}</p></div></div>
+ [2m569[0m | [31;1m|[0m                   <p className="text-[10px] text-gray-400 mt-2">Al cerrar, diario queda en 0. El mensual sigue sumando hasta que cierres el mes.</p>
+ [2m570[0m | [31;1m|[0m                 </div>
+ [2m571[0m | [31;1m|[0m                 <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-4"><div className="flex justify-between items-center mb-3"><h3 className="font-black text-xs uppercase tracking-widest">Cierre Mensual - {now.toLocaleString('es-NI',{month:'long'})}</h3><button onClick={handleCierreMensual} className="bg-gradient-to-br from-violet-600 to-indigo-600 text-white px-4 py-2 rounded-full text-[11px] font-black shadow">🔒 Cerrar Mes</button></div><div className="grid grid-cols-2 gap-2 text-xs mb-3"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100"><p className="text-[10px] text-violet-700 uppercase font-black">Total Mes</p><p className="font-black text-lg text-violet-700">C$ {monthly.reduce((s,d)=>s+d.total,0)}</p></div><div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100"><p className="text-[10px] text-emerald-700 uppercase font-black">Ganancia Mes</p><p className="font-black text-lg text-emerald-700">C$ {monthly.reduce((s,d)=>s+d.profit,0)}</p></div></div><div className="max-h-[30vh] overflow-auto divide-y divide-gray-50">{monthly.map(d=>(<div key={d.date} className="flex justify-between py-2 text-xs"><div><p className="font-bold">{new Date(d.date).toLocaleDateString('es-NI',{weekday:'short', day:'2-digit', month:'short'})}</p><p className="text-[10px] text-gray-500">{d.count} ventas</p></div><div className="text-right"><p className="font-black">C$ {d.total}</p><p className="text-[10px] text-green-600">Gan C$ {d.profit}</p></div></div>))}</div></div>
+ [2m572[0m | [31;1m|[0m                 <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-4"><h3 className="font-black text-xs uppercase tracking-widest mb-3">Historial Cierres ({closures.length})</h3><div className="max-h-[30vh] overflow-auto space-y-2">{closures.map(c=>(<div key={c.id} className={`p-3 rounded-xl border ${c.type==='mensual'?'bg-violet-50 border-violet-100':'bg-gray-50 border-gray-100'}`}><div className="flex justify-between items-start"><div><p className="font-black text-xs flex items-center gap-2"><span className={`text-[9px] px-2 py-0.5 rounded-full ${c.type==='mensual'?'bg-violet-600 text-white':'bg-black text-white'}`}>{c.type.toUpperCase()}</span> {c.date}</p><p className="text-[11px] mt-1">Total C$ {c.total} • Gan C$ {c.profit} • {c.count} ventas</p></div><p className="text-[9px] text-gray-400">{new Date(c.created_at).toLocaleString('es-NI')}</p></div></div>))}</div></div>
+ [2m573[0m | [31;1m|[0m               </div>
+ [2m574[0m | [31;1m|[0m             )}
+ [2m575[0m | [31;1m|[0m           </div>
+ [2m576[0m | [31;1m|[0m         )}
+ [2m577[0m | [31;1m|[0m   
+ [2m578[0m | [31;1m|[0m         {showAddProduct && (<div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 z-50"><div className="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl"><h3 className="font-black mb-4">{editingProd?'Editar':'Nuevo'} Producto</h3><input placeholder="Nombre" value={newProd.name} onChange={e=>setNewProd({...newProd, name:e.target.value})} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-2xl mb-3 text-sm"/><div className="grid grid-cols-3 gap-2"><input placeholder="Venta" type="number" value={newProd.sell_price} onChange={e=>setNewProd({...newProd, sell_price:e.target.value})} className="bg-gray-50 border p-3 rounded-2xl text-sm"/><input placeholder="Costo" type="number" value={newProd.cost_price} onChange={e=>setNewProd({...newProd, cost_price:e.target.value})} className="bg-gray-50 border p-3 rounded-2xl text-sm"/><input placeholder="Stock" type="number" value={newProd.stock} onChange={e=>setNewProd({...newProd, stock:e.target.value})} className="bg-gray-50 border p-3 rounded-2xl text-sm"/></div><div className="flex gap-2 mt-4"><button onClick={()=>{setShowAddProduct(false); setEditingProd(null);}} className="flex-1 bg-gray-100 py-3 rounded-full font-black">Cancelar</button><button onClick={saveProduct} className="flex-1 bg-black text-white py-3 rounded-full font-black">Guardar</button></div></div></div>)}
+ [2m579[0m | [31;1m|[0m         {showAddCustomer && (<div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 z-50"><div className="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl"><h3 className="font-black mb-3">Nuevo Cliente</h3><input placeholder="Nombre" value={newCust.name} onChange={e=>setNewCust({...newCust, name:e.target.value})} className="w-full bg-gray-50 border p-3 rounded-2xl mb-3 text-sm"/><input placeholder="WhatsApp 505..." value={newCust.phone} onChange={e=>setNewCust({...newCust, phone:e.target.value})} className="w-full bg-gray-50 border p-3 rounded-2xl mb-3 text-sm"/><div className="flex gap-2 mt-3"><button onClick={()=>setShowAddCustomer(false)} className="flex-1 bg-gray-100 py-3 rounded-full font-black">Cancelar</button><button onClick={saveCustomer} className="flex-1 bg-black text-white py-3 rounded-full font-black">Guardar</button></div></div></div>)}
+ [2m580[0m | [31;1m|[0m         {showAbonos && (<div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 z-50"><div className="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl"><h3 className="font-black mb-4">Fiado / Abono</h3><select value={abonoData.customerId} onChange={e=>setAbonoData({...abonoData, customerId:e.target.value})} className="w-full bg-gray-50 border p-3 rounded-2xl mb-3 text-sm"><option value="">Selecciona cliente</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name} {c.balance>0?`(Debe C$ ${c.balance})`:''}</option>)}</select>{cart.length>0 && <button onClick={()=>{handleSell('fiado', abonoData.customerId); setShowAbonos(false);}} className="w-full bg-gradient-to-br from-amber-400 to-orange-500 text-black py-3 rounded-full font-black text-sm mb-3 shadow">Vender Fiado C$ {total}</button>}<div className="border-t border-gray-100 pt-3"><p className="text-xs font-black uppercase tracking-widest mb-2">Abono</p><input placeholder="Monto" type="number" value={abonoData.amount} onChange={e=>setAbonoData({...abonoData, amount:e.target.value})} className="w-full bg-gray-50 border p-3 rounded-2xl mb-3 text-sm"/><button onClick={handleAbono} className="w-full bg-black text-white py-3 rounded-full font-black text-sm">Abonar</button></div><button onClick={()=>setShowAbonos(false)} className="w-full bg-gray-100 py-3 rounded-full mt-2 text-sm font-black">Cerrar</button></div></div>)}
+ [2m581[0m | [31;1m|[0m   
+ [2m582[0m | [31;1m|[0m         {showTicketModal && lastSale && (
+ [2m583[0m | [31;1m|[0m           <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4 z-[60]">
+ [2m584[0m | [31;1m|[0m             <div className="bg-white rounded-t-[28px] md:rounded-[28px] w-full max-w-sm shadow-[0_-10px_60px_rgba(0,0,0,0.2)] overflow-hidden">
+ [2m585[0m | [31;1m|[0m               <div className="p-6 pb-4">
+ [2m586[0m | [31;1m|[0m                 <div className="flex justify-between items-start mb-4"><div><p className="font-black text-[11px] tracking-widest text-gray-400 uppercase">Ticket Electrónico</p><p className="font-black text-lg leading-none mt-1">#{lastSale.id} • {lastSale.type.toUpperCase()} {lastSale.type.includes('OFFLINE') && <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded-full ml-1">OFFLINE</span>}</p></div><button onClick={()=>setShowTicketModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button></div>
+ [2m587[0m | [31;1m|[0m                 <div className="bg-[#f6f7fb] rounded-2xl p-4 border border-gray-100 font-mono text-[12px]">
+ [2m588[0m | [31;1m|[0m                   <div className="text-center font-black uppercase tracking-wider mb-2">{tenantId}</div>
+ [2m589[0m | [31;1m|[0m                   <div className="text-center text-[10px] text-gray-500 mb-3">{lastSale.date.toLocaleString('es-NI')}</div>
+ [2m590[0m | [31;1m|[0m                   <div className="border-t border-dashed border-gray-300 my-2"></div>
+ [2m591[0m | [31;1m|[0m                   {lastSale.items.map((i,idx)=><div key={idx} className="flex justify-between py-1"><span>{i.name} x{i.qty}</span><span className="font-black">C$ {i.sell_price*i.qty}</span></div>)}
+ [2m592[0m | [31;1m|[0m                   <div className="border-t border-dashed border-gray-300 my-2"></div>
+ [2m593[0m | [31;1m|[0m                   <div className="flex justify-between font-black text-[14px]"><span>TOTAL</span><span>C$ {lastSale.total}</span></div>
+ [2m594[0m | [31;1m|[0m                   {lastSale.customerName && <div className="mt-2 text-[11px]">Cliente: {lastSale.customerName}</div>}
+ [2m595[0m | [31;1m|[0m                 </div>
+ [2m596[0m | [31;1m|[0m               </div>
+ [2m597[0m | [31;1m|[0m               <div className="px-6 pb-6">
+ [2m598[0m | [31;1m|[0m                 <div className="bg-gradient-to-br from-[#25D366]/10 to-emerald-50 border border-[#25D366]/20 rounded-2xl p-4">
+ [2m599[0m | [31;1m|[0m                   <p className="font-black text-[12px] flex items-center gap-2">💬 Enviar por WhatsApp <span className="bg-[#25D366] text-white text-[9px] px-2 py-0.5 rounded-full">SIN PAPEL</span></p>
+ [2m600[0m | [31;1m|[0m                   <div className="flex gap-2 mt-3">
+ [2m601[0m | [31;1m|[0m                     <div className="flex-1 relative"><span className="absolute left-3 top-3.5 text-gray-400 text-xs">📱</span><input value={buyerPhone} onChange={e=>setBuyerPhone(e.target.value)} placeholder="505 8XXX XXXX" type="tel" className="w-full bg-white border border-gray-200 rounded-full py-3 pl-9 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#25D366]"/></div>
+ [2m602[0m | [31;1m|[0m                     <button onClick={()=>{
+ [2m603[0m | [31;1m|[0m                       let phone = buyerPhone.replace(/\D/g,''); if(!phone) return alert('Ingresa número'); if(phone.length===8) phone='505'+phone;
+ [2m604[0m | [31;1m|[0m                       const itemsTxt = lastSale.items.map(i=>`• ${i.name} x${i.qty} = C$ ${i.sell_price*i.qty}`).join('\n');
+ [2m605[0m | [31;1m|[0m                       const text = `*${tenantId.toUpperCase()} - Ticket*\n📅 ${lastSale.date.toLocaleString('es-NI')}\n🧾 #${lastSale.id}\n${lastSale.customerName?`👤 ${lastSale.customerName}\n`:''}\n${itemsTxt}\n\n*TOTAL: C$ ${lastSale.total}*\n${lastSale.type.toUpperCase()}\n\n¡Gracias! 🙏`;
+ [2m606[0m | [31;1m|[0m                       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+ [2m607[0m | [31;1m|[0m                     }} className="bg-[#25D366] text-white px-5 rounded-full font-black text-[12px] shadow-[0_6px_16px_rgba(37,211,102,0.35)]">Enviar ↗</button>
+ [2m608[0m | [31;1m|[0m                   </div>
+ [2m609[0m | [31;1m|[0m                 </div>
+ [2m610[0m | [31;1m|[0m                 <div className="grid grid-cols-2 gap-2 mt-3"><button onClick={()=>printPaperTicket(lastSale)} className="bg-gray-100 py-3.5 rounded-full font-black text-[12px]">🖨️ Imprimir</button><button onClick={()=>setShowTicketModal(false)} className="bg-black text-white py-3.5 rounded-full font-black text-[12px]">Listo ✓</button></div>
+ [2m611[0m | [31;1m|[0m               </div>
+ [2m612[0m | [31;1m|[0m             </div>
+ [2m613[0m | [31;1m|[0m           </div>
+ [2m614[0m | [31;1m|[0m         )}
+ [2m615[0m | [31;1m|[0m       </div>
+ [2m616[0m | [31;1m`[0m[31;1m-[0m[31;1m>[0m   );
+ [2m617[0m |     }
+     `----
+
+  [31mx[0m Expression expected
+     ,-[[36;1;4mC:\Proyectost\app\app\[tenant]\page.jsx[0m:614:1]
+ [2m614[0m |       )}
+ [2m615[0m |     </div>
+ [2m616[0m |   );
+ [2m617[0m | }
+     : [31;1m^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/app/[tenant]/page.jsx
+
+
+> Build failed because of webpack errors
