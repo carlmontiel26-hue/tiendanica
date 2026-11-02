@@ -171,38 +171,33 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
 
-        /* PC ONLY - CINTA ANCHA PREMIUM */
+        /* PC ONLY - ALTO REDUCIDO, ANCHO 100% SIN ESPACIO NEGRO */
         @media(min-width:1024px){
           .portada-wrap{
-            max-width: 980px;
-            margin: 16px auto 0 auto;
-            border-radius: 18px;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            border-radius: 0;
             overflow: hidden;
             max-height: 220px;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: #000;
           }
           .portada-img{
             width: 100%;
             height: 220px;
-            object-fit: contain;
+            object-fit: cover;
             object-position: center;
-            background: #000;
+            display: block;
           }
           .cinta-degradada{
-            max-width: 980px;
-            margin: 0 auto;
-            border-radius: 0 0 18px 18px;
-            margin-top: -2px;
-            position: relative;
-            z-index: 2;
+            max-width: 100%;
+            margin: 0;
+            border-radius: 0;
           }
         }
-
         @media(min-width:1280px){
-          .portada-wrap{ max-width: 1080px; max-height: 240px; }
+          .portada-wrap{ max-height: 240px; }
           .portada-img{ height: 240px; }
-          .cinta-degradada{ max-width: 1080px; }
         }
 
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
@@ -210,7 +205,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } 
           .card{ border-radius:14px; } 
           .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } 
-          .portada-wrap{ border-radius:0; margin:0; max-height:none; }
+          .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; }
           .portada-img{ height:auto; object-fit:cover; }
           .cinta-degradada{ border-radius:0; max-width:100%; margin:0; }
         }
