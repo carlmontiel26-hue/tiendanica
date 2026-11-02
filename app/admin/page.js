@@ -23,9 +23,13 @@ export default function SuperAdminConEdicion(){
   const [qTienda,setQTienda]=useState('')
   const [editingStore,setEditingStore]=useState(null)
   const [selectedStoreForProduct,setSelectedStoreForProduct]=useState('')
+  const [previewStore,setPreviewStore]=useState(null)
+  const [editingProduct,setEditingProduct]=useState(null)
+  const [viewMode,setViewMode]=useState('grid')
   const fileLogoRef = useRef(null)
   const fileEditLogoRef = useRef(null)
   const fileProductRef = useRef(null)
+  const fileEditProductRef = useRef(null)
 
   const [formTienda,setFormTienda]=useState({
     name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', 
@@ -37,6 +41,7 @@ export default function SuperAdminConEdicion(){
     name:'', price:'', categoria:'vestidos', descripcion:'', 
     tallas:'S,M,L,XL', video_url:'', image_files:[], image_previews:[]
   })
+  const [formEditProd,setFormEditProd]=useState({})
 
   const CATEGORIAS = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','comida','otros','nuevo']
 
@@ -52,7 +57,7 @@ export default function SuperAdminConEdicion(){
     const supabase = getSupabase()
     if(!supabase){ setLoading(false); return }
     const {data: s} = await supabase.from('stores').select('*').order('created_at',{ascending:false}).limit(300)
-    const {data: p} = await supabase.from('products').select('*, stores(name,slug)').order('created_at',{ascending:false}).limit(300)
+    const {data: p} = await supabase.from('products').select('*, stores(name,slug,tipo_tienda)').order('created_at',{ascending:false}).limit(500)
     const {data: v} = await supabase.from('store_verifications').select('*, stores(name, whatsapp, slug)').in('status',['pendiente','revision']).order('created_at',{ascending:false}).limit(100)
     const {data: r} = await supabase.from('fraud_reports').select('*, stores(name, whatsapp)').in('status',['abierto','investigando']).order('created_at',{ascending:false}).limit(100)
     setStores(s||[]); setProducts(p||[]); setPendientes(v||[]); setReportes(r||[]); setLoading(false)
@@ -198,150 +203,363 @@ export default function SuperAdminConEdicion(){
     }
   }
 
-  const copiar = (txt)=>{ navigator.clipboard.writeText(txt); alert('Copiado: '+txt) }
+  const abrirEdicionProducto = (prod)=>{
+    setEditingProduct(prod)
+    setFormEditProd({
+      name: prod.name, price: prod.price, categoria: prod.categoria, descripcion: prod.description||'',
+      video_url: prod.video_url||'', tallas: prod.tallas?.join(',')||'S,M,L,XL',
+      image_url: prod.image_url, images: prod.images||[], logo_file:null, logo_preview:''
+    })
+  }
 
-  const tiendasFiltradas = stores.filter(s=> !qTienda || s.name.toLowerCase().includes(qTienda.toLowerCase()) || s.slug.includes(qTienda.toLowerCase()) || (s.municipio||'').toLowerCase().includes(qTienda.toLowerCase()))
+  const guardarEdicionProducto = async (e)=>{
+    e.preventDefault()
+    const supabase = getSupabase()
+    let imageUrls = formEditProd.images || []
+    if(formEditProd.logo_file){
+      const uploaded = await uploadFile(formEditProd.logo_file, 'product-images')
+      if(uploaded) imageUrls = [uploaded, ...imageUrls.slice(1)]
+    }
+    const payload = {
+      name: formEditProd.name,
+      price: parseFloat(formEditProd.price),
+      categoria: formEditProd.categoria,
+      description: formEditProd.descripcion,
+      image_url: imageUrls[0]||formEditProd.image_url,
+      images: imageUrls,
+      video_url: formEditProd.video_url||null,
+      tallas: formEditProd.tallas.split(',').map(s=>s.trim()).filter(Boolean)
+    }
+    const {error} = await supabase.from('products').update(payload).eq('id', editingProduct.id)
+    if(error) alert('Error: '+error.message)
+    else {
+      alert('Producto actualizado ✓')
+      setEditingProduct(null)
+      cargarTodo()
+    }
+  }
+
+  const copiar = (txt)=>{ navigator.clipboard.writeText(txt); }
+
+  const tiendasFiltradas = stores.filter(s=> !qTienda || s.name.toLowerCase().includes(qTienda.toLowerCase()) || s.slug.includes(qTienda.toLowerCase()) || (s.municipio||'').toLowerCase().includes(qTienda.toLowerCase()) || (s.departamento||'').toLowerCase().includes(qTienda.toLowerCase()))
+  const stats = {
+    total: stores.length,
+    boutique: stores.filter(s=>s.tipo_tienda==='boutique').length,
+    general: stores.filter(s=>s.tipo_tienda==='general').length,
+    comida: stores.filter(s=>s.tipo_tienda==='comida').length,
+    verificadas: stores.filter(s=>s.verification_status==='verificada').length,
+    productos: products.length
+  }
 
   if(!auth){
     return (
-      <div style={{minHeight:'100vh', background:'#111', display:'flex', alignItems:'center', justifyContent:'center', padding:20, fontFamily:'Inter, system-ui'}}>
-        <div style={{background:'#fff', borderRadius:20, padding:24, maxWidth:400, width:'100%'}}>
-          <h2 style={{fontWeight:900}}>🛡️ Super Admin TiendaNica</h2>
-          <p style={{fontSize:12, color:'#666', marginTop:6}}>Boutique, General, Comida + Editar + Ubicación Nicaragua</p>
-          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Clave" style={{width:'100%', border:'1.5px solid #ddd', borderRadius:12, padding:12, marginTop:14}}/>
-          <button onClick={login} style={{width:'100%', marginTop:12, background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Entrar</button>
+      <div style={{minHeight:'100vh', background:'radial-gradient(1200px 600px at 20% -10%, #FF6A00 0%, transparent 50%), radial-gradient(1000px 500px at 80% 100%, #0066FF 0%, transparent 50%), #0A0A0B', display:'flex', alignItems:'center', justifyContent:'center', padding:20, fontFamily:'Inter, system-ui'}}>
+        <div style={{background:'rgba(255,255,255,0.98)', backdropFilter:'blur(20px)', borderRadius:28, padding:32, maxWidth:420, width:'100%', boxShadow:'0 20px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.8)', border:'1px solid rgba(255,255,255,0.2)'}}>
+          <div style={{width:64, height:64, borderRadius:18, background:'linear-gradient(135deg, #FF6A00, #FF3B30, #0066FF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:900, color:'#fff', marginBottom:16}}>TN</div>
+          <h2 style={{fontWeight:900, fontSize:22, letterSpacing:-0.5}}>Super Admin</h2>
+          <p style={{fontSize:13, color:'#666', marginTop:6, lineHeight:1.4}}>Escritorio profesional • TiendaNica.store<br/>Control total de tiendas, productos y verificación</p>
+          <div style={{marginTop:20, position:'relative'}}>
+            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} placeholder="Clave de acceso" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:14, padding:'14px 16px', fontSize:14, background:'#FFFBF8', outline:'none'}}/>
+          </div>
+          <button onClick={login} style={{width:'100%', marginTop:14, background:'#111', color:'#fff', border:'none', padding:14, borderRadius:14, fontWeight:800, fontSize:14, letterSpacing:0.2, cursor:'pointer'}}>Entrar al escritorio →</button>
+          <p style={{fontSize:10, color:'#999', marginTop:12, textAlign:'center'}}>Protegido • Acceso solo fundadores</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{minHeight:'100vh', background:'#F5F1ED', padding:12, fontFamily:'Inter, system-ui'}}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', maxWidth:1250, margin:'0 auto', flexWrap:'wrap', gap:8}}>
-        <h1 style={{fontWeight:900, fontSize:19}}>🛡️ Super Admin • {stores.length} tiendas • {products.length} productos</h1>
-        <div style={{display:'flex', gap:6}}>
-          <a href="/" style={{background:'#fff', border:'1px solid #ddd', padding:'8px 12px', borderRadius:999, fontSize:11, textDecoration:'none', color:'#111'}}>Market</a>
-          <button onClick={()=>setAuth(false)} style={{background:'#111', color:'#fff', border:'none', padding:'8px 12px', borderRadius:999, fontSize:11}}>Salir</button>
+    <div style={{minHeight:'100vh', background:'#F6F1EC', fontFamily:'Inter, system-ui'}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        *{font-family:'Inter', system-ui}
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-thumb{background:#D9D0C8;border-radius:999px}
+      `}</style>
+
+      {/* HEADER PREMIUM */}
+      <div style={{position:'sticky', top:0, zIndex:40, background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)', borderBottom:'1px solid #EDE6E3'}}>
+        <div style={{maxWidth:1400, margin:'0 auto', padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap'}}>
+          <div style={{display:'flex', alignItems:'center', gap:14}}>
+            <div style={{width:42, height:42, borderRadius:12, background:'linear-gradient(135deg, #111 0%, #333 100%)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:900, fontSize:14}}>TN</div>
+            <div>
+              <h1 style={{fontWeight:900, fontSize:16, letterSpacing:-0.3, lineHeight:1}}>TiendaNica • Super Admin</h1>
+              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {pendientes.length} por verificar</p>
+            </div>
+          </div>
+          <div style={{display:'flex', gap:8, alignItems:'center'}}>
+            <div style={{display:'flex', gap:6, background:'#F0E9E2', padding:4, borderRadius:999}}>
+              <span style={{fontSize:11, padding:'6px 10px', borderRadius:999, background:'#fff', fontWeight:700, boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>⚡ {loading?'Cargando...':'En vivo'}</span>
+              <button onClick={cargarTodo} style={{fontSize:11, padding:'6px 10px', borderRadius:999, border:'none', background:'transparent', fontWeight:700, cursor:'pointer'}}>↻ Sync</button>
+            </div>
+            <a href="/" style={{background:'#fff', border:'1px solid #E8E0DC', padding:'8px 14px', borderRadius:999, fontSize:11, textDecoration:'none', color:'#111', fontWeight:700}}>Market ↗</a>
+            <button onClick={()=>setAuth(false)} style={{background:'#111', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer'}}>Salir</button>
+          </div>
         </div>
       </div>
 
-      <div style={{display:'flex', gap:6, marginTop:14, maxWidth:1250, marginLeft:'auto', marginRight:'auto', overflowX:'auto', paddingBottom:4}}>
-        <button onClick={()=>setTab('tiendas')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='tiendas' ? '#111' : '#fff', color: tab==='tiendas' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🏪 Tiendas ({tiendasFiltradas.length})</button>
-        <button onClick={()=>setTab('crear')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='crear' ? '#FF6A00' : '#fff', color: tab==='crear' ? '#fff' : '#111', whiteSpace:'nowrap'}}>➕ Crear</button>
-        <button onClick={()=>setTab('productos')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='productos' ? '#0066FF' : '#fff', color: tab==='productos' ? '#fff' : '#111', whiteSpace:'nowrap'}}>📦 Productos</button>
-        <button onClick={()=>setTab('verificaciones')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='verificaciones' ? '#7000FF' : '#fff', color: tab==='verificaciones' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🛡️ Verificar ({pendientes.length})</button>
-        <button onClick={()=>setTab('reportes')} style={{padding:'10px 14px', borderRadius:999, border:'none', fontWeight:800, fontSize:11, background: tab==='reportes' ? '#FF3B30' : '#fff', color: tab==='reportes' ? '#fff' : '#111', whiteSpace:'nowrap'}}>🚨 Reportes ({reportes.length})</button>
+      {/* STATS BAR PREMIUM */}
+      <div style={{maxWidth:1400, margin:'14px auto 0', padding:'0 20px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10}}>
+        {[
+          {k:'Total', v:stats.total, c:'#111', bg:'linear-gradient(135deg, #111, #333)'},
+          {k:'Boutique', v:stats.boutique, c:'#fff', bg:'linear-gradient(135deg, #0066FF, #00C2FF)'},
+          {k:'General', v:stats.general, c:'#111', bg:'linear-gradient(135deg, #FFD60A, #FFA500)'},
+          {k:'Comida', v:stats.comida, c:'#fff', bg:'linear-gradient(135deg, #FF3B30, #FF6A00)'},
+          {k:'Verificadas', v:stats.verificadas, c:'#fff', bg:'linear-gradient(135deg, #00C853, #00E676)'},
+          {k:'Productos', v:stats.productos, c:'#111', bg:'linear-gradient(135deg, #EDE6E3, #F6F1EC)'},
+        ].map(s=>(
+          <div key={s.k} style={{background:s.bg, color:s.c, borderRadius:16, padding:'14px 16px', position:'relative', overflow:'hidden'}}>
+            <p style={{fontSize:10, fontWeight:800, opacity:0.7, textTransform:'uppercase', letterSpacing:0.5}}>{s.k}</p>
+            <p style={{fontSize:22, fontWeight:900, marginTop:4}}>{s.v}</p>
+          </div>
+        ))}
       </div>
 
-      <div style={{maxWidth:1250, margin:'14px auto 0'}}>
+      {/* TABS PREMIUM */}
+      <div style={{maxWidth:1400, margin:'14px auto 0', padding:'0 20px', display:'flex', gap:8, overflowX:'auto'}}>
+        {[
+          {id:'tiendas', label:`🏪 Tiendas (${tiendasFiltradas.length})`, active:'#111'},
+          {id:'crear', label:'➕ Crear Premium', active:'#FF6A00'},
+          {id:'productos', label:`📦 Productos (${products.length})`, active:'#0066FF'},
+          {id:'verificaciones', label:`🛡 Verificar (${pendientes.length})`, active:'#7000FF'},
+          {id:'reportes', label:`🚨 Reportes (${reportes.length})`, active:'#FF3B30'},
+          {id:'herramientas', label:'🛠 Herramientas', active:'#111'},
+        ].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'11px 18px', borderRadius:999, border:'1px solid', borderColor: tab===t.id ? t.active : '#EDE6E3', fontWeight:800, fontSize:12, background: tab===t.id ? t.active : '#fff', color: tab===t.id ? '#fff' : '#111', whiteSpace:'nowrap', cursor:'pointer', transition:'all 0.2s'}}>{t.label}</button>
+        ))}
+      </div>
+
+      <div style={{maxWidth:1400, margin:'16px auto', padding:'0 20px 40px'}}>
+        {/* TIENDAS TAB PRO */}
         {tab==='tiendas' && (
-          <div style={{background:'#fff', borderRadius:16, padding:12, border:'1px solid #EDE6E3'}}>
-            <div style={{display:'flex', gap:8, marginBottom:10}}>
-              <input value={qTienda} onChange={e=>setQTienda(e.target.value)} placeholder="Buscar por nombre, slug o municipio..." style={{flex:1, border:'1.5px solid #ddd', borderRadius:999, padding:'10px 14px'}}/>
-              <button onClick={cargarTodo} style={{background:'#F0F0F0', border:'none', padding:'10px 14px', borderRadius:999, fontSize:11}}>↻ Actualizar</button>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 380px', gap:16, alignItems:'start'}}>
+            <div style={{background:'#fff', borderRadius:20, padding:16, border:'1px solid #EDE6E3', boxShadow:'0 4px 24px rgba(0,0,0,0.04)'}}>
+              <div style={{display:'flex', gap:10, marginBottom:14, flexWrap:'wrap'}}>
+                <div style={{flex:1, minWidth:240, position:'relative'}}>
+                  <span style={{position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', fontSize:14, opacity:0.4}}>🔍</span>
+                  <input value={qTienda} onChange={e=>setQTienda(e.target.value)} placeholder="Buscar por nombre, slug, departamento, municipio..." style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 16px 12px 40px', background:'#FFFBF8', outline:'none', fontSize:13}}/>
+                </div>
+                <div style={{display:'flex', gap:6}}>
+                  <button onClick={()=>setViewMode('grid')} style={{background: viewMode==='grid'?'#111':'#F5F1EC', color: viewMode==='grid'?'#fff':'#111', border:'none', padding:'10px 14px', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer'}}>⊞ Grid</button>
+                  <button onClick={()=>setViewMode('list')} style={{background: viewMode==='list'?'#111':'#F5F1EC', color: viewMode==='list'?'#fff':'#111', border:'none', padding:'10px 14px', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer'}}>☰ Lista</button>
+                </div>
+              </div>
+
+              <div style={{display: viewMode==='grid' ? 'grid' : 'flex', gridTemplateColumns: viewMode==='grid' ? 'repeat(auto-fill, minmax(300px, 1fr))' : '1fr', flexDirection: viewMode==='list' ? 'column' : 'row', gap:12}}>
+                {tiendasFiltradas.map(s=>{
+                  const countProd = products.filter(p=>p.store_id===s.id).length
+                  return (
+                    <div key={s.id} style={{border:'1px solid #EDE6E3', borderRadius:16, padding:12, background:'#fff', position:'relative', transition:'all 0.2s', cursor:'default'}}>
+                      <div style={{display:'flex', gap:12}}>
+                        <img src={s.logo_url || '/tienda-nica-logo.png'} style={{width:56, height:56, borderRadius:12, objectFit:'cover', background:'#F5F1EC', border:'1px solid #EDE6E3'}}/>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
+                            <b style={{fontSize:13, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{s.name}</b>
+                            {s.verification_status==='verificada' && <span style={{fontSize:9, background:'#0066FF', color:'#fff', padding:'2px 6px', borderRadius:999, fontWeight:800}}>✓ VERIFICADA</span>}
+                          </div>
+                          <div style={{display:'flex', gap:4, marginTop:4, flexWrap:'wrap'}}>
+                            <span style={{fontSize:9, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : '#111', color:'#fff', padding:'3px 8px', borderRadius:999, textTransform:'uppercase', fontWeight:800}}>{s.tipo_tienda}</span>
+                            <span style={{fontSize:9, background:'#F5F1EC', color:'#6B5E55', padding:'3px 8px', borderRadius:999}}>📍 {s.departamento} {s.municipio?`• ${s.municipio}`:''}</span>
+                            <span style={{fontSize:9, background:'#F0F7FF', color:'#0066FF', padding:'3px 8px', borderRadius:999, fontWeight:700}}>{countProd} prod.</span>
+                          </div>
+                          <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>{s.whatsapp} • /{s.slug}</p>
+                        </div>
+                      </div>
+                      {s.direccion && <p style={{fontSize:11, color:'#6B5E55', marginTop:8, background:'#FFFBF8', padding:'6px 8px', borderRadius:8, border:'1px dashed #EDE6E3'}}>📍 {s.direccion}</p>}
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10}}>
+                        <button onClick={()=>setPreviewStore(s)} style={{background:'#111', color:'#fff', border:'none', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:800, cursor:'pointer'}}>👁 Vista previa</button>
+                        <button onClick={()=>{setSelectedStoreForProduct(s.id); setTab('productos')}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>📦 {countProd} Productos</button>
+                        <button onClick={()=>abrirEdicion(s)} style={{background:'#FF6A00', color:'#fff', border:'none', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:800, cursor:'pointer'}}>✏ Editar</button>
+                      </div>
+                      <div style={{display:'flex', gap:6, marginTop:6}}>
+                        <button onClick={()=>{copiar(`https://tiendanica.store/${s.slug}`); alert('Link copiado')}} style={{flex:1, background:'#fff', border:'1px solid #EDE6E3', padding:'7px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>🔗 Link</button>
+                        <button onClick={()=>{copiar(`https://tiendanica.store/${s.slug}/admin`); alert('Admin dueño copiado')}} style={{flex:1, background:'#0066FF', color:'#fff', border:'none', padding:'7px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>👑 Admin dueño</button>
+                        <button onClick={()=>eliminarTienda(s)} style={{background:'#FFE9E9', color:'#C00', border:'1px solid #FFD0D0', padding:'7px 10px', borderRadius:10, fontSize:10, fontWeight:800, cursor:'pointer'}}>🗑</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:10}}>
-              {tiendasFiltradas.map(s=>(
-                <div key={s.id} style={{border:'1px solid #eee', borderRadius:14, padding:10, background:'#fff', position:'relative'}}>
-                  <div style={{display:'flex', gap:10}}>
-                    <img src={s.logo_url || '/tienda-nica-logo.png'} style={{width:50, height:50, borderRadius:10, objectFit:'cover', background:'#f5f5f5'}}/>
-                    <div style={{flex:1}}>
-                      <b style={{fontSize:13}}>{s.name}</b><br/>
-                      <span style={{fontSize:10, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : '#888', color:'#fff', padding:'2px 6px', borderRadius:999, textTransform:'uppercase'}}>{s.tipo_tienda}</span>
-                      <span style={{fontSize:10, color:'#666', marginLeft:6}}>{s.departamento || ''} {s.municipio ? `• ${s.municipio}` : ''} • {s.verification_status || 'nueva'}</span><br/>
-                      <span style={{fontSize:10, color:'#999'}}>{s.whatsapp}</span>
+
+            {/* PANEL LATERAL PREVIEW PROFESIONAL */}
+            <div style={{position:'sticky', top:84, display:'flex', flexDirection:'column', gap:12}}>
+              {previewStore ? (
+                <div style={{background:'#111', color:'#fff', borderRadius:20, padding:16, border:'1px solid #222'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h3 style={{fontWeight:800, fontSize:13}}>👁 Vista previa en vivo</h3>
+                    <button onClick={()=>setPreviewStore(null)} style={{background:'rgba(255,255,255,0.1)', border:'none', color:'#fff', width:28, height:28, borderRadius:999, cursor:'pointer'}}>X</button>
+                  </div>
+                  <div style={{background:'#fff', borderRadius:14, overflow:'hidden', marginTop:12, border:'1px solid #222'}}>
+                    <div style={{height:360, background:'#F5F1EC', position:'relative'}}>
+                      <iframe src={`/${previewStore.slug}`} style={{width:'100%', height:'100%', border:'none', background:'#fff'}} title="preview"/>
+                    </div>
+                    <div style={{padding:12, background:'#fff', color:'#111'}}>
+                      <b style={{fontSize:13}}>{previewStore.name}</b>
+                      <p style={{fontSize:11, color:'#666', marginTop:4}}>{products.filter(p=>p.store_id===previewStore.id).length} productos • {previewStore.departamento} • {previewStore.municipio}</p>
+                      <div style={{display:'flex', gap:6, marginTop:10}}>
+                        <a href={`/${previewStore.slug}`} target="_blank" style={{flex:1, background:'#111', color:'#fff', padding:'8px', borderRadius:10, fontSize:11, textAlign:'center', textDecoration:'none', fontWeight:700}}>Abrir tienda ↗</a>
+                        <button onClick={()=>abrirEdicion(previewStore)} style={{flex:1, background:'#F5F1EC', border:'none', padding:'8px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Editar</button>
+                      </div>
                     </div>
                   </div>
-                  {s.direccion && <p style={{fontSize:11, color:'#666', marginTop:6}}>📍 {s.direccion}</p>}
-                  <div style={{display:'flex', gap:5, marginTop:8, flexWrap:'wrap'}}>
-                    <a href={`/${s.slug}`} target="_blank" style={{background:'#111', color:'#fff', padding:'6px 10px', borderRadius:999, fontSize:10, textDecoration:'none', fontWeight:700}}>👁️ Ver tienda</a>
-                    <button onClick={()=>copiar(`https://tiendanica.store/${s.slug}`)} style={{background:'#F0F0F0', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>🔗 Link tienda</button>
-                    <button onClick={()=>copiar(`https://tiendanica.store/${s.slug}/admin`)} style={{background:'#0066FF', color:'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>👑 Admin dueño</button>
-                    <button onClick={()=>abrirEdicion(s)} style={{background:'#FF6A00', color:'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>✏️ Editar</button>
-                    <button onClick={()=>eliminarTienda(s)} style={{background:'#FFE0E0', color:'#C00', border:'1px solid #FCC', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700}}>🗑️</button>
+                  <div style={{marginTop:12, background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12}}>
+                    <p style={{fontSize:11, fontWeight:700, opacity:0.8}}>📊 Info rápida</p>
+                    <div style={{marginTop:8, display:'flex', flexDirection:'column', gap:6, fontSize:11}}>
+                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Slug</span><span style={{fontFamily:'monospace'}}>{previewStore.slug}</span></div>
+                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>WhatsApp</span><span>{previewStore.whatsapp}</span></div>
+                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Tipo</span><span style={{textTransform:'uppercase', fontWeight:700}}>{previewStore.tipo_tienda}</span></div>
+                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Verificación</span><span style={{fontWeight:800, color: previewStore.verification_status==='verificada' ? '#00E676' : '#FFA500'}}>{previewStore.verification_status}</span></div>
+                    </div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px dashed #E0D5CC', textAlign:'center'}}>
+                  <p style={{fontSize:28}}>👁️</p>
+                  <p style={{fontSize:13, fontWeight:800, marginTop:8}}>Selecciona una tienda</p>
+                  <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Haz click en "Vista previa" para verla aquí en vivo sin salir del admin, como escritorio pro.</p>
+                </div>
+              )}
+
+              <div style={{background:'#fff', borderRadius:16, padding:14, border:'1px solid #EDE6E3'}}>
+                <p style={{fontSize:12, fontWeight:800}}>🛠 Herramientas rápidas</p>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10}}>
+                  <button onClick={()=>{const csv = stores.map(s=>`${s.name},${s.slug},${s.whatsapp},${s.departamento},${s.municipio}`).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tiendas.csv'; a.click()}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>📤 Exportar CSV</button>
+                  <button onClick={cargarTodo} style={{background:'#111', color:'#fff', border:'none', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>↻ Actualizar todo</button>
+                  <button onClick={()=>{const dup = stores.filter((s,i)=> stores.findIndex(x=>x.whatsapp===s.whatsapp)!==i); if(dup.length) alert('Duplicados por WhatsApp:\n'+dup.map(d=>d.name+' - '+d.whatsapp).join('\n')); else alert('No hay duplicados ✓')}} style={{background:'#FFF7ED', border:'1px solid #FFE0C0', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>🔍 Detectar duplicados</button>
+                  <button onClick={()=>{const sinProd = stores.filter(s=>!products.some(p=>p.store_id===s.id)); alert(sinProd.length?`Tiendas sin productos (${sinProd.length}):\n`+sinProd.map(s=>s.name).join('\n'):'Todas tienen productos ✓')}} style={{background:'#F0F7FF', border:'1px solid #C0D8FF', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>📦 Sin productos</button>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {tab==='crear' && (
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-            <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800}}>➕ Crear tienda - Nicaragua</h3>
-              <form onSubmit={crearTienda} style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
-                <input required value={formTienda.name} onChange={e=>setFormTienda({...formTienda, name:e.target.value, slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')})} placeholder="Nombre tienda" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                <input required value={formTienda.slug} onChange={e=>setFormTienda({...formTienda, slug:e.target.value})} placeholder="slug ej: farmacia-mas-vida" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
-                <input required value={formTienda.whatsapp} onChange={e=>setFormTienda({...formTienda, whatsapp:e.target.value})} placeholder="WhatsApp 505..." style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                <select value={formTienda.tipo_tienda} onChange={e=>setFormTienda({...formTienda, tipo_tienda:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
-                  <option value="boutique">BOUTIQUE (con tallas)</option>
-                  <option value="general">GENERAL</option>
-                  <option value="comida">COMIDA</option>
-                </select>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-                  <select value={formTienda.departamento} onChange={e=>setFormTienda({...formTienda, departamento:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
-                    {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <input value={formTienda.municipio} onChange={e=>setFormTienda({...formTienda, municipio:e.target.value})} placeholder="Municipio / Comunidad" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+          <div style={{display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:16, alignItems:'start'}}>
+            <div style={{background:'linear-gradient(180deg, #fff 0%, #FFFBF8 100%)', borderRadius:24, padding:22, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.06)'}}>
+              <div style={{display:'flex', gap:12, alignItems:'center'}}>
+                <div style={{width:48, height:48, borderRadius:14, background:'linear-gradient(135deg, #FF6A00, #FF3B30)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:20, fontWeight:900}}>➕</div>
+                <div>
+                  <h3 style={{fontWeight:900, fontSize:18, letterSpacing:-0.3}}>Crear tienda Premium Nicaragua</h3>
+                  <p style={{fontSize:12, color:'#8A7F78', marginTop:2}}>Clasificación automática • Ubicación real • Portada pro • Link admin dueño instantáneo</p>
                 </div>
-                <input value={formTienda.direccion} onChange={e=>setFormTienda({...formTienda, direccion:e.target.value})} placeholder="Dirección libre (opcional)" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
-                <div style={{border:'1.5px dashed #0066FF', borderRadius:12, padding:10, background:'#F0F7FF'}}>
-                  <p style={{fontSize:11, fontWeight:700}}>📸 Portada / Logo (local)</p>
-                  <input ref={fileLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormTienda({...formTienda, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:6, fontSize:11}}/>
-                  {formTienda.logo_preview && <img src={formTienda.logo_preview} style={{width:'100%', height:120, objectFit:'cover', borderRadius:10, marginTop:8}}/>}
+              </div>
+
+              <form onSubmit={crearTienda} style={{display:'flex', flexDirection:'column', gap:12, marginTop:18}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  <div>
+                    <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>NOMBRE TIENDA *</label>
+                    <input required value={formTienda.name} onChange={e=>setFormTienda({...formTienda, name:e.target.value, slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')})} placeholder="Ej: Farmacia Mas Vida" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff', outline:'none'}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>SLUG URL *</label>
+                    <input required value={formTienda.slug} onChange={e=>setFormTienda({...formTienda, slug:e.target.value})} placeholder="farmacia-mas-vida" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#F5F1EC', fontSize:12, fontFamily:'monospace'}}/>
+                  </div>
                 </div>
-                <button type="submit" style={{background:'#FF6A00', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Crear tienda</button>
+
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  <div>
+                    <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>WHATSAPP *</label>
+                    <input required value={formTienda.whatsapp} onChange={e=>setFormTienda({...formTienda, whatsapp:e.target.value})} placeholder="50581732620" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff'}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>TIPO TIENDA *</label>
+                    <select value={formTienda.tipo_tienda} onChange={e=>setFormTienda({...formTienda, tipo_tienda:e.target.value})} style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff', fontWeight:700}}>
+                      <option value="boutique">👗 BOUTIQUE (con tallas, premium)</option>
+                      <option value="general">🛍 GENERAL</option>
+                      <option value="comida">🍔 COMIDA</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{background:'#F5F1EC', borderRadius:14, padding:14, border:'1px solid #EDE6E3'}}>
+                  <p style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>UBICACIÓN REAL NICARAGUA</p>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}>
+                    <select value={formTienda.departamento} onChange={e=>setFormTienda({...formTienda, departamento:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px', background:'#fff'}}>
+                      {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <input value={formTienda.municipio} onChange={e=>setFormTienda({...formTienda, municipio:e.target.value})} placeholder="Municipio / Comunidad" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px', background:'#fff'}}/>
+                  </div>
+                  <input value={formTienda.direccion} onChange={e=>setFormTienda({...formTienda, direccion:e.target.value})} placeholder="Dirección exacta (opcional, para entrega)" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px', marginTop:10, background:'#fff', fontSize:12}}/>
+                </div>
+
+                <div style={{border:'1.5px dashed #FF6A00', borderRadius:16, padding:14, background:'linear-gradient(135deg, #FFF7ED, #FFFBF8)'}}>
+                  <p style={{fontSize:12, fontWeight:800}}>📸 Portada / Logo Premium</p>
+                  <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>Sube desde tu PC, se comprime automático y queda pro</p>
+                  <input ref={fileLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormTienda({...formTienda, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:10, fontSize:12, width:'100%'}}/>
+                  {formTienda.logo_preview && <img src={formTienda.logo_preview} style={{width:'100%', height:160, objectFit:'cover', borderRadius:12, marginTop:12, border:'1px solid #EDE6E3'}}/>}
+                </div>
+
+                <button type="submit" style={{background:'linear-gradient(135deg, #111, #333)', color:'#fff', border:'none', padding:14, borderRadius:14, fontWeight:900, fontSize:14, cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.2)'}}>Crear tienda premium →</button>
               </form>
             </div>
-            <div style={{background:'#111', color:'#fff', borderRadius:16, padding:16}}>
-              <h3 style={{fontWeight:800}}>👑 Link admin del dueño - CORREGIDO</h3>
-              <p style={{fontSize:12, opacity:0.8, marginTop:8}}>Ahora el botón 👑 Admin dueño copia exactamente:</p>
-              <div style={{background:'#222', borderRadius:10, padding:10, marginTop:10, fontSize:12, fontFamily:'monospace', color:'#00FF88'}}>https://tiendanica.store/su-slug/admin</div>
-              <p style={{fontSize:11, opacity:0.6, marginTop:10}}>Ejemplo: https://tiendanica.store/farmacia-mas-vida/admin<br/>Ese es el panel real del dueño donde él sube sus productos.</p>
-              <div style={{background:'#222', borderRadius:10, padding:10, marginTop:12, fontSize:11}}>
-                <b>Cómo compartir al dueño:</b><br/>
-                1. Creas su tienda<br/>
-                2. Click en 👑 Admin dueño (copia link)<br/>
-                3. Se lo mandas por WhatsApp: "Hola {formTienda.name}! Tu tienda ya está lista: https://tiendanica.store/su-slug y tu panel admin es: https://tiendanica.store/su-slug/admin"
+
+            <div style={{display:'flex', flexDirection:'column', gap:12}}>
+              <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
+                <h3 style={{fontWeight:800, fontSize:14}}>👑 Link admin dueño - Automático</h3>
+                <div style={{background:'#1E1E1E', borderRadius:12, padding:12, marginTop:12, fontSize:12, fontFamily:'monospace', color:'#00FF88', border:'1px solid #2A2A2A'}}>https://tiendanica.store/{formTienda.slug||'tu-slug'}/admin</div>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, marginTop:12, fontSize:11, lineHeight:1.5}}>
+                  <b style={{color:'#FFD60A'}}>Flujo pro:</b><br/>
+                  1. Creas tienda aquí<br/>
+                  2. Copias link admin dueño<br/>
+                  3. Se lo mandas por WhatsApp al dueño<br/>
+                  4. El dueño sube sus productos solo en su panel<br/>
+                  5. Tú solo verificas y le das badge ✓<br/>
+                  <br/>
+                  <span style={{opacity:0.6}}>Tip: Boutique = tallas activas automáticamente. General/Comida = sin tallas.</span>
+                </div>
+              </div>
+
+              <div style={{background:'#fff', borderRadius:16, padding:14, border:'1px solid #EDE6E3'}}>
+                <p style={{fontSize:12, fontWeight:800}}>⚡ Acciones rápidas premium</p>
+                <div style={{marginTop:10, display:'flex', flexDirection:'column', gap:8}}>
+                  <button onClick={()=>{if(!formTienda.slug) return alert('Escribe nombre primero'); const url=`https://tiendanica.store/${formTienda.slug}`; window.open(url,'_blank')}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'10px 12px', borderRadius:10, fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>🔍 Previsualizar slug antes de crear</button>
+                  <button onClick={()=>setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', municipio:'', direccion:'', logo_file:null, logo_preview:''})} style={{background:'#fff', border:'1px dashed #E0D5CC', padding:'10px 12px', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', textAlign:'left'}}>🧹 Limpiar formulario</button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {editingStore && (
-          <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:16}}>
-            <div style={{background:'#fff', borderRadius:20, padding:20, maxWidth:500, width:'100%', maxHeight:'90vh', overflowY:'auto'}}>
+          <div style={{position:'fixed', inset:0, background:'rgba(10,6,4,0.6)', backdropFilter:'blur(12px)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:16}}>
+            <div style={{background:'#fff', borderRadius:24, padding:22, maxWidth:560, width:'100%', maxHeight:'92vh', overflowY:'auto', boxShadow:'0 24px 80px rgba(0,0,0,0.4)', border:'1px solid #EDE6E3'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <h3 style={{fontWeight:800}}>✏️ Editar: {editingStore.name}</h3>
-                <button onClick={()=>setEditingStore(null)} style={{background:'#F0F0F0', border:'none', width:30, height:30, borderRadius:999}}>X</button>
+                <div style={{display:'flex', gap:10, alignItems:'center'}}>
+                  <img src={formEdit.logo_url||editingStore.logo_url} style={{width:44, height:44, borderRadius:10, objectFit:'cover'}}/>
+                  <div>
+                    <h3 style={{fontWeight:900, fontSize:15}}>Editar tienda</h3>
+                    <p style={{fontSize:11, color:'#8A7F78'}}>{editingStore.name} • {editingStore.slug}</p>
+                  </div>
+                </div>
+                <button onClick={()=>setEditingStore(null)} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', width:32, height:32, borderRadius:999, fontWeight:800, cursor:'pointer'}}>✕</button>
               </div>
-              <form onSubmit={guardarEdicion} style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
-                <input required value={formEdit.name} onChange={e=>setFormEdit({...formEdit, name:e.target.value})} placeholder="Nombre" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                <input required value={formEdit.slug} onChange={e=>setFormEdit({...formEdit, slug:e.target.value})} placeholder="slug" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
-                <input required value={formEdit.whatsapp} onChange={e=>setFormEdit({...formEdit, whatsapp:e.target.value})} placeholder="WhatsApp" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                <select value={formEdit.tipo_tienda} onChange={e=>setFormEdit({...formEdit, tipo_tienda:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
-                  <option value="boutique">BOUTIQUE</option><option value="general">GENERAL</option><option value="comida">COMIDA</option>
-                </select>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-                  <select value={formEdit.departamento} onChange={e=>setFormEdit({...formEdit, departamento:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
+              <form onSubmit={guardarEdicion} style={{display:'flex', flexDirection:'column', gap:10, marginTop:16}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                  <input required value={formEdit.name} onChange={e=>setFormEdit({...formEdit, name:e.target.value})} placeholder="Nombre" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                  <input required value={formEdit.slug} onChange={e=>setFormEdit({...formEdit, slug:e.target.value})} placeholder="slug" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, fontSize:12, fontFamily:'monospace'}}/>
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                  <input required value={formEdit.whatsapp} onChange={e=>setFormEdit({...formEdit, whatsapp:e.target.value})} placeholder="WhatsApp" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                  <select value={formEdit.tipo_tienda} onChange={e=>setFormEdit({...formEdit, tipo_tienda:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
+                    <option value="boutique">BOUTIQUE</option><option value="general">GENERAL</option><option value="comida">COMIDA</option>
+                  </select>
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                  <select value={formEdit.departamento} onChange={e=>setFormEdit({...formEdit, departamento:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
                     {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
                   </select>
-                  <input value={formEdit.municipio} onChange={e=>setFormEdit({...formEdit, municipio:e.target.value})} placeholder="Municipio / Comunidad" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
+                  <input value={formEdit.municipio} onChange={e=>setFormEdit({...formEdit, municipio:e.target.value})} placeholder="Municipio" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
                 </div>
-                <input value={formEdit.direccion} onChange={e=>setFormEdit({...formEdit, direccion:e.target.value})} placeholder="Dirección libre" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:12}}/>
-                <div style={{border:'1.5px dashed #0066FF', borderRadius:12, padding:10, background:'#F0F7FF'}}>
-                  <p style={{fontSize:11, fontWeight:700}}>Cambiar portada / logo</p>
-                  <input ref={fileEditLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormEdit({...formEdit, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:6, fontSize:11}}/>
-                  {(formEdit.logo_preview || formEdit.logo_url) && <img src={formEdit.logo_preview || formEdit.logo_url} style={{width:'100%', height:120, objectFit:'cover', borderRadius:10, marginTop:8}}/>}
+                <input value={formEdit.direccion} onChange={e=>setFormEdit({...formEdit, direccion:e.target.value})} placeholder="Dirección" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, fontSize:12}}/>
+                <div style={{border:'1.5px dashed #0066FF', borderRadius:14, padding:12, background:'#F0F7FF'}}>
+                  <p style={{fontSize:11, fontWeight:700}}>Cambiar portada</p>
+                  <input ref={fileEditLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormEdit({...formEdit, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:6, fontSize:11, width:'100%'}}/>
+                  {(formEdit.logo_preview || formEdit.logo_url) && <img src={formEdit.logo_preview || formEdit.logo_url} style={{width:'100%', height:140, objectFit:'cover', borderRadius:12, marginTop:8}}/>}
                 </div>
-                <div style={{display:'flex', gap:8}}>
-                  <button type="button" onClick={()=>setEditingStore(null)} style={{flex:1, background:'#F0F0F0', border:'none', padding:12, borderRadius:999, fontWeight:700}}>Cancelar</button>
-                  <button type="submit" style={{flex:2, background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Guardar cambios</button>
-                </div>
-                <div style={{background:'#FFF7ED', borderRadius:10, padding:8, marginTop:4, fontSize:11}}>
-                  <b>Admin del dueño:</b><br/>
-                  <span style={{fontFamily:'monospace', fontSize:10}}>https://tiendanica.store/{formEdit.slug}/admin</span>
+                <div style={{display:'flex', gap:8, marginTop:4}}>
+                  <button type="button" onClick={()=>setEditingStore(null)} style={{flex:1, background:'#F5F1EC', border:'1px solid #EDE6E3', padding:12, borderRadius:12, fontWeight:700, cursor:'pointer'}}>Cancelar</button>
+                  <button type="submit" style={{flex:2, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:12, fontWeight:800, cursor:'pointer'}}>Guardar cambios ✓</button>
                 </div>
               </form>
             </div>
@@ -349,40 +567,60 @@ export default function SuperAdminConEdicion(){
         )}
 
         {tab==='productos' && (
-          <div style={{display:'grid', gridTemplateColumns:'360px 1fr', gap:12}}>
-            <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800}}>📦 Agregar producto</h3>
-              <select value={selectedStoreForProduct} onChange={e=>setSelectedStoreForProduct(e.target.value)} style={{width:'100%', border:'1.5px solid #0066FF', borderRadius:10, padding:10, marginTop:10, fontWeight:700}}>
+          <div style={{display:'grid', gridTemplateColumns:'380px 1fr', gap:16, alignItems:'start'}}>
+            <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3', position:'sticky', top:84}}>
+              <h3 style={{fontWeight:900, fontSize:15}}>📦 Agregar producto pro</h3>
+              <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Edición sin salir del admin • Subida local premium</p>
+              <select value={selectedStoreForProduct} onChange={e=>setSelectedStoreForProduct(e.target.value)} style={{width:'100%', border:'1.5px solid #0066FF', borderRadius:12, padding:12, marginTop:14, fontWeight:700, background:'#F0F7FF'}}>
                 <option value="">-- Selecciona tienda --</option>
-                {stores.map(s=><option key={s.id} value={s.id}>{s.name} - {s.tipo_tienda}</option>)}
+                {stores.map(s=><option key={s.id} value={s.id}>{s.name} - {s.tipo_tienda} - {s.municipio}</option>)}
               </select>
               {selectedStoreForProduct && (
-                <form onSubmit={crearProducto} style={{display:'flex', flexDirection:'column', gap:8, marginTop:12}}>
-                  <input required value={formProd.name} onChange={e=>setFormProd({...formProd, name:e.target.value})} placeholder="Nombre producto" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                  <input required value={formProd.price} onChange={e=>setFormProd({...formProd, price:e.target.value})} placeholder="Precio C$" type="number" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}/>
-                  <select value={formProd.categoria} onChange={e=>setFormProd({...formProd, categoria:e.target.value})} style={{border:'1.5px solid #ddd', borderRadius:10, padding:10}}>
-                    {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, minHeight:60}}/>
-                  <input value={formProd.video_url} onChange={e=>setFormProd({...formProd, video_url:e.target.value})} placeholder="Video URL opcional" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
-                  <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L,XL" style={{border:'1.5px solid #ddd', borderRadius:10, padding:10, fontSize:11}}/>
-                  <div style={{border:'1.5px dashed #FF6A00', borderRadius:12, padding:10, background:'#FFF7ED'}}>
-                    <p style={{fontSize:11, fontWeight:700}}>Fotos producto (local)</p>
-                    <input ref={fileProductRef} type="file" accept="image/*" multiple onChange={(e)=>{const files=Array.from(e.target.files); const previews=files.map(f=>URL.createObjectURL(f)); setFormProd({...formProd, image_files:files, image_previews:previews})}} style={{marginTop:6, fontSize:11}}/>
-                    <div style={{display:'flex', gap:4, marginTop:6, flexWrap:'wrap'}}>{formProd.image_previews.map((src,i)=><img key={i} src={src} style={{width:50, height:50, objectFit:'cover', borderRadius:6}}/>)}</div>
+                <form onSubmit={crearProducto} style={{display:'flex', flexDirection:'column', gap:10, marginTop:14}}>
+                  <input required value={formProd.name} onChange={e=>setFormProd({...formProd, name:e.target.value})} placeholder="Nombre producto" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                    <input required value={formProd.price} onChange={e=>setFormProd({...formProd, price:e.target.value})} placeholder="Precio C$" type="number" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                    <select value={formProd.categoria} onChange={e=>setFormProd({...formProd, categoria:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
+                      {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
-                  <button type="submit" style={{background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>Agregar producto</button>
+                  <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción que vende (opcional pero ayuda)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, minHeight:70, fontSize:12}}/>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                    <input value={formProd.video_url} onChange={e=>setFormProd({...formProd, video_url:e.target.value})} placeholder="Video URL (opcional)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
+                    <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L,XL" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
+                  </div>
+                  <div style={{border:'1.5px dashed #FF6A00', borderRadius:14, padding:12, background:'#FFF7ED'}}>
+                    <p style={{fontSize:11, fontWeight:800}}>Fotos producto (multi)</p>
+                    <input ref={fileProductRef} type="file" accept="image/*" multiple onChange={(e)=>{const files=Array.from(e.target.files); const previews=files.map(f=>URL.createObjectURL(f)); setFormProd({...formProd, image_files:files, image_previews:previews})}} style={{marginTop:8, fontSize:11, width:'100%'}}/>
+                    <div style={{display:'flex', gap:6, marginTop:10, flexWrap:'wrap'}}>{formProd.image_previews.map((src,i)=><img key={i} src={src} style={{width:52, height:52, objectFit:'cover', borderRadius:10, border:'1px solid #EDE6E3'}}/>)}</div>
+                  </div>
+                  <button type="submit" style={{background:'#0066FF', color:'#fff', border:'none', padding:12, borderRadius:12, fontWeight:800, cursor:'pointer'}}>Agregar producto ✓</button>
                 </form>
               )}
             </div>
-            <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800}}>Productos ({products.length})</h3>
-              <div style={{maxHeight:700, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, marginTop:10}}>
+
+            <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10}}>
+                <h3 style={{fontWeight:900, fontSize:15}}>Productos {selectedStoreForProduct?`de ${stores.find(s=>s.id===selectedStoreForProduct)?.name}`:''} ({products.filter(p=> !selectedStoreForProduct || p.store_id===selectedStoreForProduct).length})</h3>
+                <div style={{display:'flex', gap:6}}>
+                  <button onClick={()=>setViewMode('grid')} style={{background: viewMode==='grid'?'#111':'#F5F1EC', color: viewMode==='grid'?'#fff':'#111', border:'none', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Grid</button>
+                  <button onClick={()=>setViewMode('list')} style={{background: viewMode==='list'?'#111':'#F5F1EC', color: viewMode==='list'?'#fff':'#111', border:'none', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Lista</button>
+                </div>
+              </div>
+
+              <div style={{marginTop:14, display: viewMode==='grid' ? 'grid' : 'flex', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', flexDirection:'column', gap:10, maxHeight:'80vh', overflowY:'auto', paddingRight:4}}>
                 {products.filter(p=> !selectedStoreForProduct || p.store_id===selectedStoreForProduct).map(p=>(
-                  <div key={p.id} style={{display:'flex', gap:8, border:'1px solid #f0f0f0', borderRadius:10, padding:8, alignItems:'center'}}>
-                    <img src={p.image_url} style={{width:45, height:45, objectFit:'cover', borderRadius:8}}/>
-                    <div style={{flex:1}}><b style={{fontSize:12}}>{p.name}</b><br/><span style={{fontSize:10, color:'#666'}}>C$ {p.price} • {p.stores?.name || p.categoria}</span></div>
-                    <button onClick={async()=>{if(confirm('¿Eliminar producto?')){const supabase=getSupabase(); await supabase.from('products').delete().eq('id',p.id); cargarTodo()}}} style={{background:'#FFE0E0', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10}}>🗑️</button>
+                  <div key={p.id} style={{display:'flex', gap:10, border:'1px solid #EDE6E3', borderRadius:14, padding:10, alignItems:'center', background:'#fff'}}>
+                    <img src={p.image_url} style={{width:56, height:56, objectFit:'cover', borderRadius:10, background:'#F5F1EC'}}/>
+                    <div style={{flex:1, minWidth:0}}>
+                      <b style={{fontSize:12, display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</b>
+                      <span style={{fontSize:11, color:'#0066FF', fontWeight:800}}>C$ {p.price}</span>
+                      <span style={{fontSize:10, color:'#8A7F78', marginLeft:6}}>{p.stores?.name || p.categoria}</span>
+                    </div>
+                    <div style={{display:'flex', flexDirection:'column', gap:4}}>
+                      <button onClick={()=>abrirEdicionProducto(p)} style={{background:'#111', color:'#fff', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>✏ Editar</button>
+                      <button onClick={async()=>{if(confirm('¿Eliminar producto?')){const supabase=getSupabase(); await supabase.from('products').delete().eq('id',p.id); cargarTodo()}}} style={{background:'#FFE9E9', color:'#C00', border:'1px solid #FFD0D0', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>🗑</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -390,35 +628,122 @@ export default function SuperAdminConEdicion(){
           </div>
         )}
 
-        {tab==='verificaciones' && (
-          <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-            <h3 style={{fontWeight:800}}>🛡️ Verificaciones pendientes ({pendientes.length})</h3>
-            {pendientes.map(v=>(
-              <div key={v.id} style={{border:'1px solid #eee', borderRadius:12, padding:12, marginTop:10}}>
-                <b>{v.stores?.name}</b> - {v.stores?.whatsapp} - {v.stores?.slug}<br/>
-                <span style={{fontSize:11, color:'#666'}}>Cédula: {v.cedula_nombre} • {new Date(v.created_at).toLocaleString()}</span>
-                <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
-                  <button onClick={()=>aprobarVerificacion(v.id, v.store_id)} style={{background:'#0066FF', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800}}>✓ Aprobar</button>
-                  <button onClick={async()=>{const supabase=getSupabase(); await supabase.from('store_verifications').update({status:'rechazada'}).eq('id',v.id); setPendientes(p=>p.filter(x=>x.id!==v.id))}} style={{background:'#F0F0F0', border:'none', padding:'8px 14px', borderRadius:999, fontSize:12}}>Rechazar</button>
-                  <a href={`https://wa.me/${v.stores?.whatsapp}`} target="_blank" style={{background:'#25D366', color:'#fff', padding:'8px 14px', borderRadius:999, fontSize:12, textDecoration:'none'}}>WhatsApp</a>
-                </div>
+        {editingProduct && (
+          <div style={{position:'fixed', inset:0, background:'rgba(10,6,4,0.6)', backdropFilter:'blur(12px)', zIndex:101, display:'flex', alignItems:'center', justifyContent:'center', padding:16}}>
+            <div style={{background:'#fff', borderRadius:20, padding:18, maxWidth:520, width:'100%', maxHeight:'92vh', overflowY:'auto'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <h3 style={{fontWeight:900, fontSize:14}}>✏ Editar producto</h3>
+                <button onClick={()=>setEditingProduct(null)} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', width:30, height:30, borderRadius:999, cursor:'pointer'}}>✕</button>
               </div>
-            ))}
-            {pendientes.length===0 && <p style={{fontSize:12, color:'#999', marginTop:10}}>No hay pendientes.</p>}
+              <form onSubmit={guardarEdicionProducto} style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
+                <input required value={formEditProd.name} onChange={e=>setFormEditProd({...formEditProd, name:e.target.value})} placeholder="Nombre" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                  <input required value={formEditProd.price} onChange={e=>setFormEditProd({...formEditProd, price:e.target.value})} placeholder="Precio" type="number" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                  <select value={formEditProd.categoria} onChange={e=>setFormEditProd({...formEditProd, categoria:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
+                    {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <textarea value={formEditProd.descripcion} onChange={e=>setFormEditProd({...formEditProd, descripcion:e.target.value})} placeholder="Descripción" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, minHeight:60}}/>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                  <input value={formEditProd.video_url} onChange={e=>setFormEditProd({...formEditProd, video_url:e.target.value})} placeholder="Video URL" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
+                  <input value={formEditProd.tallas} onChange={e=>setFormEditProd({...formEditProd, tallas:e.target.value})} placeholder="Tallas" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
+                </div>
+                <div style={{border:'1.5px dashed #0066FF', borderRadius:14, padding:12, background:'#F0F7FF'}}>
+                  <p style={{fontSize:11, fontWeight:700}}>Cambiar foto principal</p>
+                  <input ref={fileEditProductRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormEditProd({...formEditProd, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:6, fontSize:11, width:'100%'}}/>
+                  {(formEditProd.logo_preview || formEditProd.image_url) && <img src={formEditProd.logo_preview || formEditProd.image_url} style={{width:'100%', height:140, objectFit:'cover', borderRadius:12, marginTop:8}}/>}
+                </div>
+                <div style={{display:'flex', gap:8}}>
+                  <button type="button" onClick={()=>setEditingProduct(null)} style={{flex:1, background:'#F5F1EC', border:'1px solid #EDE6E3', padding:12, borderRadius:12, fontWeight:700, cursor:'pointer'}}>Cancelar</button>
+                  <button type="submit" style={{flex:2, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:12, fontWeight:800, cursor:'pointer'}}>Guardar producto ✓</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {tab==='verificaciones' && (
+          <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+            <h3 style={{fontWeight:900, fontSize:15}}>🛡 Verificaciones pendientes ({pendientes.length})</h3>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:12, marginTop:14}}>
+              {pendientes.map(v=>(
+                <div key={v.id} style={{border:'1px solid #E0D0FF', background:'linear-gradient(180deg, #FBF8FF, #fff)', borderRadius:16, padding:14}}>
+                  <div style={{display:'flex', justifyContent:'space-between'}}>
+                    <b style={{fontSize:13}}>{v.stores?.name}</b>
+                    <span style={{fontSize:10, background:'#7000FF', color:'#fff', padding:'3px 8px', borderRadius:999, fontWeight:800}}>{v.status}</span>
+                  </div>
+                  <p style={{fontSize:11, color:'#666', marginTop:4}}>{v.stores?.whatsapp} • {v.stores?.slug} • {new Date(v.created_at).toLocaleString()}</p>
+                  <p style={{fontSize:11, marginTop:6}}><b>Cédula:</b> {v.cedula_nombre}</p>
+                  <div style={{display:'flex', gap:6, marginTop:10}}>
+                    <button onClick={()=>aprobarVerificacion(v.id, v.store_id)} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:'10px', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer'}}>✓ Aprobar + badge azul</button>
+                    <button onClick={async()=>{const supabase=getSupabase(); await supabase.from('store_verifications').update({status:'rechazada'}).eq('id',v.id); setPendientes(p=>p.filter(x=>x.id!==v.id))}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'10px', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer'}}>Rechazar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {pendientes.length===0 && <p style={{fontSize:13, color:'#999', marginTop:14, textAlign:'center', padding:20}}>No hay pendientes. Todo verificado ✓</p>}
           </div>
         )}
 
         {tab==='reportes' && (
-          <div style={{background:'#fff', borderRadius:16, padding:16, border:'1px solid #EDE6E3'}}>
-            <h3 style={{fontWeight:800}}>🚨 Reportes fraude ({reportes.length})</h3>
-            {reportes.map(r=>(
-              <div key={r.id} style={{border:'1px solid #FFD6D6', background:'#FFF5F5', borderRadius:12, padding:12, marginTop:10}}>
-                <b>{r.stores?.name}</b> - <span style={{background:'#FF3B30', color:'#fff', padding:'2px 6px', borderRadius:999, fontSize:10}}>{r.tipo}</span>
-                <p style={{fontSize:12, marginTop:6}}>{r.descripcion}</p>
-                <p style={{fontSize:10, color:'#666'}}>Reportó: {r.reporter_name} - {r.reporter_whatsapp}</p>
+          <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+            <h3 style={{fontWeight:900, fontSize:15}}>🚨 Reportes fraude ({reportes.length})</h3>
+            <div style={{display:'grid', gap:12, marginTop:14}}>
+              {reportes.map(r=>(
+                <div key={r.id} style={{border:'1px solid #FFD6D6', background:'#FFF5F5', borderRadius:14, padding:14}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <b style={{fontSize:13}}>{r.stores?.name}</b>
+                    <span style={{background:'#FF3B30', color:'#fff', padding:'3px 8px', borderRadius:999, fontSize:10, fontWeight:800}}>{r.tipo}</span>
+                  </div>
+                  <p style={{fontSize:12, marginTop:6, lineHeight:1.4}}>{r.descripcion}</p>
+                  <p style={{fontSize:10, color:'#666', marginTop:6}}>Reportó: {r.reporter_name} - {r.reporter_whatsapp} • {new Date(r.created_at).toLocaleString()}</p>
+                  <div style={{display:'flex', gap:6, marginTop:10}}>
+                    <button onClick={async()=>{const s=getSupabase(); await s.from('fraud_reports').update({status:'resuelto'}).eq('id',r.id); setReportes(p=>p.filter(x=>x.id!==r.id))}} style={{background:'#111', color:'#fff', border:'none', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Marcar resuelto</button>
+                    <a href={`https://wa.me/${r.reporter_whatsapp}`} target="_blank" style={{background:'#25D366', color:'#fff', padding:'8px 12px', borderRadius:10, fontSize:11, textDecoration:'none', fontWeight:700}}>WhatsApp reportante</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {reportes.length===0 && <p style={{fontSize:13, color:'#999', marginTop:14, textAlign:'center', padding:20}}>Sin reportes ✓ Marketplace limpio</p>}
+          </div>
+        )}
+
+        {tab==='herramientas' && (
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:14}}>
+            <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
+              <h3 style={{fontWeight:800, fontSize:14}}>📊 Analítica rápida</h3>
+              <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10}}>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Tiendas activas</span><b>{stats.total}</b></div>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Productos totales</span><b>{stats.productos}</b></div>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Promedio prod/tienda</span><b>{stats.total? (stats.productos/stats.total).toFixed(1):0}</b></div>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>% Verificadas</span><b>{stats.total? Math.round(stats.verificadas/stats.total*100):0}%</b></div>
               </div>
-            ))}
-            {reportes.length===0 && <p style={{fontSize:12, color:'#999', marginTop:10}}>Sin reportes.</p>}
+            </div>
+
+            <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+              <h3 style={{fontWeight:800, fontSize:14}}>🛠 Herramientas de trabajo</h3>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:14}}>
+                <button onClick={()=>{const data=JSON.stringify({stores,products},null,2); const blob=new Blob([data],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tiendanica-backup.json'; a.click()}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>💾 Backup JSON<br/><span style={{fontSize:10, color:'#8A7F78'}}>Todo tu market</span></button>
+                <button onClick={()=>{const csv = ['name,slug,whatsapp,departamento,municipio,tipo,productos',''].concat(stores.map(s=> `${s.name},${s.slug},${s.whatsapp},${s.departamento},${s.municipio},${s.tipo_tienda},${products.filter(p=>p.store_id===s.id).length}`)).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tiendas.csv'; a.click()}} style={{background:'#F0F7FF', border:'1px solid #C0D8FF', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>📤 Exportar CSV<br/><span style={{fontSize:10, color:'#6B7C9A'}}>Para Excel</span></button>
+                <button onClick={()=>{const q=prompt('Buscar producto por nombre:'); if(!q) return; const found=products.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())); alert(found.length? found.map(f=> `${f.name} - C$${f.price} - ${f.stores?.name}`).join('\n') : 'No encontrado')}} style={{background:'#FFF7ED', border:'1px solid #FFE0C0', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>🔍 Buscar producto global<br/><span style={{fontSize:10, color:'#8A6B4A'}}>En todas las tiendas</span></button>
+                <button onClick={()=>{const sin=stores.filter(s=>!products.some(p=>p.store_id===s.id)); alert(sin.length?`Tiendas sin productos (${sin.length}):\n`+sin.map(s=>s.name).join('\n'):'Todas tienen productos ✓')}} style={{background:'#F0FFF4', border:'1px solid #C0E8C0', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>📦 Tiendas vacías<br/><span style={{fontSize:10, color:'#5A7A5A'}}>Necesitan productos</span></button>
+                <button onClick={()=>{const dup=stores.filter((s,i)=> stores.findIndex(x=>x.whatsapp===s.whatsapp)!==i); alert(dup.length? 'Duplicados WhatsApp:\n'+dup.map(d=>d.name+' - '+d.whatsapp).join('\n'):'No duplicados ✓')}} style={{background:'#FFF5F5', border:'1px solid #FFD0D0', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>🔗 Duplicados<br/><span style={{fontSize:10, color:'#8A5A5A'}}>Por WhatsApp</span></button>
+                <button onClick={()=>{const b=stores.filter(s=>s.tipo_tienda==='boutique'); alert(`Boutique: ${b.length} tiendas\n`+b.map(s=>s.name+' - '+s.municipio).join('\n'))}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>👗 Solo boutique<br/><span style={{fontSize:10, color:'#6B5E55'}}>Filtro rápido</span></button>
+              </div>
+              <div style={{marginTop:14, background:'#111', borderRadius:14, padding:12}}>
+                <p style={{fontSize:11, color:'rgba(255,255,255,0.6)', fontWeight:700}}>TIP PRO</p>
+                <p style={{fontSize:11, color:'#fff', marginTop:4, lineHeight:1.4}}>Usa vista previa para revisar cada tienda antes de darle badge verificada. Productos con fotos malas = baja conversión.</p>
+              </div>
+            </div>
+
+            <div style={{background:'linear-gradient(135deg, #0066FF, #7000FF)', color:'#fff', borderRadius:20, padding:18}}>
+              <h3 style={{fontWeight:800, fontSize:14}}>🚀 Acciones masivas</h3>
+              <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10}}>
+                <button onClick={async()=>{if(!confirm('¿Verificar todas las tiendas nuevas automáticamente?')) return; const supabase=getSupabase(); await supabase.from('stores').update({verification_status:'verificada', verification_badge:'verificada'}).eq('verification_status','nueva'); alert('Todas verificadas ✓'); cargarTodo()}} style={{background:'rgba(255,255,255,0.15)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.2)', padding:'12px', borderRadius:12, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>✅ Verificar todas las nuevas (1 click)</button>
+                <button onClick={()=>{const text=stores.map(s=> `*${s.name}* - https://tiendanica.store/${s.slug} - ${s.departamento} ${s.municipio} - ${products.filter(p=>p.store_id===s.id).length} prod`).join('\n'); navigator.clipboard.writeText(text); alert('Lista copiada para WhatsApp')}} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.2)', padding:'12px', borderRadius:12, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>📋 Copiar lista tiendas para difusión</button>
+                <button onClick={()=>{if(confirm('¿Borrar productos sin imagen?')){const sinImg=products.filter(p=>!p.image_url||p.image_url.includes('logo')); alert(sinImg.length+ ' productos con logo placeholder');}}} style={{background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', padding:'12px', borderRadius:12, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>🧹 Detectar productos con logo placeholder</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
