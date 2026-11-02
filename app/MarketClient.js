@@ -66,13 +66,12 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [q,setQ]=useState('')
   const [cat,setCat]=useState(null)
   const [tipo,setTipo]=useState(null)
-  const [loading,setLoading]=useState(initialProducts.length===0) // Si ya vienen precargados, NO mostramos "Cargando"
+  const [loading,setLoading]=useState(initialProducts.length===0)
   const [cart,setCart]=useState([])
   const [showCart,setShowCart]=useState(false)
   const [selectedTalla,setSelectedTalla]=useState(null)
 
   useEffect(()=>{
-    // Si ya tenemos productos precargados del servidor, no hacemos fetch lento
     if(initialProducts.length>0){
       setLoading(false)
       return
@@ -160,19 +159,61 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; }
         .portada-img{ width:100%; height:auto; display:block; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
-        .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+        .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; align-items:center; justifyContent:center; gap:2px; }
         .cat-scroll{ display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; padding:2px 0 6px; -webkit-overflow-scrolling:touch; }
         .cat-scroll::-webkit-scrollbar{ display:none; }
         .chip{ white-space:nowrap; padding:9px 16px; border-radius:999px; border:1.5px solid #E8E0D9; background:#fff; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; text-transform:capitalize; }
         .chip.active{ background:#111; color:#fff; border-color:#111; }
         .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
         .card{ background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06); border:1px solid #F0E9E2; }
-        .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; align-items:center; justifyContent:center; }
         .card-img img{ width:100%; height:100%; object-fit:contain; background:#fff; }
         .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
+
+        /* PC ONLY - CINTA ANCHA PREMIUM */
+        @media(min-width:1024px){
+          .portada-wrap{
+            max-width: 980px;
+            margin: 16px auto 0 auto;
+            border-radius: 18px;
+            overflow: hidden;
+            max-height: 220px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+            border: 1px solid rgba(255,255,255,0.15);
+          }
+          .portada-img{
+            width: 100%;
+            height: 220px;
+            object-fit: contain;
+            object-position: center;
+            background: #000;
+          }
+          .cinta-degradada{
+            max-width: 980px;
+            margin: 0 auto;
+            border-radius: 0 0 18px 18px;
+            margin-top: -2px;
+            position: relative;
+            z-index: 2;
+          }
+        }
+
+        @media(min-width:1280px){
+          .portada-wrap{ max-width: 1080px; max-height: 240px; }
+          .portada-img{ height: 240px; }
+          .cinta-degradada{ max-width: 1080px; }
+        }
+
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } }
+        @media(max-width:768px){ 
+          .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } 
+          .card{ border-radius:14px; } 
+          .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } 
+          .portada-wrap{ border-radius:0; margin:0; max-height:none; }
+          .portada-img{ height:auto; object-fit:cover; }
+          .cinta-degradada{ border-radius:0; max-width:100%; margin:0; }
+        }
       `}</style>
 
       <div className="portada-wrap">
@@ -184,7 +225,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
       </div>
 
       <div className="cinta-degradada">
-        <span>🛡️ Tiendas verificadas con video y cédula</span><span style={{opacity:0.6}}>•</span><span>📦 Envío a toda Nicaragua</span><span style={{opacity:0.6}}>•</span><span>⚖️ Reporte antifraude 24h</span>
+        <span>🛡 Tiendas verificadas con video y cédula</span><span style={{opacity:0.6}}>•</span><span>📦 Envío a toda Nicaragua</span><span style={{opacity:0.6}}>•</span><span>⚖ Reporte antifraude 24h</span>
       </div>
 
       <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
@@ -233,9 +274,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
             <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
             <div style={{marginTop:10, display:'inline-flex', gap:6, flexWrap:'wrap', justifyContent:'center'}}>
-              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>🛡️ Tiendas verificadas con video y cédula</span>
+              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>🛡 Tiendas verificadas con video y cédula</span>
               <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>📦 Envío a toda Nicaragua</span>
-              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>⚖️ Reporte antifraude 24h</span>
+              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>⚖ Reporte antifraude 24h</span>
             </div>
           </div>
 
