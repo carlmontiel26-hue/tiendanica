@@ -50,7 +50,8 @@ function TemuGallery({ images=[], videoUrl, name }){
   )
 }
 
-const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo']
+const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo','comida']
+const DEPARTAMENTOS_NI = ['Managua','Masaya','Granada','León','Chinandega','Carazo','Rivas','Estelí','Matagalpa','Jinotega','Boaco','Chontales','Madriz','Nueva Segovia','Río San Juan','RAAN','RAAS']
 
 function getBadgeInfo(store){
   const raw = (store?.verification_status || store?.verification_badge || '').toLowerCase()
@@ -71,6 +72,14 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [showCart,setShowCart]=useState(false)
   const [selectedTalla,setSelectedTalla]=useState(null)
 
+  // --- COMIDA GEOLOCALIZACION ---
+  const [showComida,setShowComida]=useState(false)
+  const [userLoc,setUserLoc]=useState(null) // {departamento, municipio, cityRaw}
+  const [locLoading,setLocLoading]=useState(false)
+  const [locError,setLocError]=useState(null)
+  const [manualDepto,setManualDepto]=useState('')
+  const [manualMuni,setManualMuni]=useState('')
+
   useEffect(()=>{
     if(initialProducts.length>0){
       setLoading(false)
@@ -78,13 +87,12 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     }
     const supabase=getSupabase()
     if(!supabase){ setLoading(false); return }
+    // AHORA SI traemos comida tambien, no filtramos
     supabase.from('stores').select('*').then(({data})=>{
-      const all=data||[]
-      setStores(all.filter(s=>{ const t=(s.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
+      setStores(data||[])
     })
-    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(200).then(({data})=>{
-      const all=data||[]
-      setProducts(all.filter(p=>{ const t=(p.stores?.tipo_tienda||'').toLowerCase(); return !t.includes('comida') }))
+    supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio)').order('created_at',{ascending:false}).limit(300).then(({data})=>{
+      setProducts(data||[])
       setLoading(false)
     }).catch(()=> setLoading(false))
   },[])
@@ -92,8 +100,11 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   useEffect(()=>{
     const saved = typeof window!=='undefined' ? localStorage.getItem('tn_market_cart') : null
     if(saved){ try{ setCart(JSON.parse(saved)) }catch{} }
+    const savedLoc = typeof window!=='undefined' ? localStorage.getItem('tn_user_loc') : null
+    if(savedLoc){ try{ setUserLoc(JSON.parse(savedLoc)) }catch{} }
   },[])
   useEffect(()=>{ localStorage.setItem('tn_market_cart', JSON.stringify(cart)) },[cart])
+  useEffect(()=>{ if(userLoc) localStorage.setItem('tn_user_loc', JSON.stringify(userLoc)) },[userLoc])
   useEffect(()=>{
     if(sel){
       history.pushState({modal:true}, '', window.location.href)
@@ -113,10 +124,85 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     return []
   }
 
+  // ---- COMIDA LOGICA ----
+  const isFoodStore = (s)=> (s?.tipo_tienda||'').toLowerCase().includes('comida')
+  const isFoodProduct = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('comida') || (p.categoria||'').toLowerCase()==='comida'
+
+  const foodStores = stores.filter(isFoodStore)
+  const foodProducts = products.filter(isFoodProduct)
+  const foodCiudades = [...new Set(foodStores.map(s=> s.municipio || s.departamento).filter(Boolean))]
+
+  const requestLocation = async ()=>{
+    setLocLoading(true); setLocError(null)
+    try{
+      const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:false, timeout:8000}))
+      const lat = pos.coords.latitude
+      const lng = pos.coords.longitude
+      // reverse geocode con nominatim
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=es`)
+      const j = await r.json()
+      const city = j.address?.city || j.address?.town || j.address?.village || j.address?.municipality || j.address?.county || ''
+      const state = j.address?.state || j.address?.region || ''
+      // intentar mapear a departamento de NI
+      let dep = ''
+      const stateNorm = state.toLowerCase()
+      DEPARTAMENTOS_NI.forEach(d=>{
+        if(stateNorm.includes(d.toLowerCase()) || d.toLowerCase().includes(stateNorm)) dep = d
+      })
+      const loc = { departamento: dep || state, municipio: city, cityRaw: city, lat, lng, stateRaw: state }
+      setUserLoc(loc)
+      setLocLoading(false)
+    }catch(e){
+      setLocError('No pudimos obtener tu ubicación. Elige tu departamento manualmente.')
+      setLocLoading(false)
+    }
+  }
+
+  const getNearbyFoodStores = ()=>{
+    if(!userLoc && !manualDepto) return []
+    const depSearch = (userLoc?.departamento || manualDepto || '').toLowerCase()
+    const muniSearch = (userLoc?.municipio || manualMuni || '').toLowerCase()
+    return foodStores.filter(s=>{
+      const sd = (s.departamento||'').toLowerCase()
+      const sm = (s.municipio||'').toLowerCase()
+      if(muniSearch && sm && (sm.includes(muniSearch) || muniSearch.includes(sm))) return true
+      if(depSearch && sd && (sd.includes(depSearch) || depSearch.includes(sd))) return true
+      // si municipio es igual a departamento buscado (Managua)
+      if(muniSearch && sd && sd.includes(muniSearch)) return true
+      return false
+    })
+  }
+
+  const nearbyFoodStores = getNearbyFoodStores()
+  const nearbyStoreIds = new Set(nearbyFoodStores.map(s=>s.id))
+  const nearbyFoodProducts = foodProducts.filter(p=> {
+    // si tenemos ids cercanos, filtramos por ellos, si no hay ubicacion aun, no mostramos
+    if(nearbyStoreIds.size>0) return nearbyStoreIds.has(p.store_id) || nearbyStoreIds.has(p.stores?.id) || nearbyFoodStores.some(ns=> ns.slug===p.stores?.slug)
+    return false
+  })
+
+  // ---- FILTRADO NORMAL ----
   let filtered=[...products]
-  if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
-  if(cat) filtered=filtered.filter(p=>p.categoria===cat)
-  if(tipo) filtered=filtered.filter(p=> (p.stores?.tipo_tienda||'').toLowerCase().includes(tipo.toLowerCase()))
+  if(showComida){
+    // en modo comida solo mostramos comida cercana
+    if(userLoc || manualDepto){
+      if(nearbyFoodStores.length>0){
+        filtered = nearbyFoodProducts
+      }else{
+        filtered = [] // para mostrar mensaje de muy pronto
+      }
+    }else{
+      filtered = [] // pide ubicacion
+    }
+    if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
+  }else{
+    // modo normal: ocultar comida
+    filtered = filtered.filter(p=> !isFoodProduct(p))
+    if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
+    if(cat && cat!=='comida') filtered=filtered.filter(p=>p.categoria===cat)
+    if(tipo) filtered=filtered.filter(p=> (p.stores?.tipo_tienda||'').toLowerCase().includes(tipo.toLowerCase()))
+  }
+
   filtered = filtered.sort((a,b)=>{
     const ba = getBadgeInfo(a.stores).key
     const bb = getBadgeInfo(b.stores).key
@@ -124,11 +210,30 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     return (order[ba] ?? 2) - (order[bb] ?? 2)
   })
 
-  const catsRaw=[...new Set(products.map(p=>p.categoria).filter(Boolean))]
+  const catsRaw=[...new Set(products.filter(p=> !isFoodProduct(p)).map(p=>p.categoria).filter(Boolean))]
   const catsOrdenadas = catsRaw.sort((a,b)=>{
     const ia = ORDEN_PREMIUM.indexOf(a.toLowerCase()); const ib = ORDEN_PREMIUM.indexOf(b.toLowerCase())
     if(ia===-1 && ib===-1) return a.localeCompare(b); if(ia===-1) return 1; if(ib===-1) return -1; return ia-ib
   })
+
+  const handleCatClick = (c)=>{
+    if(c==='comida'){
+      setShowComida(true)
+      setCat('comida')
+      setTipo(null)
+      // si no tenemos ubicacion, pedimos
+      if(!userLoc && !manualDepto){
+        // no auto-pedimos agresivo, dejamos que el usuario pulse boton ubicacion
+      }
+    }else{
+      setShowComida(false)
+      setCat(c===cat?null:c)
+    }
+  }
+
+  const handleTodoClick = ()=>{
+    setCat(null); setTipo(null); setShowComida(false)
+  }
 
   const isBoutique = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('boutique')
   const addToCart = (p, talla=null)=>{
@@ -164,51 +269,22 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .cat-scroll::-webkit-scrollbar{ display:none; }
         .chip{ white-space:nowrap; padding:9px 16px; border-radius:999px; border:1.5px solid #E8E0D9; background:#fff; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; text-transform:capitalize; }
         .chip.active{ background:#111; color:#fff; border-color:#111; }
+        .chip-comida{ background: #FFF4E0; border-color: #FFB84D; color: #9A5A00; font-weight:900; }
+        .chip-comida.active{ background:#FF8A00; color:#fff; border-color:#FF8A00; }
         .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
         .card{ background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06); border:1px solid #F0E9E2; }
         .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; align-items:center; justifyContent:center; }
         .card-img img{ width:100%; height:100%; object-fit:contain; background:#fff; }
         .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
-
-        /* PC ONLY - ALTO REDUCIDO, ANCHO 100% SIN ESPACIO NEGRO */
         @media(min-width:1024px){
-          .portada-wrap{
-            width: 100%;
-            max-width: 100%;
-            margin: 0;
-            border-radius: 0;
-            overflow: hidden;
-            max-height: 220px;
-            background: #000;
-          }
-          .portada-img{
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-            object-position: center;
-            display: block;
-          }
-          .cinta-degradada{
-            max-width: 100%;
-            margin: 0;
-            border-radius: 0;
-          }
+          .portada-wrap{ width:100%; max-width:100%; margin:0; border-radius:0; overflow:hidden; max-height:220px; background:#000; }
+          .portada-img{ width:100%; height:220px; object-fit:cover; object-position:center; display:block; }
+          .cinta-degradada{ max-width:100%; margin:0; border-radius:0; }
         }
-        @media(min-width:1280px){
-          .portada-wrap{ max-height: 240px; }
-          .portada-img{ height: 240px; }
-        }
-
+        @media(min-width:1280px){ .portada-wrap{ max-height:240px; } .portada-img{ height:240px; } }
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:768px){ 
-          .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } 
-          .card{ border-radius:14px; } 
-          .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } 
-          .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; }
-          .portada-img{ height:auto; object-fit:cover; }
-          .cinta-degradada{ border-radius:0; max-width:100%; margin:0; }
-        }
+        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } }
       `}</style>
 
       <div className="portada-wrap">
@@ -226,18 +302,86 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
       <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
         <div style={{background:'#fff', borderRadius:20, padding:'12px', border:'1px solid #EDE6DF', boxShadow:'0 4px 20px rgba(0,0,0,0.04)'}}>
           <div style={{display:'flex', gap:8}}>
-            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar vestido, jeans, farmacia..." style={{flex:1, border:'1.5px solid #EEE6DF', borderRadius:999, padding:'12px 18px', fontSize:14, outline:'none'}}/>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder={showComida ? "Buscar comida, pollo, pizza..." : "Buscar vestido, jeans, farmacia..."} style={{flex:1, border:'1.5px solid #EEE6DF', borderRadius:999, padding:'12px 18px', fontSize:14, outline:'none'}}/>
             <button onClick={()=>setShowCart(true)} style={{background:'#111', color:'#fff', border:'none', padding:'0 16px', borderRadius:999, fontWeight:800, fontSize:13}}>🛒 {cart.length>0 && <span style={{background:'#0066FF', color:'#fff', borderRadius:999, padding:'2px 6px', fontSize:10, marginLeft:4}}>{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
           </div>
           <div className="cat-scroll" style={{marginTop:10}}>
-            <button onClick={()=>{setCat(null); setTipo(null)}} className={`chip ${!cat && !tipo ? 'active' : ''}`} style={{textTransform:'none'}}>Todo</button>
-            {catsOrdenadas.map(c=><button key={c} onClick={()=>setCat(c===cat?null:c)} className={`chip ${cat===c ? 'active' : ''}`}>{c}</button>)}
+            <button onClick={handleTodoClick} className={`chip ${!cat && !tipo && !showComida ? 'active' : ''}`} style={{textTransform:'none'}}>Todo</button>
+            {/* BOTON COMIDA DESTACADO */}
+            <button onClick={()=>handleCatClick('comida')} className={`chip chip-comida ${showComida ? 'active' : ''}`}>🍔 Comida</button>
+            {catsOrdenadas.map(c=><button key={c} onClick={()=>{setShowComida(false); setCat(c===cat?null:c)}} className={`chip ${cat===c && !showComida ? 'active' : ''}`}>{c}</button>)}
           </div>
           <div className="cat-scroll" style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8}}>
-            {['boutique','general'].map(t=><button key={t} onClick={()=>setTipo(t===tipo?null:t)} className="chip" style={{background: tipo===t ? '#0066FF' : '#F7F2EE', color: tipo===t ? '#fff' : '#000', borderColor: tipo===t ? '#0066FF' : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t}</button>)}
-            <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>{filtered.length} productos • Premium primero</span>
+            {['boutique','general'].map(t=><button key={t} onClick={()=>{setShowComida(false); setTipo(t===tipo?null:t)}} className="chip" style={{background: tipo===t && !showComida ? '#0066FF' : '#F7F2EE', color: tipo===t && !showComida ? '#fff' : '#000', borderColor: tipo===t && !showComida ? '#0066FF' : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t}</button>)}
+            <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>
+              {showComida ? `${nearbyFoodStores.length>0 ? filtered.length+' comidas' : 'Comida'} • ${userLoc ? (userLoc.municipio||userLoc.departamento) : manualDepto || 'Sin ubicación'}` : `${filtered.length} productos • Premium primero`}
+            </span>
           </div>
         </div>
+
+        {/* ---- MODO COMIDA ---- */}
+        {showComida && (
+          <div style={{marginTop:14}}>
+            {/* Si no hay ubicación */}
+            {!userLoc && !manualDepto && (
+              <div style={{background:'#fff', borderRadius:18, padding:20, border:'1px solid #FFD9A0', textAlign:'center'}}>
+                <p style={{fontSize:22}}>📍🍔</p>
+                <p style={{fontWeight:900, fontSize:16, marginTop:6}}>Activa tu ubicación para ver comida cerca</p>
+                <p style={{fontSize:13, color:'#666', marginTop:6, lineHeight:1.4}}>Solo mostramos restaurantes y comiderías de tu pueblo o ciudad para entrega rápida.</p>
+                <div style={{display:'flex', gap:8, justifyContent:'center', marginTop:14, flexWrap:'wrap'}}>
+                  <button onClick={requestLocation} disabled={locLoading} style={{background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:800, fontSize:13}}>
+                    {locLoading ? 'Buscando...' : '📍 Usar mi ubicación'}
+                  </button>
+                </div>
+                {locError && <p style={{fontSize:12, color:'#FF3B30', marginTop:10}}>{locError}</p>}
+                <div style={{marginTop:16, borderTop:'1px solid #F0E9E2', paddingTop:14}}>
+                  <p style={{fontSize:12, fontWeight:700}}>O elige manualmente:</p>
+                  <div style={{display:'flex', gap:8, marginTop:8, justifyContent:'center', flexWrap:'wrap'}}>
+                    <select value={manualDepto} onChange={e=>{setManualDepto(e.target.value); setManualMuni('')}} style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'10px 14px', fontSize:13, fontWeight:700}}>
+                      <option value="">Departamento</option>
+                      {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <input value={manualMuni} onChange={e=>setManualMuni(e.target.value)} placeholder="Municipio (ej: Masaya)" style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'10px 14px', fontSize:13, minWidth:160}}/>
+                  </div>
+                  {(manualDepto || manualMuni) && (
+                    <button onClick={()=>{ if(manualDepto) setUserLoc({departamento: manualDepto, municipio: manualMuni, cityRaw: manualMuni}) }} style={{marginTop:10, background:'#FF8A00', color:'#fff', border:'none', padding:'10px 18px', borderRadius:999, fontWeight:800}}>Ver comida aquí</button>
+                  )}
+                </div>
+                {foodCiudades.length>0 && <p style={{fontSize:11, color:'#888', marginTop:12}}>Disponible ahora en: {foodCiudades.join(', ')}</p>}
+              </div>
+            )}
+
+            {/* Si hay ubicacion pero no hay tiendas cerca */}
+            {(userLoc || manualDepto) && nearbyFoodStores.length===0 && (
+              <div style={{background:'#fff', borderRadius:18, padding:22, border:'1px solid #E8E0D9', textAlign:'center'}}>
+                <p style={{fontSize:28}}>🍔⏳</p>
+                <h3 style={{fontWeight:900, fontSize:18, marginTop:8}}>Muy pronto servicios de alimentación en tu zona</h3>
+                <p style={{fontSize:13, color:'#666', marginTop:8, lineHeight:1.5}}>
+                  {userLoc?.municipio || manualMuni ? <>Aún no tenemos restaurantes activos en <b>{userLoc?.municipio || manualMuni}, {userLoc?.departamento || manualDepto}</b>.</> : <>Aún no tenemos cobertura de comida en <b>{manualDepto}</b>.</>}
+                  <br/>Estamos activando comiderías y restaurantes verificados pueblo por pueblo.
+                </p>
+                <div style={{marginTop:14, display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap'}}>
+                  <button onClick={()=>{ setUserLoc(null); setManualDepto(''); setManualMuni('') }} style={{background:'#F0F0F0', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:700, fontSize:12}}>📍 Cambiar ubicación</button>
+                  <button onClick={abrirVender} style={{background:'#111', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:12}}>¿Tienes restaurante? Únete</button>
+                </div>
+                {foodCiudades.length>0 && (
+                  <div style={{marginTop:16, background:'#F7F2EE', borderRadius:12, padding:10}}>
+                    <p style={{fontSize:11, fontWeight:800}}>Ciudades con servicio activo:</p>
+                    <p style={{fontSize:12, marginTop:4}}>{foodCiudades.join(' • ')}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Si hay tiendas cerca */}
+            {(userLoc || manualDepto) && nearbyFoodStores.length>0 && (
+              <div style={{background:'#FFF7E8', border:'1px solid #FFD9A0', borderRadius:14, padding:'10px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:12}}>
+                <p style={{fontSize:12, fontWeight:800}}>🍔 Mostrando {nearbyFoodStores.length} restaurante(s) en {userLoc?.municipio || manualMuni || userLoc?.departamento || manualDepto} • {filtered.length} platillos</p>
+                <button onClick={()=>{ setUserLoc(null); setManualDepto(''); setManualMuni('') }} style={{background:'#fff', border:'1px solid #E8E0D9', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11}}>Cambiar zona</button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid" style={{marginTop:12}}>
           {filtered.map(p=>{
@@ -250,17 +394,26 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                   <img src={p.image_url} alt={p.name}/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
                   {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS</span>}
+                  {showComida && <span style={{position:'absolute', top:8, left:8, background:'#FF8A00', color:'#fff', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🍔 {p.stores?.municipio || ''}</span>}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
                   {badge.key==='premium' && <p style={{fontSize:11, color:'#FF6A00', fontWeight:800, marginTop:6}}>⭐ Tienda Premium • {p.stores?.municipio || p.stores?.departamento || 'RAAS'}</p>}
                   {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada</p>}
+                  {showComida && <p style={{fontSize:11, color:'#9A5A00', fontWeight:700, marginTop:4}}>📍 {p.stores?.name} • {p.stores?.municipio}</p>}
                 </div>
               </div>
             )
           })}
         </div>
+
+        {/* Mensaje si no hay productos en modo normal */}
+        {!showComida && filtered.length===0 && !loading && (
+          <div style={{textAlign:'center', padding:30, background:'#fff', borderRadius:18, marginTop:12}}>
+            <p style={{fontSize:14, color:'#999'}}>No encontramos productos para esa búsqueda.</p>
+          </div>
+        )}
       </div>
 
       <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 12px'}}>
