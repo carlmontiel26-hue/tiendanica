@@ -61,7 +61,6 @@ function getBadgeInfo(store){
 }
 
 function getDireccion(store){
-  // soporte para varios nombres de campo
   return store.direccion || store.dirección || store.address || store.barrio || store.comunidad || store.zona || store.referencia || store.direccion_exacta || ''
 }
 
@@ -83,7 +82,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [locError,setLocError]=useState(null)
   const [manualDepto,setManualDepto]=useState('')
   const [manualMuni,setManualMuni]=useState('')
-  const [manualDir,setManualDir]=useState('') // NUEVO: Ubu Norte etc
+  const [manualDir,setManualDir]=useState('')
   const [comidaProducts,setComidaProducts]=useState([])
   const [comidaLoading,setComidaLoading]=useState(false)
   const [filtroMuniActivo,setFiltroMuniActivo]=useState(false)
@@ -180,22 +179,14 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     const depSearch = (userLoc?.departamento || manualDepto || '').toLowerCase().trim()
     const muniSearch = (userLoc?.municipio || manualMuni || '').toLowerCase().trim()
     const dirSearch = (userLoc?.direccion || manualDir || '').toLowerCase().trim()
-    
     if(!depSearch && !muniSearch && !dirSearch) return []
-
-    // FILTRO POR DIRECCION / PUEBLITO (Ubu Norte) - MAS ESPECIFICO
     if(dirSearch && filtroDirActivo){
       return foodStores.filter(s=>{
         const d = getDireccion(s).toLowerCase()
-        const sd = (s.departamento||'').toLowerCase()
-        const sm = (s.municipio||'').toLowerCase()
-        // direccion contiene busqueda
         if(d && (d.includes(dirSearch) || dirSearch.includes(d))) return true
-        // tambien si municipio o depto coinciden y direccion esta cerca, lo dejamos pasar si es el mismo municipio
         return false
       })
     }
-
     if(muniSearch && filtroMuniActivo && !filtroDirActivo){
       return foodStores.filter(s=>{
         const sm = (s.municipio||'').toLowerCase()
@@ -203,9 +194,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         return false
       })
     }
-    
     if(depSearch && !filtroMuniActivo && !filtroDirActivo){
-      // filtro por departamento (como antes) pero tambien acepta municipio escrito sin filtro
       return foodStores.filter(s=>{
         const sd = (s.departamento||'').toLowerCase()
         const sm = (s.municipio||'').toLowerCase()
@@ -213,7 +202,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         if(muniSearch && !filtroMuniActivo){
           if(depMatch) return true
           if(sm && (sm.includes(muniSearch) || muniSearch.includes(sm))) return true
-          // si direccion coincide con muni
           const d = getDireccion(s).toLowerCase()
           if(d && d.includes(muniSearch)) return true
           return false
@@ -221,7 +209,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         return depMatch
       })
     }
-
     if(muniSearch && !depSearch){
       return foodStores.filter(s=>{
         const sm = (s.municipio||'').toLowerCase()
@@ -231,9 +218,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         return false
       })
     }
-
     if(dirSearch && !filtroDirActivo && !filtroMuniActivo){
-      // busqueda general de direccion sin activar filtro estricto, busca en todo
       return foodStores.filter(s=>{
         const sd = (s.departamento||'').toLowerCase()
         const sm = (s.municipio||'').toLowerCase()
@@ -243,7 +228,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         return false
       })
     }
-
     return []
   }
 
@@ -398,7 +382,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               <div style={{background:'#fff', borderRadius:18, padding:20, border:'1px solid #FFD9A0', textAlign:'center'}}>
                 <p style={{fontSize:22}}>📍🍔</p>
                 <p style={{fontWeight:900, fontSize:16, marginTop:6}}>Activa tu ubicación para ver comida cerca</p>
-                <p style={{fontSize:13, color:'#666', marginTop:6, lineHeight:1.4}}>Ahora con 3 niveles: Departamento → Municipio → Pueblito/Barrio como Ubu Norte.</p>
+                <p style={{fontSize:13, color:'#666', marginTop:6, lineHeight:1.4}}>Departamento → Municipio → Pueblito/Barrio como Ubu Norte.</p>
                 <div style={{display:'flex', gap:8, justifyContent:'center', marginTop:14, flexWrap:'wrap'}}>
                   <button onClick={requestLocation} disabled={locLoading} style={{background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:800, fontSize:13}}>
                     {locLoading ? 'Buscando...' : '📍 Usar mi ubicación'}
@@ -413,7 +397,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                       {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
                     </select>
                     <input value={manualMuni} onChange={e=>setManualMuni(e.target.value)} placeholder="Municipio (ej: Paiwas)" style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'10px 14px', fontSize:13, minWidth:140}}/>
-                    <input value={manualDir} onChange={e=>setManualDir(e.target.value)} placeholder="Pueblito/Barrio (ej: Ubu Norte)" style={{border:'1.5px solid #FFB84D', borderRadius:999, padding:'10px 14px', fontSize:13, minWidth:160, background:'#FFF8E8'}}/>
+                    <input value={manualDir} onChange={e=>setManualDir(e.target.value)} placeholder="Pueblito (ej: Ubu Norte)" style={{border:'1.5px solid #FFB84D', borderRadius:999, padding:'10px 14px', fontSize:13, minWidth:160, background:'#FFF8E8'}}/>
                   </div>
                   {(manualDepto || manualMuni || manualDir) && (
                     <div style={{display:'flex', gap:8, justifyContent:'center', marginTop:10, flexWrap:'wrap'}}>
@@ -423,7 +407,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                     </div>
                   )}
                   {municipiosDelDepto.length>0 && <p style={{fontSize:11, color:'#888', marginTop:8}}>Municipios en {manualDepto}: {municipiosDelDepto.join(', ')}</p>}
-                  {direccionesDelMuni.length>0 && <p style={{fontSize:11, color:'#0066FF', marginTop:4, fontWeight:700}}>Pueblitos/barrios: {direccionesDelMuni.slice(0,8).join(', ')}</p>}
+                  {direccionesDelMuni.length>0 && <p style={{fontSize:11, color:'#0066FF', marginTop:4, fontWeight:700}}>Pueblitos: {direccionesDelMuni.slice(0,8).join(', ')}</p>}
                 </div>
                 {foodCiudades.length>0 && <p style={{fontSize:11, color:'#888', marginTop:12}}>Disponible ahora en: {foodCiudades.join(', ')}</p>}
               </div>
@@ -434,26 +418,20 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                 <p style={{fontSize:28}}>🍔⏳</p>
                 <h3 style={{fontWeight:900, fontSize:18, marginTop:8}}>Muy pronto servicios de alimentación en tu zona</h3>
                 <p style={{fontSize:13, color:'#666', marginTop:8, lineHeight:1.5}}>
-                  {filtroDirActivo ? <>Aún no tenemos en <b>{manualDir || userLoc?.direccion}, {manualMuni || userLoc?.municipio}, {manualDepto || userLoc?.departamento}</b>.</> : filtroMuniActivo ? <>Aún no tenemos en <b>{manualMuni || userLoc?.municipio}, {manualDepto || userLoc?.departamento}</b>.</> : <>Aún no tenemos en <b>{manualDepto || userLoc?.departamento} - {manualMuni || userLoc?.municipio} {manualDir ? `- ${manualDir}` : ''}</b>.</>}
+                  {filtroDirActivo ? <>Aún no tenemos en <b>{manualDir}, {manualMuni}, {manualDepto}</b>.</> : filtroMuniActivo ? <>Aún no tenemos en <b>{manualMuni}, {manualDepto}</b>.</> : <>Aún no tenemos en <b>{manualDepto} - {manualMuni} {manualDir ? `- ${manualDir}` : ''}</b>.</>}
                   <br/>Estamos activando comiderías pueblo por pueblo.
                 </p>
                 <div style={{marginTop:14, display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap'}}>
                   <button onClick={()=>{ setUserLoc(null); setManualDepto(''); setManualMuni(''); setManualDir(''); setFiltroMuniActivo(false); setFiltroDirActivo(false) }} style={{background:'#F0F0F0', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:700, fontSize:12}}>📍 Cambiar ubicación</button>
                   <button onClick={abrirVender} style={{background:'#111', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:12}}>¿Tienes restaurante? Únete</button>
                 </div>
-                {foodCiudades.length>0 && (
-                  <div style={{marginTop:16, background:'#F7F2EE', borderRadius:12, padding:10}}>
-                    <p style={{fontSize:11, fontWeight:800}}>Ciudades con servicio activo:</p>
-                    <p style={{fontSize:12, marginTop:4}}>{foodCiudades.join(' • ')}</p>
-                  </div>
-                )}
               </div>
             )}
 
             {(userLoc || manualDepto) && nearbyFoodStores.length>0 && (
               <>
                 <div style={{background:'#FFF7E8', border:'1px solid #FFD9A0', borderRadius:14, padding:'10px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:12}}>
-                  <p style={{fontSize:12, fontWeight:800}}>🍔 {nearbyFoodStores.length} restaurante(s) en {filtroDirActivo ? `${manualDir}, ${manualMuni || userLoc?.municipio}` : filtroMuniActivo ? `${manualMuni || userLoc?.municipio}, ${manualDepto || userLoc?.departamento}` : (manualDepto || userLoc?.departamento || manualMuni)} • {comidaLoading ? 'Cargando...' : filtered.length+' platillos'} {filtroDirActivo ? `(solo ${manualDir})` : filtroMuniActivo ? `(solo ${manualMuni})` : ''}</p>
+                  <p style={{fontSize:12, fontWeight:800}}>🍔 {nearbyFoodStores.length} restaurante(s) en {filtroDirActivo ? `${manualDir}, ${manualMuni}` : filtroMuniActivo ? `${manualMuni}, ${manualDepto}` : (manualDepto || manualMuni)} • {comidaLoading ? 'Cargando...' : filtered.length+' platillos'} {filtroDirActivo ? `(solo ${manualDir})` : filtroMuniActivo ? `(solo ${manualMuni})` : ''}</p>
                   <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
                     {filtroDirActivo && <button onClick={()=>{ setFiltroDirActivo(false); setFiltroMuniActivo(true) }} style={{background:'#111', border:'none', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11, color:'#fff'}}>← {manualMuni}</button>}
                     {filtroMuniActivo && !filtroDirActivo && <button onClick={()=>setFiltroMuniActivo(false)} style={{background:'#FF8A00', border:'none', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11, color:'#fff'}}>Ver todo {manualDepto}</button>}
@@ -470,22 +448,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                     </a>
                   ))}
                 </div>
-                {municipiosDelDepto.length>1 && !filtroMuniActivo && !filtroDirActivo && (
-                  <div style={{display:'flex', gap:6, overflowX:'auto', paddingBottom:8, marginBottom:8}}>
-                    <span style={{fontSize:11, fontWeight:700, alignSelf:'center'}}>Municipio:</span>
-                    {municipiosDelDepto.map(m=>(
-                      <button key={m} onClick={()=>{ setManualMuni(m); setFiltroMuniActivo(true); setUserLoc({departamento: manualDepto, municipio: m, direccion: manualDir}) }} style={{background: (manualMuni===m && filtroMuniActivo) ? '#111' : '#fff', color: (manualMuni===m && filtroMuniActivo) ? '#fff' : '#000', border:'1px solid #E8E0D9', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:700, whiteSpace:'nowrap'}}>📍 {m}</button>
-                    ))}
-                  </div>
-                )}
-                {direccionesDelMuni.length>0 && !filtroDirActivo && (
-                  <div style={{display:'flex', gap:6, overflowX:'auto', paddingBottom:8, marginBottom:8}}>
-                    <span style={{fontSize:11, fontWeight:700, alignSelf:'center', color:'#0066FF'}}>Pueblito/Barrio:</span>
-                    {direccionesDelMuni.slice(0,10).map(d=>(
-                      <button key={d} onClick={()=>{ setManualDir(d); setFiltroDirActivo(true); setUserLoc({departamento: manualDepto, municipio: manualMuni, direccion: d}) }} style={{background: (manualDir===d && filtroDirActivo) ? '#0066FF' : '#E8F0FF', color: (manualDir===d && filtroDirActivo) ? '#fff' : '#0066FF', border:'1px solid #B8D0FF', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:800, whiteSpace:'nowrap'}}>🏘 {d}</button>
-                    ))}
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -496,17 +458,19 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             const hasVideo=!!p.video_url
             const boutique = isBoutique(p)
             const badge = getBadgeInfo(p.stores)
+            const tallas = getTallas(p)
             return (
               <div key={p.id} className="card">
                 <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
-                  {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS</span>}
-                  {showComida && <span style={{position:'absolute', top:8, left:8, background:'#FF8A00', color:'#fff', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🍔 {p.stores?.municipio || ''}</span>}
+                  {boutique && tallas.length>0 && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS • {tallas.slice(0,3).join(' ')}</span>}
+                  {!boutique && showComida && <span style={{position:'absolute', top:8, left:8, background:'#FF8A00', color:'#fff', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🍔 {p.stores?.municipio || ''}</span>}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
+                  {boutique && tallas.length>0 && <p style={{fontSize:10, color:'#0066FF', fontWeight:700, marginTop:4}}>Tallas: {tallas.join(' • ')}</p>}
                   {badge.key==='premium' && <p style={{fontSize:11, color:'#FF6A00', fontWeight:800, marginTop:6}}>⭐ Tienda Premium • {p.stores?.municipio || p.stores?.departamento || ''}</p>}
                   {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada</p>}
                   {showComida && <p style={{fontSize:11, color:'#9A5A00', fontWeight:700, marginTop:4}}>📍 {p.stores?.name} • {p.stores?.municipio} • {getDireccion(p.stores)}</p>}
@@ -517,11 +481,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         </div>
 
         {comidaLoading && showComida && <p style={{textAlign:'center', marginTop:20, fontSize:13, color:'#999'}}>Cargando platillos de {nearbyFoodStores.map(s=>s.name).join(', ')}...</p>}
-        {!showComida && filtered.length===0 && !loading && (
-          <div style={{textAlign:'center', padding:30, background:'#fff', borderRadius:18, marginTop:12}}>
-            <p style={{fontSize:14, color:'#999'}}>No encontramos productos para esa búsqueda.</p>
-          </div>
-        )}
       </div>
 
       <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 12px'}}>
@@ -535,7 +494,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>⚖ Reporte antifraude 24h</span>
             </div>
           </div>
-
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, textAlign:'left', borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:16}}>
             <div>
               <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Legal</p>
@@ -555,7 +513,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               </div>
             </div>
           </div>
-
           <details style={{marginTop:18, background:'rgba(255,255,255,0.06)', borderRadius:12, padding:'12px 14px'}}>
             <summary style={{fontSize:12, fontWeight:800, cursor:'pointer', listStyle:'none', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
               <span>📦 Paquete Seguro - Cómo evitamos el fraude</span>
@@ -567,10 +524,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               <p style={{marginBottom:8}}><b>2. WhatsApp Business:</b> Verificamos que el número responde. Llamada de 30s de nuestro equipo. Tiendas fantasma nunca contestan.</p>
               <p style={{marginBottom:8}}><b>3. Antifraude:</b> 2 reportes comprobados de estafa = suspensión inmediata. Guardamos lista de WhatsApps baneados. Si una tienda usa fotos robadas de Shein/AliExpress como propias, se baja.</p>
               <p style={{marginBottom:8}}><b>4. Compra segura:</b> Siempre habla por el WhatsApp que aparece en la tienda. Nunca deposites a nombre diferente al de la tienda. Pide guía de envío de CargoTrans / video de empaque.</p>
-              <p><b>¿Fuiste estafado?</b> Usa <a href="/reportar" style={{color:'#FF6B6B', fontWeight:700}}>Reportar Fraude</a> - respondemos en 24h. Intervenimos y suspendemos la tienda si se comprueba.</p>
+              <p><b>¿Fuiste estafado?</b> Usa <a href="/reportar" style={{color:'#FF6B6B', fontWeight:700}}>Reportar Fraude</a> - respondemos en 24h.</p>
             </div>
           </details>
-
           <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store - Socio fundador + Equipo TN Sistemas. Hecho en Nicaragua con 🧡</p>
         </div>
       </div>
@@ -586,9 +542,19 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
             <p style={{fontSize:12, color:'#666'}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
+            {/* TALLAS BOUTIQUE RESTAURADAS */}
+            {isBoutique(sel) && (
+              <div style={{marginTop:12}}>
+                <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Selecciona talla: {selectedTalla && <span style={{color:'#0066FF'}}>• {selectedTalla}</span>}</p>
+                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                  {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL','XXL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}</>)}
+                </div>
+                {getTallas(sel).length===0 && <p style={{fontSize:10, color:'#888', marginTop:6}}>Tallas disponibles: XS S M L XL - Si no ves tu talla, consulta por WhatsApp</p>}
+              </div>
+            )}
             <div style={{display:'flex', gap:8, marginTop:14}}>
-              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar</button>
-              <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp</button>
+              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar {selectedTalla ? `(${selectedTalla})` : ''}</button>
+              <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp {selectedTalla ? selectedTalla : ''}</button>
             </div>
             <div style={{display:'flex', gap:8, marginTop:8}}>
               <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar</button>
