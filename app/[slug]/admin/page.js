@@ -15,17 +15,17 @@ function getCategoriasPorTipo(store){
   const tipo = (store?.tipo_tienda || store?.store_type || '').toLowerCase()
   
   if(tipo.includes('comida') || tipo.includes('restaurante') || tipo.includes('food')){
-    return ['comidas','desayunos','almuerzos','cenas','bebidas','postres','snacks','combos','entradas','sopas','asados','mariscos','vegetariano','otros']
+    return ['comidas','desayunos','almuerzos','cenas','bebidas','postres','snacks','combos','entradas','sopas','asados','mariscos','vegetariano','otros','eskimos','comida rapida']
   }
   if(tipo.includes('boutique') || tipo.includes('ropa') || tipo.includes('moda')){
     return [
       'vestidos','blusas','jeans','faldas','conjuntos','shorts',
-      'hombres','niños','niñas','bebes','pañalon',
+      'hombres','niños','niñas','bebes','pantalon',
       'accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros'
     ]
   }
   // GENERAL / ABARROTES / TIENDA GENERAL - como estaba antes genial
-  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','comidas','otros','oferta','nuevo']
+  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo']
 }
 
 export default function AdminPage(){
