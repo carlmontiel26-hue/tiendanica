@@ -9,6 +9,15 @@ function getSupabase(){
   return createClient(url,key)
 }
 
+// --- PIXEL HELPER - NO TOCA NADA MAS ---
+function trackPixel(eventName, data = {}){
+  try{
+    if(typeof window !== 'undefined' && window.fbq){
+      window.fbq('track', eventName, data);
+    }
+  }catch(e){}
+}
+
 function TemuGallery({ images=[], videoUrl, name }){
   const slides = []
   if(videoUrl) slides.push({type:'video', url:videoUrl})
@@ -296,6 +305,8 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const isBoutique = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('boutique')
   const addToCart = (p, talla=null)=>{
     if(isBoutique(p)){ const tallas = getTallas(p); if(tallas.length>0 && !talla){ alert('Selecciona una talla primero'); return } }
+    // PIXEL AddToCart
+    trackPixel('AddToCart', { content_name: p.name, content_ids: [p.id], value: Number(p.price)||0, currency: 'NIO' });
     setCart(prev=>{
       const idKey = talla ? `${p.id}-${talla}` : p.id
       const idx = prev.findIndex(i=>i.cartId===idKey)
@@ -306,9 +317,21 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const updateQty = (cartId, delta)=>{ setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean)) }
   const total = cart.reduce((s,i)=>s+(Number(i.price)||0)*i.qty,0)
   const checkoutWhatsApp = ()=>{
-    if(cart.length===0) return; let msg = `Hola TiendaNica! Quiero comprar desde el market:\n\n`; cart.forEach((i,idx)=>{ const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : ''; msg += `${idx+1}. ${i.name}${tallaTxt} x${i.qty} - C$ ${i.price} (Tienda: ${i.storeName})\n` }); msg += `\nTotal: C$ ${total}\n\nMi direccion: `; const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))]; if(uniqueWAs.length===1){ window.open(`https://wa.me/${uniqueWAs[0]}?text=${encodeURIComponent(msg)}`,'_blank') } else { window.open(`https://wa.me/50581732620?text=${encodeURIComponent(msg + "\n\n(Son de varias tiendas)")}`,'_blank') } }
-  const waProductDirect = (p, talla=null)=>{ const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
+    if(cart.length===0) return;
+    trackPixel('InitiateCheckout', { num_items: cart.length, value: total, currency: 'NIO' });
+    trackPixel('Contact', { content_name: 'Carrito multiple' });
+    let msg = `Hola TiendaNica! Quiero comprar desde el market:\n\n`; cart.forEach((i,idx)=>{ const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : ''; msg += `${idx+1}. ${i.name}${tallaTxt} x${i.qty} - C$ ${i.price} (Tienda: ${i.storeName})\n` }); msg += `\nTotal: C$ ${total}\n\nMi direccion: `; const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))]; if(uniqueWAs.length===1){ window.open(`https://wa.me/${uniqueWAs[0]}?text=${encodeURIComponent(msg)}`,'_blank') } else { window.open(`https://wa.me/50581732620?text=${encodeURIComponent(msg + "\n\n(Son de varias tiendas)")}`,'_blank') } }
+  const waProductDirect = (p, talla=null)=>{
+    trackPixel('Contact', { content_name: p.name, content_ids: [p.id], value: Number(p.price)||0, currency: 'NIO' });
+    trackPixel('Lead', { content_name: p.name });
+    const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
+
+  // Handler con Pixel para ViewContent
+  const openProductWithPixel = (p)=>{
+    trackPixel('ViewContent', { content_name: p.name, content_category: p.categoria, content_ids: [p.id], content_type: 'product', value: Number(p.price)||0, currency: 'NIO' });
+    setSel(p);
+  }
 
   if(loading) return (
     <main style={{minHeight:'100vh', background:'#F5F1ED'}}>
@@ -461,7 +484,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             const tallas = getTallas(p)
             return (
               <div key={p.id} className="card">
-                <button onClick={()=>setSel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
+                <button onClick={()=>openProductWithPixel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
                   {boutique && tallas.length>0 && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS • {tallas.slice(0,3).join(' ')}</span>}
@@ -542,7 +565,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
             <p style={{fontSize:12, color:'#666'}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
-            {/* TALLAS BOUTIQUE RESTAURADAS */}
             {isBoutique(sel) && (
               <div style={{marginTop:12}}>
                 <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Selecciona talla: {selectedTalla && <span style={{color:'#0066FF'}}>• {selectedTalla}</span>}</p>
