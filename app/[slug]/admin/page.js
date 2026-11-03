@@ -25,7 +25,7 @@ function getCategoriasPorTipo(store){
     ]
   }
   // GENERAL / ABARROTES / TIENDA GENERAL - como estaba antes genial
-  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo']
+  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios']
 }
 
 export default function AdminPage(){

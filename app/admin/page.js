@@ -78,6 +78,21 @@ export default function SuperAdminConEdicion(){
     return data.publicUrl
   }
 
+  // ===== SOLO AGREGADO: CAMBIAR VERIFICACION PREMIUM / VERIFICADA / NUEVA =====
+  const cambiarVerificacion = async (storeId, tipo)=>{
+    const supabase = getSupabase()
+    if(!supabase) return
+    const payload = { verification_status: tipo, verification_badge: tipo }
+    const { error } = await supabase.from('stores').update(payload).eq('id', storeId)
+    if(error){
+      // fallback si solo existe verification_status
+      const { error: err2 } = await supabase.from('stores').update({ verification_status: tipo }).eq('id', storeId)
+      if(err2){ alert('Error: '+err2.message); return }
+    }
+    setStores(prev=> prev.map(s=> s.id===storeId ? {...s, verification_status: tipo, verification_badge: tipo} : s))
+    if(previewStore && previewStore.id===storeId) setPreviewStore(prev=>({...prev, verification_status: tipo, verification_badge: tipo}))
+  }
+
   const crearTienda = async (e)=>{
     e.preventDefault()
     const supabase = getSupabase()
@@ -247,7 +262,7 @@ export default function SuperAdminConEdicion(){
     boutique: stores.filter(s=>s.tipo_tienda==='boutique').length,
     general: stores.filter(s=>s.tipo_tienda==='general').length,
     comida: stores.filter(s=>s.tipo_tienda==='comida').length,
-    verificadas: stores.filter(s=>s.verification_status==='verificada').length,
+    verificadas: stores.filter(s=>s.verification_status==='verificada' || s.verification_status==='premium').length,
     productos: products.length
   }
 
@@ -348,6 +363,7 @@ export default function SuperAdminConEdicion(){
               <div style={{display: viewMode==='grid' ? 'grid' : 'flex', gridTemplateColumns: viewMode==='grid' ? 'repeat(auto-fill, minmax(300px, 1fr))' : '1fr', flexDirection: viewMode==='list' ? 'column' : 'row', gap:12}}>
                 {tiendasFiltradas.map(s=>{
                   const countProd = products.filter(p=>p.store_id===s.id).length
+                  const badge = (s.verification_status || s.verification_badge || 'nueva').toLowerCase()
                   return (
                     <div key={s.id} style={{border:'1px solid #EDE6E3', borderRadius:16, padding:12, background:'#fff', position:'relative', transition:'all 0.2s', cursor:'default'}}>
                       <div style={{display:'flex', gap:12}}>
@@ -355,7 +371,9 @@ export default function SuperAdminConEdicion(){
                         <div style={{flex:1, minWidth:0}}>
                           <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
                             <b style={{fontSize:13, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{s.name}</b>
-                            {s.verification_status==='verificada' && <span style={{fontSize:9, background:'#0066FF', color:'#fff', padding:'2px 6px', borderRadius:999, fontWeight:800}}>✓ VERIFICADA</span>}
+                            {badge==='verificada' && <span style={{fontSize:9, background:'#0066FF', color:'#fff', padding:'2px 6px', borderRadius:999, fontWeight:800}}>✓ VERIFICADA</span>}
+                            {badge==='premium' && <span style={{fontSize:9, background:'#FF6A00', color:'#fff', padding:'2px 6px', borderRadius:999, fontWeight:800}}>⭐ PREMIUM</span>}
+                            {badge==='nueva' && <span style={{fontSize:9, background:'#eee', color:'#666', padding:'2px 6px', borderRadius:999, fontWeight:700}}>NUEVA</span>}
                           </div>
                           <div style={{display:'flex', gap:4, marginTop:4, flexWrap:'wrap'}}>
                             <span style={{fontSize:9, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : '#111', color:'#fff', padding:'3px 8px', borderRadius:999, textTransform:'uppercase', fontWeight:800}}>{s.tipo_tienda}</span>
@@ -366,6 +384,14 @@ export default function SuperAdminConEdicion(){
                         </div>
                       </div>
                       {s.direccion && <p style={{fontSize:11, color:'#6B5E55', marginTop:8, background:'#FFFBF8', padding:'6px 8px', borderRadius:8, border:'1px dashed #EDE6E3'}}>📍 {s.direccion}</p>}
+                      
+                      {/* ===== SOLO AGREGADO: BOTONES VERIFICACION ===== */}
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10, background:'#F9F6F2', padding:8, borderRadius:10}}>
+                        <button onClick={()=>cambiarVerificacion(s.id,'premium')} style={{background: badge==='premium' ? '#FF6A00' : '#fff', color: badge==='premium' ? '#fff' : '#FF6A00', border: badge==='premium' ? 'none' : '1.5px solid #FF6A00', padding:'8px 4px', borderRadius:8, fontSize:10, fontWeight:900, cursor:'pointer'}}>⭐ Premium</button>
+                        <button onClick={()=>cambiarVerificacion(s.id,'verificada')} style={{background: badge==='verificada' ? '#0066FF' : '#fff', color: badge==='verificada' ? '#fff' : '#0066FF', border: badge==='verificada' ? 'none' : '1.5px solid #0066FF', padding:'8px 4px', borderRadius:8, fontSize:10, fontWeight:800, cursor:'pointer'}}>✓ Verif.</button>
+                        <button onClick={()=>cambiarVerificacion(s.id,'nueva')} style={{background: badge==='nueva' ? '#111' : '#fff', color: badge==='nueva' ? '#fff' : '#666', border:'1px solid #ddd', padding:'8px 4px', borderRadius:8, fontSize:10, fontWeight:700, cursor:'pointer'}}>Nueva</button>
+                      </div>
+
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10}}>
                         <button onClick={()=>setPreviewStore(s)} style={{background:'#111', color:'#fff', border:'none', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:800, cursor:'pointer'}}>👁 Vista previa</button>
                         <button onClick={()=>{setSelectedStoreForProduct(s.id); setTab('productos')}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>📦 {countProd} Productos</button>
@@ -401,6 +427,12 @@ export default function SuperAdminConEdicion(){
                         <a href={`/${previewStore.slug}`} target="_blank" style={{flex:1, background:'#111', color:'#fff', padding:'8px', borderRadius:10, fontSize:11, textAlign:'center', textDecoration:'none', fontWeight:700}}>Abrir tienda ↗</a>
                         <button onClick={()=>abrirEdicion(previewStore)} style={{flex:1, background:'#F5F1EC', border:'none', padding:'8px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Editar</button>
                       </div>
+                      {/* Botones verificacion tambien en preview */}
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10}}>
+                        <button onClick={()=>cambiarVerificacion(previewStore.id,'premium')} style={{background: (previewStore.verification_status==='premium') ? '#FF6A00' : '#F5F1EC', color: (previewStore.verification_status==='premium') ? '#fff' : '#FF6A00', border:'1.5px solid #FF6A00', padding:'8px', borderRadius:10, fontSize:10, fontWeight:900}}>⭐ Premium</button>
+                        <button onClick={()=>cambiarVerificacion(previewStore.id,'verificada')} style={{background: (previewStore.verification_status==='verificada') ? '#0066FF' : '#F5F1EC', color: (previewStore.verification_status==='verificada') ? '#fff' : '#0066FF', border:'1.5px solid #0066FF', padding:'8px', borderRadius:10, fontSize:10, fontWeight:800}}>✓ Verificada</button>
+                        <button onClick={()=>cambiarVerificacion(previewStore.id,'nueva')} style={{background:'#fff', border:'1px solid #ddd', padding:'8px', borderRadius:10, fontSize:10}}>Nueva</button>
+                      </div>
                     </div>
                   </div>
                   <div style={{marginTop:12, background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12}}>
@@ -409,13 +441,13 @@ export default function SuperAdminConEdicion(){
                       <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Slug</span><span style={{fontFamily:'monospace'}}>{previewStore.slug}</span></div>
                       <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>WhatsApp</span><span>{previewStore.whatsapp}</span></div>
                       <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Tipo</span><span style={{textTransform:'uppercase', fontWeight:700}}>{previewStore.tipo_tienda}</span></div>
-                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Verificación</span><span style={{fontWeight:800, color: previewStore.verification_status==='verificada' ? '#00E676' : '#FFA500'}}>{previewStore.verification_status}</span></div>
+                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Verificación</span><span style={{fontWeight:800, color: previewStore.verification_status==='premium' ? '#FF6A00' : previewStore.verification_status==='verificada' ? '#00E676' : '#FFA500'}}>{previewStore.verification_status}</span></div>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px dashed #E0D5CC', textAlign:'center'}}>
-                  <p style={{fontSize:28}}>👁️</p>
+                  <p style={{fontSize:28}}>👁</p>
                   <p style={{fontSize:13, fontWeight:800, marginTop:8}}>Selecciona una tienda</p>
                   <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Haz click en "Vista previa" para verla aquí en vivo sin salir del admin, como escritorio pro.</p>
                 </div>
