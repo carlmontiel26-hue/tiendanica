@@ -1,67 +1,60 @@
-import './globals.css'
+import Script from "next/script";
+import "./globals.css";
 
 export const metadata = {
-  metadataBase: new URL('https://tiendanica.store'),
-  title: {
-    default: 'TiendaNica.store - El marketplace verificado de Nicaragua',
-    template: '%s | TiendaNica.store',
-  },
-  description: 'Tiendas verificadas con video y cédula. Moda, celulares, hogar y comida. Envío a toda Nicaragua. Compra segura en TiendaNica.store',
-  applicationName: 'TiendaNica.store',
-  authors: [{ name: 'TiendaNica.store' }],
-  creator: 'TiendaNica.store',
-  publisher: 'TiendaNica.store',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
+  metadataBase: new URL("https://tiendanica.store"),
+  title: "TiendaNica.store | El Marketplace de Nicaragua",
+  description: "Compra y vende en toda Nicaragua - Tiendas, comida a domicilio, y más.",
   openGraph: {
-    title: 'TiendaNica.store - El marketplace verificado de Nicaragua',
-    description: '🛡 Tiendas verificadas con video y cédula • 📦 Envío a toda Nicaragua • ⚖ Reporte antifraude 24h',
-    url: 'https://tiendanica.store',
-    siteName: 'TiendaNica.store',
-    locale: 'es_NI',
-    type: 'website',
+    title: "TiendaNica.store",
+    description: "El Marketplace de Nicaragua",
+    url: "https://tiendanica.store",
+    siteName: "TiendaNica.store",
     images: [
       {
-        url: '/opengraph-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'TiendaNica.store - Marketplace verificado Nicaragua',
+        url: "/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "TiendaNica.store",
       },
     ],
+    type: "website",
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'TiendaNica.store - El marketplace verificado de Nicaragua',
-    description: 'Tiendas verificadas con video y cédula. Envío a toda Nicaragua.',
-    images: ['/opengraph-image.png'],
-    creator: '@tiendanica',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/icon.png',
-  },
-  alternates: {
-    canonical: 'https://tiendanica.store',
-  },
-}
-
-export const viewport = {
-  themeColor: '#FF8A00',
-  width: 'device-width',
-  initialScale: 1,
-}
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <body style={{ margin: 0, background: '#F5F1ED' }}>{children}</body>
+      <head>
+        {/* Meta Pixel Code - TiendaNica.store ID: 1011358985329179 */}
+        <Script id="fb-pixel" strategy="afterInteractive">
+          {`
+            !function(f,b,e,v,n,t,s)
+            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+            n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t,s)}(window, document,'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+            fbq('init', '1011358985329179');
+            fbq('track', 'PageView');
+          `}
+        </Script>
+      </head>
+      <body>
+        {/* Noscript fallback Meta Pixel */}
+        <noscript>
+          <img 
+            height="1" 
+            width="1" 
+            style={{display:'none'}}
+            src="https://www.facebook.com/tr?id=1011358985329179&ev=PageView&noscript=1"
+            alt=""
+          />
+        </noscript>
+        {children}
+      </body>
     </html>
-  )
+  );
 }
