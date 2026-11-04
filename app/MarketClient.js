@@ -9,7 +9,6 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-// --- PIXEL HELPER - NO TOCA NADA MAS ---
 function trackPixel(eventName, data = {}){
   try{
     if(typeof window !== 'undefined' && window.fbq){
@@ -59,7 +58,8 @@ function TemuGallery({ images=[], videoUrl, name }){
   )
 }
 
-const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo','comida']
+// ===== FIX PC: ORDEN PREMIUM CON VEHICULOS =====
+const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo','comida','motos','autos','camionetas','moto usada','auto usado','repuestos','accesorios moto','cascos','llantas','vehiculos']
 const DEPARTAMENTOS_NI = ['Managua','Masaya','Granada','León','Chinandega','Carazo','Rivas','Estelí','Matagalpa','Jinotega','Boaco','Chontales','Madriz','Nueva Segovia','Río San Juan','RAAN','RAAS']
 
 function getBadgeInfo(store){
@@ -96,6 +96,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [comidaLoading,setComidaLoading]=useState(false)
   const [filtroMuniActivo,setFiltroMuniActivo]=useState(false)
   const [filtroDirActivo,setFiltroDirActivo]=useState(false)
+  const [showAllCats,setShowAllCats]=useState(false)
 
   useEffect(()=>{
     const supabase=getSupabase()
@@ -305,7 +306,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const isBoutique = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('boutique')
   const addToCart = (p, talla=null)=>{
     if(isBoutique(p)){ const tallas = getTallas(p); if(tallas.length>0 && !talla){ alert('Selecciona una talla primero'); return } }
-    // PIXEL AddToCart
     trackPixel('AddToCart', { content_name: p.name, content_ids: [p.id], value: Number(p.price)||0, currency: 'NIO' });
     setCart(prev=>{
       const idKey = talla ? `${p.id}-${talla}` : p.id
@@ -327,7 +327,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
 
-  // Handler con Pixel para ViewContent
   const openProductWithPixel = (p)=>{
     trackPixel('ViewContent', { content_name: p.name, content_category: p.categoria, content_ids: [p.id], content_type: 'product', value: Number(p.price)||0, currency: 'NIO' });
     setSel(p);
@@ -345,13 +344,15 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; }
         .portada-img{ width:100%; height:auto; display:block; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
-        .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; align-items:center; justifyContent:center; gap:2px; }
+        .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; alignItems:center; justifyContent:center; gap:2px; }
         .cat-scroll{ display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; padding:2px 0 6px; -webkit-overflow-scrolling:touch; }
         .cat-scroll::-webkit-scrollbar{ display:none; }
         .chip{ white-space:nowrap; padding:9px 16px; border-radius:999px; border:1.5px solid #E8E0D9; background:#fff; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; text-transform:capitalize; }
         .chip.active{ background:#111; color:#fff; border-color:#111; }
         .chip-comida{ background: #FFF4E0; border-color: #FFB84D; color: #9A5A00; font-weight:900; }
         .chip-comida.active{ background:#FF8A00; color:#fff; border-color:#FF8A00; }
+        .chip-vehiculos{ background:#111; border-color:#111; color:#FF6A00; font-weight:900; }
+        .chip-vehiculos.active{ background:#FF6A00; color:#fff; border-color:#FF6A00; }
         .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
         .card{ background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06); border:1px solid #F0E9E2; }
         .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; align-items:center; justifyContent:center; }
@@ -362,10 +363,13 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           .portada-wrap{ width:100%; max-width:100%; margin:0; border-radius:0; overflow:hidden; max-height:220px; background:#000; }
           .portada-img{ width:100%; height:220px; object-fit:cover; object-position:center; display:block; }
           .cinta-degradada{ max-width:100%; margin:0; border-radius:0; }
+          .cat-scroll{ overflow-x:visible; flex-wrap:wrap; gap:8px; }
+          .cat-scroll::-webkit-scrollbar{ display:block; }
+          .chip{ font-size:12px; padding:8px 14px; }
         }
         @media(min-width:1280px){ .portada-wrap{ max-height:240px; } .portada-img{ height:240px; } }
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } }
+        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
       `}</style>
 
       <div className="portada-wrap">
@@ -389,10 +393,19 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           <div className="cat-scroll" style={{marginTop:10}}>
             <button onClick={handleTodoClick} className={`chip ${!cat && !tipo && !showComida ? 'active' : ''}`} style={{textTransform:'none'}}>Todo</button>
             <button onClick={()=>handleCatClick('comida')} className={`chip chip-comida ${showComida ? 'active' : ''}`}>🍔 Comida</button>
-            {catsOrdenadas.map(c=><button key={c} onClick={()=>{setShowComida(false); setCat(c===cat?null:c)}} className={`chip ${cat===c && !showComida ? 'active' : ''}`}>{c}</button>)}
+            {/* FIX PC: mostrar categorias con wrap y separar vehiculos */}
+            {(showAllCats ? catsOrdenadas : catsOrdenadas.slice(0, 14)).map(c=>{
+              const isVeh = ['motos','autos','camionetas','repuestos','vehiculos','accesorios moto','cascos','llantas'].includes(c.toLowerCase())
+              return <button key={c} onClick={()=>{setShowComida(false); setCat(c===cat?null:c)}} className={`chip ${cat===c && !showComida ? 'active' : ''} ${isVeh ? 'chip-vehiculos' : ''}`}>{c}</button>
+            })}
+            {catsOrdenadas.length > 14 && (
+              <button onClick={()=>setShowAllCats(!showAllCats)} className="chip" style={{background:'#F5F1EC', fontWeight:900, fontSize:11}}>
+                {showAllCats ? '▲ Ver menos' : `+${catsOrdenadas.length-14} más`}
+              </button>
+            )}
           </div>
           <div className="cat-scroll" style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8}}>
-            {['boutique','general'].map(t=><button key={t} onClick={()=>{setShowComida(false); setTipo(t===tipo?null:t)}} className="chip" style={{background: tipo===t && !showComida ? '#0066FF' : '#F7F2EE', color: tipo===t && !showComida ? '#fff' : '#000', borderColor: tipo===t && !showComida ? '#0066FF' : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t}</button>)}
+            {['boutique','general','vehiculos'].map(t=><button key={t} onClick={()=>{setShowComida(false); setTipo(t===tipo?null:t)}} className="chip" style={{background: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#F7F2EE', color: tipo===t && !showComida ? '#fff' : '#000', borderColor: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t==='vehiculos' ? '🏍 vehiculos' : t}</button>)}
             <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>
               {showComida ? `${nearbyFoodStores.length>0 ? filtered.length+' comidas' : 'Comida'} • ${userLoc ? (userLoc.municipio||userLoc.departamento) : manualDepto || 'Sin ubicación'} ${filtroMuniActivo ? '('+manualMuni+')' : ''} ${filtroDirActivo ? '('+manualDir+')' : ''}` : `${filtered.length} productos • Premium primero`}
             </span>
@@ -480,20 +493,23 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           {filtered.map(p=>{
             const hasVideo=!!p.video_url
             const boutique = isBoutique(p)
+            const isVehiculo = (p.stores?.tipo_tienda||'').toLowerCase().includes('vehiculos') || ['motos','autos','repuestos'].includes((p.categoria||'').toLowerCase())
             const badge = getBadgeInfo(p.stores)
             const tallas = getTallas(p)
             return (
-              <div key={p.id} className="card">
+              <div key={p.id} className="card" style={{border: isVehiculo ? '1.5px solid #FF6A00' : '1px solid #F0E9E2'}}>
                 <button onClick={()=>openProductWithPixel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={p.image_url} alt={p.name}/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
                   {boutique && tallas.length>0 && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS • {tallas.slice(0,3).join(' ')}</span>}
+                  {isVehiculo && <span style={{position:'absolute', top:8, left:8, background:'#111', color:'#FF6A00', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🏍 {p.marca||''} {p.modelo||''} {p.anio||''}</span>}
                   {!boutique && showComida && <span style={{position:'absolute', top:8, left:8, background:'#FF8A00', color:'#fff', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🍔 {p.stores?.municipio || ''}</span>}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
                   {boutique && tallas.length>0 && <p style={{fontSize:10, color:'#0066FF', fontWeight:700, marginTop:4}}>Tallas: {tallas.join(' • ')}</p>}
+                  {isVehiculo && <p style={{fontSize:10, color:'#FF6A00', fontWeight:800, marginTop:4}}>{p.marca||''} {p.modelo||''} • {p.kilometraje||''} • {p.combustible||''}</p>}
                   {badge.key==='premium' && <p style={{fontSize:11, color:'#FF6A00', fontWeight:800, marginTop:6}}>⭐ Tienda Premium • {p.stores?.municipio || p.stores?.departamento || ''}</p>}
                   {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada</p>}
                   {showComida && <p style={{fontSize:11, color:'#9A5A00', fontWeight:700, marginTop:4}}>📍 {p.stores?.name} • {p.stores?.municipio} • {getDireccion(p.stores)}</p>}
@@ -511,46 +527,8 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           <div style={{textAlign:'center', marginBottom:18}}>
             <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
             <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
-            <div style={{marginTop:10, display:'inline-flex', gap:6, flexWrap:'wrap', justifyContent:'center'}}>
-              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>🛡 Tiendas verificadas con video y cédula</span>
-              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>📦 Envío a toda Nicaragua</span>
-              <span style={{fontSize:10, background:'rgba(255,255,255,0.1)', padding:'4px 8px', borderRadius:999}}>⚖ Reporte antifraude 24h</span>
-            </div>
           </div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, textAlign:'left', borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:16}}>
-            <div>
-              <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Legal</p>
-              <div style={{display:'flex', flexDirection:'column', gap:6}}>
-                <a href="/terminos" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>Términos y Condiciones</a>
-                <a href="/privacidad" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>Política de Privacidad</a>
-                <a href="/vendedores" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>Política de Vendedores</a>
-                <a href="/reportar" style={{fontSize:11, color:'#FF6B6B', textDecoration:'none', fontWeight:700}}>🚨 Reportar Fraude</a>
-              </div>
-            </div>
-            <div>
-              <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Soporte</p>
-              <div style={{display:'flex', flexDirection:'column', gap:6}}>
-                <a href="/privacidad" style={{fontSize:11, color:'rgba(255,255,255,0.7)', textDecoration:'none'}}>¿Cómo compramos?</a>
-                <a href="https://wa.me/50581732620" style={{fontSize:11, color:'#25D366', textDecoration:'none', fontWeight:700}}>WhatsApp Soporte: 505 8173 2620</a>
-                <span style={{fontSize:10, color:'rgba(255,255,255,0.4)'}}>Lun-Sáb 9AM-6PM</span>
-              </div>
-            </div>
-          </div>
-          <details style={{marginTop:18, background:'rgba(255,255,255,0.06)', borderRadius:12, padding:'12px 14px'}}>
-            <summary style={{fontSize:12, fontWeight:800, cursor:'pointer', listStyle:'none', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <span>📦 Paquete Seguro - Cómo evitamos el fraude</span>
-              <span style={{fontSize:10, background:'#0066FF', padding:'2px 8px', borderRadius:999}}>Abrir ▼</span>
-            </summary>
-            <div style={{marginTop:12, fontSize:11, lineHeight:1.5, color:'rgba(255,255,255,0.75)', textAlign:'left'}}>
-              <p style={{fontWeight:700, color:'#fff', marginBottom:6}}>TiendaNica.store NO es el vendedor, somos el intermediario verificado.</p>
-              <p style={{marginBottom:8}}><b>1. Verificación real:</b> Toda tienda Premium ⭐ y Verificada ✓ pasó KYC: foto de cédula, selfie con cédula y video de 15s mostrando stock real en su casa/tienda. Sin eso no aparece.</p>
-              <p style={{marginBottom:8}}><b>2. WhatsApp Business:</b> Verificamos que el número responde. Llamada de 30s de nuestro equipo. Tiendas fantasma nunca contestan.</p>
-              <p style={{marginBottom:8}}><b>3. Antifraude:</b> 2 reportes comprobados de estafa = suspensión inmediata. Guardamos lista de WhatsApps baneados. Si una tienda usa fotos robadas de Shein/AliExpress como propias, se baja.</p>
-              <p style={{marginBottom:8}}><b>4. Compra segura:</b> Siempre habla por el WhatsApp que aparece en la tienda. Nunca deposites a nombre diferente al de la tienda. Pide guía de envío de CargoTrans / video de empaque.</p>
-              <p><b>¿Fuiste estafado?</b> Usa <a href="/reportar" style={{color:'#FF6B6B', fontWeight:700}}>Reportar Fraude</a> - respondemos en 24h.</p>
-            </div>
-          </details>
-          <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store - Socio fundador + Equipo TN Sistemas. Hecho en Nicaragua con 🧡</p>
+          <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store</p>
         </div>
       </div>
 
@@ -564,6 +542,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             </div>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
             <p style={{fontSize:12, color:'#666'}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
+            {sel.marca && <p style={{fontSize:12, background:'#FFF7ED', border:'1px solid #FFE0C0', padding:'8px 10px', borderRadius:10, marginTop:8, fontWeight:700}}>🏍 {sel.marca} {sel.modelo} • {sel.anio} • {sel.kilometraje} • {sel.combustible} • {sel.transmision} • {sel.papeles}</p>}
             {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
             {isBoutique(sel) && (
               <div style={{marginTop:12}}>
@@ -571,7 +550,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
                   {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL','XXL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}</>)}
                 </div>
-                {getTallas(sel).length===0 && <p style={{fontSize:10, color:'#888', marginTop:6}}>Tallas disponibles: XS S M L XL - Si no ves tu talla, consulta por WhatsApp</p>}
               </div>
             )}
             <div style={{display:'flex', gap:8, marginTop:14}}>
