@@ -10,10 +10,8 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-// ===== CATEGORIAS POR TIPO DE TIENDA - NO TOCADO, SOLO AGREGADO VEHICULOS =====
 function getCategoriasPorTipo(store){
   const tipo = (store?.tipo_tienda || store?.store_type || '').toLowerCase()
-  
   if(tipo.includes('vehiculos') || tipo.includes('vehículo') || tipo.includes('moto') || tipo.includes('auto') || tipo.includes('carro')){
     return ['motos','autos','camionetas','moto usada','auto usado','repuestos','accesorios moto','cascos','llantas','aceites','otros','oferta','nuevo']
   }
@@ -21,18 +19,22 @@ function getCategoriasPorTipo(store){
     return ['comidas','desayunos','almuerzos','cenas','bebidas','postres','snacks','combos','entradas','sopas','asados','mariscos','vegetariano','otros','eskimos','comida rapida']
   }
   if(tipo.includes('boutique') || tipo.includes('ropa') || tipo.includes('moda')){
-    return [
-      'vestidos','blusas','jeans','faldas','conjuntos','shorts',
-      'hombres','niños','niñas','bebes','pantalon',
-      'accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros','chaquetas','ropa usada como nueva'
-    ]
+    return ['vestidos','blusas','jeans','faldas','conjuntos','shorts','hombres','niños','niñas','bebes','pantalon','accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros','chaquetas','ropa usada como nueva']
   }
-  // GENERAL / ABARROTES / TIENDA GENERAL - como estaba antes genial
   return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios']
 }
 
 export default function AdminPage(){
   const { slug } = useParams()
+  // ===== PIN SEGURIDAD =====
+  const [pinAuthed, setPinAuthed] = useState(false)
+  const [pinChecking, setPinChecking] = useState(true)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState('')
+  const [showChangePin, setShowChangePin] = useState(false)
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+
   const [store,setStore]=useState(null)
   const [products,setProducts]=useState([])
   const [loading,setLoading]=useState(true)
@@ -50,8 +52,6 @@ export default function AdminPage(){
   const [coverPreview,setCoverPreview]=useState('')
   const [coverUploading,setCoverUploading]=useState(false)
   const [coverSaving,setCoverSaving]=useState(false)
-
-  // ===== SOLO PARA VEHICULOS - NUEVO ESTADO =====
   const [vehiculo,setVehiculo]=useState({
     marca:'', modelo:'', anio:'', km:'', combustible:'gasolina', transmision:'mecanica', condicion:'usado', papeles:'en regla', ubicacion:''
   })
@@ -59,7 +59,65 @@ export default function AdminPage(){
   const categoriasDisponibles = store ? getCategoriasPorTipo(store) : ['otros']
   const isVehiculos = (store?.tipo_tienda||'').toLowerCase().includes('vehiculos') || (store?.tipo_tienda||'').toLowerCase().includes('moto') || (store?.tipo_tienda||'').toLowerCase().includes('auto')
 
-  useEffect(()=>{ if(slug) loadData() },[slug])
+  // ===== CHECK PIN AUTH AL CARGAR =====
+  useEffect(()=>{
+    const check = async ()=>{
+      const savedAuth = localStorage.getItem('tn_my_store_auth')
+      const savedPin = localStorage.getItem('tn_my_store_pin')
+      const savedSlug = localStorage.getItem('tn_my_store_slug')
+      if(savedAuth && savedPin && savedSlug === slug){
+        try{
+          const auth = JSON.parse(savedAuth)
+          if(Date.now() - auth.at < 7*24*60*60*1000){
+            setPinAuthed(true)
+            setPinChecking(false)
+            return
+          }
+        }catch{}
+      }
+      setPinChecking(false)
+    }
+    if(slug) check()
+  },[slug])
+
+  const verificarPin = async()=>{
+    setPinError('')
+    if(!/^\d{6}$/.test(pinInput)){ setPinError('El PIN debe ser 6 números'); return }
+    setLoading(true)
+    const supabase=getSupabase()
+    if(!supabase){ setPinError('Sin conexión'); setLoading(false); return }
+    const { data, error } = await supabase.from('stores').select('id, admin_password, name').eq('slug', slug).single()
+    if(error || !data){ setPinError('Tienda no encontrada'); setLoading(false); return }
+    if(!data.admin_password){
+      setPinError('Esta tienda aún no tiene PIN. Ve a /acceso para crear uno.');
+      setLoading(false); return
+    }
+    if(data.admin_password !== pinInput){
+      setPinError('PIN incorrecto. Contacta a soporte.'); setLoading(false); return
+    }
+    localStorage.setItem('tn_my_store_slug', slug)
+    localStorage.setItem('tn_my_store_pin', pinInput)
+    localStorage.setItem('tn_my_store_auth', JSON.stringify({ slug, at: Date.now() }))
+    setPinAuthed(true)
+    setLoading(false)
+  }
+
+  const cambiarPinAdmin = async()=>{
+    setPinError('')
+    if(!/^\d{6}$/.test(newPin)){ setPinError('Nuevo PIN debe ser 6 números'); return }
+    if(newPin !== confirmPin){ setPinError('No coinciden'); return }
+    const supabase=getSupabase()
+    if(!supabase) return
+    setSaving(true)
+    const { error } = await supabase.from('stores').update({ admin_password: newPin }).eq('slug', slug)
+    if(error){ setPinError('Error: '+error.message); setSaving(false); return }
+    localStorage.setItem('tn_my_store_pin', newPin)
+    setNewPin(''); setConfirmPin(''); setShowChangePin(false)
+    setSaving(false)
+    alert('✅ PIN cambiado con éxito')
+  }
+
+  useEffect(()=>{ if(slug && pinAuthed) loadData() },[slug, pinAuthed])
 
   useEffect(()=>{
     if(store && categoriasDisponibles.length>0){
@@ -173,7 +231,6 @@ export default function AdminPage(){
   }
 
   const parseVehiculoFromDescription = (desc)=>{
-    // intenta extraer si viene formato viejo
     try{
       if(!desc) return {}
       if(desc.includes('MARCA:')){
@@ -194,7 +251,6 @@ export default function AdminPage(){
     setPrice(p.price||''); 
     setCategoria(p.categoria||categoriasDisponibles[0]); 
     setDescription(p.description||'');
-    // si es vehiculo, intentar parsear campos extra del producto
     if(p.marca || p.modelo || p.anio){
       setVehiculo({
         marca: p.marca||'', modelo: p.modelo||'', anio: p.anio||'', km: p.kilometraje||p.km||'',
@@ -202,7 +258,6 @@ export default function AdminPage(){
         condicion: p.condicion||p.estado_vehiculo||'usado', papeles: p.papeles||'en regla', ubicacion: p.ubicacion||''
       })
     } else {
-      // fallback parse desde description
       const parsed = parseVehiculoFromDescription(p.description||'')
       setVehiculo({
         marca: parsed.marca||'', modelo: parsed.modelo||'', anio: parsed['año']||parsed.anio||'', km: parsed.km||parsed.kilometraje||'',
@@ -223,8 +278,6 @@ export default function AdminPage(){
     setSaving(true)
     const cleanImages = images.filter(Boolean)
     const mainImage = cleanImages[0] || ''
-
-    // Si es vehiculos, construir descripcion pro
     let finalDescription = description.trim()
     let extraPayload = {}
     if(isVehiculos){
@@ -234,7 +287,6 @@ export default function AdminPage(){
       }
       const descVehiculo = `MARCA: ${vehiculo.marca} | MODELO: ${vehiculo.modelo} | AÑO: ${vehiculo.anio} | KM: ${vehiculo.km} | COMBUSTIBLE: ${vehiculo.combustible} | TRANSMISION: ${vehiculo.transmision} | CONDICION: ${vehiculo.condicion} | PAPELES: ${vehiculo.papeles} | UBICACION: ${vehiculo.ubicacion} | DETALLES: ${description.trim()}`
       finalDescription = descVehiculo
-      // intentar guardar columnas extra si existen (no rompe si no existen, hace fallback)
       extraPayload = {
         marca: vehiculo.marca,
         modelo: vehiculo.modelo,
@@ -247,7 +299,6 @@ export default function AdminPage(){
         ubicacion_vehiculo: vehiculo.ubicacion
       }
     }
-
     const basePayload = {
       store_id: store.id,
       name: name.trim(),
@@ -258,21 +309,17 @@ export default function AdminPage(){
       images: cleanImages,
       video_url: videoUrl || null
     }
-
     try{
       let payloadToSave = {...basePayload, ...extraPayload}
       let res
       if(editing) res = await supabase.from('products').update(payloadToSave).eq('id', editing.id)
       else res = await supabase.from('products').insert(payloadToSave)
-
       if(res.error){
-        // si falla por columnas vehiculo que no existen, guardar solo base
         console.log('Fallback sin columnas vehiculo:', res.error.message)
         if(editing) res = await supabase.from('products').update(basePayload).eq('id', editing.id)
         else res = await supabase.from('products').insert(basePayload)
         if(res.error) throw res.error
       }
-
       await loadData(); resetForm(); alert(editing ? 'Vehículo actualizado!' : isVehiculos ? 'Vehículo publicado!' : 'Producto creado!')
     }catch(e){ alert('Error: '+e.message) } finally{ setSaving(false) }
   }
@@ -284,6 +331,30 @@ export default function AdminPage(){
     loadData()
   }
 
+  // ===== PANTALLA DE PIN - NO TOCA NADA MAS DEL ADMIN =====
+  if(pinChecking) return <div style={{padding:40, textAlign:'center', fontFamily:'Inter'}}>🔐 Verificando acceso seguro...</div>
+
+  if(!pinAuthed){
+    return (
+      <main style={{minHeight:'100vh', background:'#F5F1ED', display:'flex', alignItems:'center', justifyContent:'center', padding:16, fontFamily:'Inter, system-ui'}}>
+        <div style={{background:'#fff', borderRadius:22, padding:22, border:'1px solid #EDE6DF', maxWidth:380, width:'100%', textAlign:'center', boxShadow:'0 12px 40px rgba(0,0,0,0.08)'}}>
+          <p style={{fontSize:40}}>🔒</p>
+          <h2 style={{fontWeight:900, fontSize:20, marginTop:8}}>Panel protegido con PIN</h2>
+          <p style={{fontSize:13, color:'#666', marginTop:6, lineHeight:1.4}}>Esta tienda <b>{slug}</b> está protegida. Ingresa tu PIN de 6 dígitos.</p>
+          <input type="password" value={pinInput} onChange={e=>setPinInput(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="••••••" maxLength={6} inputMode="numeric"
+            style={{width:'100%', border:'2px solid #111', borderRadius:14, padding:'14px', fontSize:24, fontWeight:900, letterSpacing:10, textAlign:'center', marginTop:16, outline:'none', background:'#FFFEFD'}}/>
+          {pinError && <p style={{fontSize:12, color:'#FF3B30', background:'#FFF0F0', padding:'8px 10px', borderRadius:10, marginTop:10, fontWeight:700}}>{pinError}</p>}
+          <button onClick={verificarPin} style={{width:'100%', background:'#111', color:'#fff', border:'none', padding:'14px', borderRadius:999, fontWeight:900, marginTop:12, cursor:'pointer'}}>🔓 Entrar al panel</button>
+          <div style={{marginTop:14, display:'flex', gap:8}}>
+            <a href="/acceso" style={{flex:1, background:'#FFF7E8', border:'1px solid #FFD9A0', padding:'10px', borderRadius:999, fontWeight:700, fontSize:12, textAlign:'center', textDecoration:'none', color:'#000'}}>← Acceso dueños</a>
+            <a href="/" style={{flex:1, background:'#F5F1ED', border:'1px solid #EDE6DF', padding:'10px', borderRadius:999, fontWeight:700, fontSize:12, textAlign:'center', textDecoration:'none', color:'#000'}}>Market</a>
+          </div>
+          <a href={`https://wa.me/50581732620?text=Olvide mi PIN ${slug}`} style={{display:'block', marginTop:12, fontSize:11, color:'#999'}}>Olvidé mi PIN - WhatsApp soporte</a>
+        </div>
+      </main>
+    )
+  }
+
   if(loading) return <div style={{padding:40, textAlign:'center'}}>Cargando {slug}...</div>
   if(!store) return <div style={{padding:40, textAlign:'center'}}>Tienda no encontrada: {slug}</div>
 
@@ -291,6 +362,25 @@ export default function AdminPage(){
 
   return (
     <main style={{background:'#F7F5F3', minHeight:'100vh', fontFamily:'Inter, system-ui', padding:14}}>
+      {/* BARRA SEGURA CON CAMBIO DE PIN */}
+      <div style={{maxWidth:1100, margin:'0 auto 10px', background:'#111', color:'#fff', borderRadius:12, padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:11}}>
+        <span style={{fontWeight:800}}>🔐 {store.name} • PIN activo • Protegido</span>
+        <div style={{display:'flex', gap:6}}>
+          <button onClick={()=>setShowChangePin(!showChangePin)} style={{background:'#FF8A00', color:'#fff', border:'none', padding:'6px 12px', borderRadius:999, fontWeight:800, fontSize:11, cursor:'pointer'}}>{showChangePin ? 'Cerrar' : '🔑 Cambiar PIN'}</button>
+          <button onClick={()=>{ localStorage.removeItem('tn_my_store_auth'); location.href='/acceso' }} style={{background:'#fff', color:'#000', border:'none', padding:'6px 12px', borderRadius:999, fontWeight:700, fontSize:11, cursor:'pointer'}}>Salir</button>
+        </div>
+      </div>
+
+      {showChangePin && (
+        <div style={{maxWidth:1100, margin:'0 auto 12px', background:'#fff', border:'1.5px solid #FF8A00', borderRadius:14, padding:14, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
+          <span style={{fontSize:12, fontWeight:800}}>Nuevo PIN 6 dígitos:</span>
+          <input value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="Ej: 123456" maxLength={6} inputMode="numeric" style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'8px 12px', fontWeight:800, width:130}}/>
+          <input value={confirmPin} onChange={e=>setConfirmPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="Confirmar" maxLength={6} inputMode="numeric" style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'8px 12px', fontWeight:800, width:110}}/>
+          <button onClick={cambiarPinAdmin} disabled={saving} style={{background:'#111', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontWeight:800, cursor:'pointer'}}>{saving ? 'Guardando...' : 'Guardar nuevo PIN'}</button>
+          {pinError && <span style={{fontSize:11, color:'#FF3B30', fontWeight:700}}>{pinError}</span>}
+        </div>
+      )}
+
       <div style={{maxWidth:1100, margin:'0 auto'}}>
         <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
           <div style={{display:'flex', gap:12, alignItems:'center'}}>
@@ -327,7 +417,6 @@ export default function AdminPage(){
               <button onClick={resetForm} style={{width:28,height:28, borderRadius:999, border:'1px solid #EAE6E1', background:'#fff'}}>✕</button>
             </div>
 
-            {/* ===== SI ES VEHICULOS: FORMULARIO PRO ===== */}
             {isVehiculos ? (
               <>
                 <div style={{background:'linear-gradient(135deg, #FFF7ED, #FFFBF8)', border:'1px solid #FFE0C0', borderRadius:12, padding:12, marginBottom:12}}>
@@ -382,7 +471,6 @@ export default function AdminPage(){
               </>
             ) : (
               <>
-                {/* FORMULARIO ORIGINAL PARA BOUTIQUE/COMIDA/GENERAL - NO TOCADO */}
                 <label style={{fontSize:11, fontWeight:700}}>Nombre *</label>
                 <input value={name} onChange={e=>setName(e.target.value)} style={{width:'100%', padding:'11px 12px', borderRadius:12, border:'1px solid #EAE6E1', marginTop:4, marginBottom:12}}/>
                 <label style={{fontSize:11, fontWeight:700}}>Descripción</label>
