@@ -1,22 +1,24 @@
 {
-  "name": "TiendaNica.store - Marketplace verificado Nicaragua",
+  "id": "/",
+  "name": "TiendaNica.store",
   "short_name": "TiendaNica",
-  "description": "El marketplace verificado de Nicaragua. Tiendas con video y cédula, envío a todo el país, comida cerca de ti por pueblito como Ubu Norte y Paiwas.",
-  "start_url": "/?utm_source=playstore_app",
+  "description": "El marketplace verificado de Nicaragua - Tiendas con video y cédula, envío a toda Nicaragua",
+  "start_url": "/?utm_source=pwa",
+  "scope": "/",
   "display": "standalone",
   "display_override": [
+    "window-controls-overlay",
     "standalone",
-    "minimal-ui"
+    "browser"
   ],
-  "background_color": "#F6F1EC",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F1ED",
   "theme_color": "#FF6A00",
-  "orientation": "any",
-  "scope": "/",
   "lang": "es-NI",
   "categories": [
     "shopping",
-    "food",
-    "lifestyle"
+    "lifestyle",
+    "business"
   ],
   "icons": [
     {
@@ -30,14 +32,28 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Marketplace verificado de Nicaragua"
     }
   ],
   "shortcuts": [
     {
-      "name": "Comida cerca de mi",
-      "short_name": "Comida",
-      "description": "Ver comida en tu departamento y pueblito",
-      "url": "/?focus=comida",
+      "name": "Buscar productos",
+      "url": "/?utm_source=shortcut",
+      "description": "Busca vestidos, comida, motos y más",
       "icons": [
         {
           "src": "/icon-192.png",
@@ -46,10 +62,20 @@
       ]
     },
     {
-      "name": "Boutique",
-      "short_name": "Boutique",
-      "description": "Ropa con tallas reales",
-      "url": "/?tipo=boutique",
+      "name": "Acceso dueños",
+      "url": "/acceso",
+      "description": "Accede rápido a tu tienda y panel",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Vender en TiendaNica",
+      "url": "/?vender=1",
+      "description": "Abre tu tienda verificada",
       "icons": [
         {
           "src": "/icon-192.png",
@@ -57,5 +83,7 @@
         }
       ]
     }
-  ]
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }
