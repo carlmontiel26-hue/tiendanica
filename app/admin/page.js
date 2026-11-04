@@ -31,10 +31,13 @@ export default function SuperAdminConEdicion(){
   const fileProductRef = useRef(null)
   const fileEditProductRef = useRef(null)
 
+  // ===== SOLO AGREGADO PIN - NO TOCA LO DEMAS =====
+  const genPIN = ()=> Math.floor(100000 + Math.random()*900000).toString()
+
   const [formTienda,setFormTienda]=useState({
     name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', 
     departamento:'Managua', municipio:'', direccion:'',
-    logo_file:null, logo_preview:''
+    logo_file:null, logo_preview:'', admin_password: genPIN()
   })
   const [formEdit,setFormEdit]=useState({})
   const [formProd,setFormProd]=useState({
@@ -43,7 +46,6 @@ export default function SuperAdminConEdicion(){
   })
   const [formEditProd,setFormEditProd]=useState({})
 
-  // SOLO AGREGADO: categorias vehiculos
   const CATEGORIAS = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','comida','vehiculos','motos','autos','repuestos','otros','nuevo']
 
   const login = ()=>{
@@ -96,6 +98,7 @@ export default function SuperAdminConEdicion(){
     e.preventDefault()
     const supabase = getSupabase()
     if(!formTienda.name || !formTienda.slug || !formTienda.whatsapp) return alert('Falta nombre, slug, whatsapp')
+    if(!/^\d{6}$/.test(formTienda.admin_password)) return alert('PIN debe ser 6 dígitos')
     let logoUrl = '/tienda-nica-logo.png'
     if(formTienda.logo_file){
       const uploaded = await uploadFile(formTienda.logo_file, 'store-logos')
@@ -111,13 +114,21 @@ export default function SuperAdminConEdicion(){
       municipio: formTienda.municipio,
       direccion: formTienda.direccion,
       verification_status: 'nueva',
-      verification_badge: 'nueva'
+      verification_badge: 'nueva',
+      admin_password: formTienda.admin_password
     }
     const {error} = await supabase.from('stores').insert(payload)
-    if(error) alert('Error: '+error.message)
+    if(error){
+      // fallback si columna admin_password no existe aun
+      if(error.message.includes('admin_password')){
+        alert('⚠️ Falta crear columna admin_password en Supabase. Ejecuta SQL: ALTER TABLE stores ADD COLUMN admin_password TEXT; Luego intenta de nuevo.')
+        return
+      }
+      alert('Error: '+error.message)
+    }
     else {
-      alert('Tienda creada ✓ '+formTienda.name+' en '+formTienda.departamento+' - '+formTienda.municipio+' ['+formTienda.tipo_tienda+']')
-      setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', municipio:'', direccion:'', logo_file:null, logo_preview:''})
+      alert(`Tienda creada ✓ ${formTienda.name} - PIN DUEÑO: ${formTienda.admin_password} \n\nGuárdalo para mandárselo por WhatsApp al dueño!\nLink: https://tiendanica.store/${formTienda.slug}/admin`)
+      setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', municipio:'', direccion:'', logo_file:null, logo_preview:'', admin_password: genPIN()})
       if(fileLogoRef.current) fileLogoRef.current.value=''
       cargarTodo(); setTab('tiendas')
     }
@@ -128,7 +139,7 @@ export default function SuperAdminConEdicion(){
     setFormEdit({
       name: store.name, slug: store.slug, whatsapp: store.whatsapp, tipo_tienda: store.tipo_tienda,
       departamento: store.departamento || 'Managua', municipio: store.municipio || '', direccion: store.direccion || '',
-      logo_url: store.logo_url, logo_file: null, logo_preview: ''
+      logo_url: store.logo_url, logo_file: null, logo_preview: '', admin_password: store.admin_password || genPIN()
     })
   }
 
@@ -149,11 +160,12 @@ export default function SuperAdminConEdicion(){
       departamento: formEdit.departamento,
       municipio: formEdit.municipio,
       direccion: formEdit.direccion,
+      admin_password: formEdit.admin_password
     }
     const {error} = await supabase.from('stores').update(payload).eq('id', editingStore.id)
     if(error) alert('Error editar: '+error.message)
     else {
-      alert('Tienda actualizada ✓')
+      alert(`Tienda actualizada ✓ PIN: ${formEdit.admin_password}`)
       setEditingStore(null)
       cargarTodo()
     }
@@ -371,6 +383,7 @@ export default function SuperAdminConEdicion(){
                             {badge==='verificada' && <span style={{fontSize:9, background:'#0066FF', color:'#fff', padding:'2px 6px', borderRadius:999, fontWeight:800}}>✓ VERIFICADA</span>}
                             {badge==='premium' && <span style={{fontSize:9, background:'#FF6A00', color:'#fff', padding:'2px 6px', borderRadius:999, fontWeight:800}}>⭐ PREMIUM</span>}
                             {badge==='nueva' && <span style={{fontSize:9, background:'#eee', color:'#666', padding:'2px 6px', borderRadius:999, fontWeight:700}}>NUEVA</span>}
+                            {s.admin_password && <span style={{fontSize:9, background:'#111', color:'#FFD60A', padding:'2px 6px', borderRadius:999, fontWeight:800}}>🔐 PIN:{s.admin_password}</span>}
                           </div>
                           <div style={{display:'flex', gap:4, marginTop:4, flexWrap:'wrap'}}>
                             <span style={{fontSize:9, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : s.tipo_tienda==='vehiculos' ? '#111' : '#111', color:'#fff', padding:'3px 8px', borderRadius:999, textTransform:'uppercase', fontWeight:800}}>{s.tipo_tienda}</span>
@@ -393,7 +406,7 @@ export default function SuperAdminConEdicion(){
                       </div>
                       <div style={{display:'flex', gap:6, marginTop:6}}>
                         <button onClick={()=>{copiar(`https://tiendanica.store/${s.slug}`); alert('Link copiado')}} style={{flex:1, background:'#fff', border:'1px solid #EDE6E3', padding:'7px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>🔗 Link</button>
-                        <button onClick={()=>{copiar(`https://tiendanica.store/${s.slug}/admin`); alert('Admin dueño copiado')}} style={{flex:1, background:'#0066FF', color:'#fff', border:'none', padding:'7px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>👑 Admin dueño</button>
+                        <button onClick={()=>{copiar(`https://tiendanica.store/${s.slug}/admin - PIN:${s.admin_password||'sin PIN'}`); alert(`Admin dueño copiado con PIN: ${s.admin_password||'sin PIN'}`)}} style={{flex:1, background:'#0066FF', color:'#fff', border:'none', padding:'7px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>👑 Admin dueño</button>
                         <button onClick={()=>eliminarTienda(s)} style={{background:'#FFE9E9', color:'#C00', border:'1px solid #FFD0D0', padding:'7px 10px', borderRadius:10, fontSize:10, fontWeight:800, cursor:'pointer'}}>🗑</button>
                       </div>
                     </div>
@@ -414,7 +427,7 @@ export default function SuperAdminConEdicion(){
                     </div>
                     <div style={{padding:12, background:'#fff', color:'#111'}}>
                       <b style={{fontSize:13}}>{previewStore.name}</b>
-                      <p style={{fontSize:11, color:'#666', marginTop:4}}>{products.filter(p=>p.store_id===previewStore.id).length} productos • {previewStore.departamento} • {previewStore.municipio}</p>
+                      <p style={{fontSize:11, color:'#666', marginTop:4}}>{products.filter(p=>p.store_id===previewStore.id).length} productos • {previewStore.departamento} • {previewStore.municipio} • PIN:{previewStore.admin_password}</p>
                       <div style={{display:'flex', gap:6, marginTop:10}}>
                         <a href={`/${previewStore.slug}`} target="_blank" style={{flex:1, background:'#111', color:'#fff', padding:'8px', borderRadius:10, fontSize:11, textAlign:'center', textDecoration:'none', fontWeight:700}}>Abrir tienda ↗</a>
                         <button onClick={()=>abrirEdicion(previewStore)} style={{flex:1, background:'#F5F1EC', border:'none', padding:'8px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Editar</button>
@@ -474,6 +487,17 @@ export default function SuperAdminConEdicion(){
                     </select>
                   </div>
                 </div>
+
+                {/* ===== NUEVO CAMPO PIN - SOLO AGREGADO ===== */}
+                <div style={{background:'linear-gradient(135deg, #111, #222)', borderRadius:14, padding:14, border:'1px solid #333'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <label style={{fontSize:11, fontWeight:800, color:'#FFD60A'}}>🔐 PIN DE 6 DÍGITOS DUEÑO * (Contraseña panel dueño)</label>
+                    <button type="button" onClick={()=>setFormTienda({...formTienda, admin_password: genPIN()})} style={{background:'#FFD60A', color:'#000', border:'none', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>🎲 Generar random</button>
+                  </div>
+                  <input required value={formTienda.admin_password} onChange={e=>setFormTienda({...formTienda, admin_password:e.target.value.replace(/\D/g,'').slice(0,6)})} placeholder="Ej: 123456" maxLength={6} inputMode="numeric" style={{width:'100%', border:'2px solid #FFD60A', borderRadius:12, padding:'12px 14px', marginTop:8, background:'#fff', fontWeight:900, fontSize:16, letterSpacing:4, textAlign:'center'}}/>
+                  <p style={{fontSize:10, color:'#aaa', marginTop:6}}>Este PIN se lo mandas al dueño por WhatsApp. Ej: "Tu panel es tiendanica.store/{formTienda.slug||'slug'}/admin PIN: {formTienda.admin_password}"</p>
+                </div>
+
                 <div style={{background:'#F5F1EC', borderRadius:14, padding:14, border:'1px solid #EDE6E3'}}>
                   <p style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>UBICACIÓN REAL NICARAGUA</p>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}>
@@ -490,20 +514,22 @@ export default function SuperAdminConEdicion(){
                   <input ref={fileLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormTienda({...formTienda, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:10, fontSize:12, width:'100%'}}/>
                   {formTienda.logo_preview && <img src={formTienda.logo_preview} style={{width:'100%', height:160, objectFit:'cover', borderRadius:12, marginTop:12, border:'1px solid #EDE6E3'}}/>}
                 </div>
-                <button type="submit" style={{background:'linear-gradient(135deg, #111, #333)', color:'#fff', border:'none', padding:14, borderRadius:14, fontWeight:900, fontSize:14, cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.2)'}}>Crear tienda premium →</button>
+                <button type="submit" style={{background:'linear-gradient(135deg, #111, #333)', color:'#fff', border:'none', padding:14, borderRadius:14, fontWeight:900, fontSize:14, cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.2)'}}>Crear tienda premium + PIN →</button>
               </form>
             </div>
             <div style={{display:'flex', flexDirection:'column', gap:12}}>
               <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
-                <h3 style={{fontWeight:800, fontSize:14}}>👑 Link admin dueño - Automático</h3>
+                <h3 style={{fontWeight:800, fontSize:14}}>👑 Link admin dueño - Automático con PIN</h3>
                 <div style={{background:'#1E1E1E', borderRadius:12, padding:12, marginTop:12, fontSize:12, fontFamily:'monospace', color:'#00FF88', border:'1px solid #2A2A2A'}}>https://tiendanica.store/{formTienda.slug||'tu-slug'}/admin</div>
+                <div style={{background:'#FFD60A', color:'#000', borderRadius:12, padding:12, marginTop:10, fontSize:14, fontWeight:900, textAlign:'center', letterSpacing:2}}>🔐 PIN DUEÑO: {formTienda.admin_password}</div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, marginTop:12, fontSize:11, lineHeight:1.5}}>
-                  <b style={{color:'#FFD60A'}}>Nuevo tipo Vehiculos:</b><br/>
-                  - Usa categoria vehiculos, motos, autos, repuestos<br/>
-                  - Ideal para motos, carros usados, repuestos<br/>
-                  - Sin tallas, con fotos multiples y video<br/>
-                  - Link admin dueño funciona igual<br/>
+                  <b style={{color:'#FFD60A'}}>Nuevo con PIN seguro:</b><br/>
+                  - Cada tienda nace con PIN de 6 dígitos<br/>
+                  - El dueño entra a /{formTienda.slug||'slug'}/admin + PIN<br/>
+                  - Puede cambiar su PIN adentro<br/>
+                  - Link admin dueño + PIN se manda por WhatsApp<br/>
                 </div>
+                <button onClick={()=>{const msg=`🏪 Tu tienda ${formTienda.name||'TiendaNica'} está lista!\n\n👑 Tu panel de dueño:\nhttps://tiendanica.store/${formTienda.slug||'tu-slug'}/admin\n\n🔐 Tu PIN secreto: ${formTienda.admin_password}\n\nGuárdalo! Con eso entras a editar tus productos.\n\n- TiendaNica.store`; navigator.clipboard.writeText(msg); alert('Mensaje WhatsApp copiado con PIN!')}} style={{width:'100%', marginTop:12, background:'#25D366', color:'#fff', border:'none', padding:'12px', borderRadius:12, fontWeight:800, fontSize:12, cursor:'pointer'}}>📲 Copiar mensaje WhatsApp con PIN</button>
               </div>
             </div>
           </div>
@@ -533,6 +559,13 @@ export default function SuperAdminConEdicion(){
                     <option value="boutique">BOUTIQUE</option><option value="general">GENERAL</option><option value="comida">COMIDA</option><option value="vehiculos">VEHICULOS</option>
                   </select>
                 </div>
+                <div style={{background:'#111', borderRadius:12, padding:12}}>
+                  <label style={{fontSize:11, fontWeight:800, color:'#FFD60A'}}>🔐 PIN DUEÑO (6 dígitos)</label>
+                  <div style={{display:'flex', gap:8, marginTop:6}}>
+                    <input value={formEdit.admin_password} onChange={e=>setFormEdit({...formEdit, admin_password:e.target.value.replace(/\D/g,'').slice(0,6)})} placeholder="123456" style={{flex:1, border:'1.5px solid #FFD60A', borderRadius:10, padding:10, fontWeight:900, letterSpacing:2, textAlign:'center'}}/>
+                    <button type="button" onClick={()=>setFormEdit({...formEdit, admin_password: genPIN()})} style={{background:'#FFD60A', border:'none', padding:'10px 12px', borderRadius:10, fontWeight:800, fontSize:11}}>🎲 Nuevo</button>
+                  </div>
+                </div>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
                   <select value={formEdit.departamento} onChange={e=>setFormEdit({...formEdit, departamento:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
                     {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
@@ -547,7 +580,7 @@ export default function SuperAdminConEdicion(){
                 </div>
                 <div style={{display:'flex', gap:8, marginTop:4}}>
                   <button type="button" onClick={()=>setEditingStore(null)} style={{flex:1, background:'#F5F1EC', border:'1px solid #EDE6E3', padding:12, borderRadius:12, fontWeight:700, cursor:'pointer'}}>Cancelar</button>
-                  <button type="submit" style={{flex:2, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:12, fontWeight:800, cursor:'pointer'}}>Guardar cambios ✓</button>
+                  <button type="submit" style={{flex:2, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:12, fontWeight:800, cursor:'pointer'}}>Guardar cambios + PIN ✓</button>
                 </div>
               </form>
             </div>
@@ -687,6 +720,10 @@ export default function SuperAdminConEdicion(){
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Vehiculos</span><b>{stats.vehiculos}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Tiendas activas</span><b>{stats.total}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Productos totales</span><b>{stats.productos}</b></div>
+                <button onClick={async()=>{
+                  const sql = `ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_password TEXT;`
+                  alert('Ejecuta esto en Supabase SQL Editor:\n\n'+sql+'\n\nLuego UPDATE stores SET admin_password = RIGHT(whatsapp,6) WHERE admin_password IS NULL;')
+                }} style={{background:'#FFD60A', color:'#000', border:'none', padding:'12px', borderRadius:12, fontWeight:800, fontSize:12, cursor:'pointer', marginTop:8}}>🔧 Ver SQL PIN</button>
               </div>
             </div>
           </div>
