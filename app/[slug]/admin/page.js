@@ -24,11 +24,11 @@ function getCategoriasPorTipo(store){
     return [
       'vestidos','blusas','jeans','faldas','conjuntos','shorts',
       'hombres','niños','niñas','bebes','pantalon',
-      'accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros'
+      'accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros','chaquetas','ropa usada como nueva'
     ]
   }
   // GENERAL / ABARROTES / TIENDA GENERAL - como estaba antes genial
-  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios','chaquetas','ropa usada como nueva']
+  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios']
 }
 
 export default function AdminPage(){
