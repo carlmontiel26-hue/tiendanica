@@ -43,7 +43,8 @@ export default function SuperAdminConEdicion(){
   })
   const [formEditProd,setFormEditProd]=useState({})
 
-  const CATEGORIAS = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','comida','otros','nuevo']
+  // SOLO AGREGADO: categorias vehiculos
+  const CATEGORIAS = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','comida','vehiculos','motos','autos','repuestos','otros','nuevo']
 
   const login = ()=>{
     if(pass === 'tiendanica2025' || pass === 'admin123' || pass === 'Nica2024'){
@@ -78,14 +79,12 @@ export default function SuperAdminConEdicion(){
     return data.publicUrl
   }
 
-  // ===== SOLO AGREGADO: CAMBIAR VERIFICACION PREMIUM / VERIFICADA / NUEVA =====
   const cambiarVerificacion = async (storeId, tipo)=>{
     const supabase = getSupabase()
     if(!supabase) return
     const payload = { verification_status: tipo, verification_badge: tipo }
     const { error } = await supabase.from('stores').update(payload).eq('id', storeId)
     if(error){
-      // fallback si solo existe verification_status
       const { error: err2 } = await supabase.from('stores').update({ verification_status: tipo }).eq('id', storeId)
       if(err2){ alert('Error: '+err2.message); return }
     }
@@ -117,7 +116,7 @@ export default function SuperAdminConEdicion(){
     const {error} = await supabase.from('stores').insert(payload)
     if(error) alert('Error: '+error.message)
     else {
-      alert('Tienda creada ✓ '+formTienda.name+' en '+formTienda.departamento+' - '+formTienda.municipio)
+      alert('Tienda creada ✓ '+formTienda.name+' en '+formTienda.departamento+' - '+formTienda.municipio+' ['+formTienda.tipo_tienda+']')
       setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', municipio:'', direccion:'', logo_file:null, logo_preview:''})
       if(fileLogoRef.current) fileLogoRef.current.value=''
       cargarTodo(); setTab('tiendas')
@@ -262,6 +261,7 @@ export default function SuperAdminConEdicion(){
     boutique: stores.filter(s=>s.tipo_tienda==='boutique').length,
     general: stores.filter(s=>s.tipo_tienda==='general').length,
     comida: stores.filter(s=>s.tipo_tienda==='comida').length,
+    vehiculos: stores.filter(s=>s.tipo_tienda==='vehiculos').length,
     verificadas: stores.filter(s=>s.verification_status==='verificada' || s.verification_status==='premium').length,
     productos: products.length
   }
@@ -292,14 +292,13 @@ export default function SuperAdminConEdicion(){
         ::-webkit-scrollbar-thumb{background:#D9D0C8;border-radius:999px}
       `}</style>
 
-      {/* HEADER PREMIUM */}
       <div style={{position:'sticky', top:0, zIndex:40, background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)', borderBottom:'1px solid #EDE6E3'}}>
         <div style={{maxWidth:1400, margin:'0 auto', padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap'}}>
           <div style={{display:'flex', alignItems:'center', gap:14}}>
             <div style={{width:42, height:42, borderRadius:12, background:'linear-gradient(135deg, #111 0%, #333 100%)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:900, fontSize:14}}>TN</div>
             <div>
               <h1 style={{fontWeight:900, fontSize:16, letterSpacing:-0.3, lineHeight:1}}>TiendaNica • Super Admin</h1>
-              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {pendientes.length} por verificar</p>
+              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {pendientes.length} por verificar • {stats.vehiculos} vehiculos</p>
             </div>
           </div>
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
@@ -313,13 +312,13 @@ export default function SuperAdminConEdicion(){
         </div>
       </div>
 
-      {/* STATS BAR PREMIUM */}
       <div style={{maxWidth:1400, margin:'14px auto 0', padding:'0 20px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10}}>
         {[
           {k:'Total', v:stats.total, c:'#111', bg:'linear-gradient(135deg, #111, #333)'},
           {k:'Boutique', v:stats.boutique, c:'#fff', bg:'linear-gradient(135deg, #0066FF, #00C2FF)'},
           {k:'General', v:stats.general, c:'#111', bg:'linear-gradient(135deg, #FFD60A, #FFA500)'},
           {k:'Comida', v:stats.comida, c:'#fff', bg:'linear-gradient(135deg, #FF3B30, #FF6A00)'},
+          {k:'Vehiculos', v:stats.vehiculos, c:'#fff', bg:'linear-gradient(135deg, #111, #FF6A00)'},
           {k:'Verificadas', v:stats.verificadas, c:'#fff', bg:'linear-gradient(135deg, #00C853, #00E676)'},
           {k:'Productos', v:stats.productos, c:'#111', bg:'linear-gradient(135deg, #EDE6E3, #F6F1EC)'},
         ].map(s=>(
@@ -330,7 +329,6 @@ export default function SuperAdminConEdicion(){
         ))}
       </div>
 
-      {/* TABS PREMIUM */}
       <div style={{maxWidth:1400, margin:'14px auto 0', padding:'0 20px', display:'flex', gap:8, overflowX:'auto'}}>
         {[
           {id:'tiendas', label:`🏪 Tiendas (${tiendasFiltradas.length})`, active:'#111'},
@@ -345,7 +343,6 @@ export default function SuperAdminConEdicion(){
       </div>
 
       <div style={{maxWidth:1400, margin:'16px auto', padding:'0 20px 40px'}}>
-        {/* TIENDAS TAB PRO */}
         {tab==='tiendas' && (
           <div style={{display:'grid', gridTemplateColumns:'1fr 380px', gap:16, alignItems:'start'}}>
             <div style={{background:'#fff', borderRadius:20, padding:16, border:'1px solid #EDE6E3', boxShadow:'0 4px 24px rgba(0,0,0,0.04)'}}>
@@ -376,7 +373,7 @@ export default function SuperAdminConEdicion(){
                             {badge==='nueva' && <span style={{fontSize:9, background:'#eee', color:'#666', padding:'2px 6px', borderRadius:999, fontWeight:700}}>NUEVA</span>}
                           </div>
                           <div style={{display:'flex', gap:4, marginTop:4, flexWrap:'wrap'}}>
-                            <span style={{fontSize:9, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : '#111', color:'#fff', padding:'3px 8px', borderRadius:999, textTransform:'uppercase', fontWeight:800}}>{s.tipo_tienda}</span>
+                            <span style={{fontSize:9, background: s.tipo_tienda==='boutique' ? '#0066FF' : s.tipo_tienda==='comida' ? '#FF3B30' : s.tipo_tienda==='vehiculos' ? '#111' : '#111', color:'#fff', padding:'3px 8px', borderRadius:999, textTransform:'uppercase', fontWeight:800}}>{s.tipo_tienda}</span>
                             <span style={{fontSize:9, background:'#F5F1EC', color:'#6B5E55', padding:'3px 8px', borderRadius:999}}>📍 {s.departamento} {s.municipio?`• ${s.municipio}`:''}</span>
                             <span style={{fontSize:9, background:'#F0F7FF', color:'#0066FF', padding:'3px 8px', borderRadius:999, fontWeight:700}}>{countProd} prod.</span>
                           </div>
@@ -384,14 +381,11 @@ export default function SuperAdminConEdicion(){
                         </div>
                       </div>
                       {s.direccion && <p style={{fontSize:11, color:'#6B5E55', marginTop:8, background:'#FFFBF8', padding:'6px 8px', borderRadius:8, border:'1px dashed #EDE6E3'}}>📍 {s.direccion}</p>}
-                      
-                      {/* ===== SOLO AGREGADO: BOTONES VERIFICACION ===== */}
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10, background:'#F9F6F2', padding:8, borderRadius:10}}>
                         <button onClick={()=>cambiarVerificacion(s.id,'premium')} style={{background: badge==='premium' ? '#FF6A00' : '#fff', color: badge==='premium' ? '#fff' : '#FF6A00', border: badge==='premium' ? 'none' : '1.5px solid #FF6A00', padding:'8px 4px', borderRadius:8, fontSize:10, fontWeight:900, cursor:'pointer'}}>⭐ Premium</button>
                         <button onClick={()=>cambiarVerificacion(s.id,'verificada')} style={{background: badge==='verificada' ? '#0066FF' : '#fff', color: badge==='verificada' ? '#fff' : '#0066FF', border: badge==='verificada' ? 'none' : '1.5px solid #0066FF', padding:'8px 4px', borderRadius:8, fontSize:10, fontWeight:800, cursor:'pointer'}}>✓ Verif.</button>
                         <button onClick={()=>cambiarVerificacion(s.id,'nueva')} style={{background: badge==='nueva' ? '#111' : '#fff', color: badge==='nueva' ? '#fff' : '#666', border:'1px solid #ddd', padding:'8px 4px', borderRadius:8, fontSize:10, fontWeight:700, cursor:'pointer'}}>Nueva</button>
                       </div>
-
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10}}>
                         <button onClick={()=>setPreviewStore(s)} style={{background:'#111', color:'#fff', border:'none', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:800, cursor:'pointer'}}>👁 Vista previa</button>
                         <button onClick={()=>{setSelectedStoreForProduct(s.id); setTab('productos')}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'8px 6px', borderRadius:10, fontSize:10, fontWeight:700, cursor:'pointer'}}>📦 {countProd} Productos</button>
@@ -407,8 +401,6 @@ export default function SuperAdminConEdicion(){
                 })}
               </div>
             </div>
-
-            {/* PANEL LATERAL PREVIEW PROFESIONAL */}
             <div style={{position:'sticky', top:84, display:'flex', flexDirection:'column', gap:12}}>
               {previewStore ? (
                 <div style={{background:'#111', color:'#fff', borderRadius:20, padding:16, border:'1px solid #222'}}>
@@ -427,21 +419,11 @@ export default function SuperAdminConEdicion(){
                         <a href={`/${previewStore.slug}`} target="_blank" style={{flex:1, background:'#111', color:'#fff', padding:'8px', borderRadius:10, fontSize:11, textAlign:'center', textDecoration:'none', fontWeight:700}}>Abrir tienda ↗</a>
                         <button onClick={()=>abrirEdicion(previewStore)} style={{flex:1, background:'#F5F1EC', border:'none', padding:'8px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Editar</button>
                       </div>
-                      {/* Botones verificacion tambien en preview */}
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10}}>
                         <button onClick={()=>cambiarVerificacion(previewStore.id,'premium')} style={{background: (previewStore.verification_status==='premium') ? '#FF6A00' : '#F5F1EC', color: (previewStore.verification_status==='premium') ? '#fff' : '#FF6A00', border:'1.5px solid #FF6A00', padding:'8px', borderRadius:10, fontSize:10, fontWeight:900}}>⭐ Premium</button>
                         <button onClick={()=>cambiarVerificacion(previewStore.id,'verificada')} style={{background: (previewStore.verification_status==='verificada') ? '#0066FF' : '#F5F1EC', color: (previewStore.verification_status==='verificada') ? '#fff' : '#0066FF', border:'1.5px solid #0066FF', padding:'8px', borderRadius:10, fontSize:10, fontWeight:800}}>✓ Verificada</button>
                         <button onClick={()=>cambiarVerificacion(previewStore.id,'nueva')} style={{background:'#fff', border:'1px solid #ddd', padding:'8px', borderRadius:10, fontSize:10}}>Nueva</button>
                       </div>
-                    </div>
-                  </div>
-                  <div style={{marginTop:12, background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12}}>
-                    <p style={{fontSize:11, fontWeight:700, opacity:0.8}}>📊 Info rápida</p>
-                    <div style={{marginTop:8, display:'flex', flexDirection:'column', gap:6, fontSize:11}}>
-                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Slug</span><span style={{fontFamily:'monospace'}}>{previewStore.slug}</span></div>
-                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>WhatsApp</span><span>{previewStore.whatsapp}</span></div>
-                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Tipo</span><span style={{textTransform:'uppercase', fontWeight:700}}>{previewStore.tipo_tienda}</span></div>
-                      <div style={{display:'flex', justifyContent:'space-between'}}><span style={{opacity:0.6}}>Verificación</span><span style={{fontWeight:800, color: previewStore.verification_status==='premium' ? '#FF6A00' : previewStore.verification_status==='verificada' ? '#00E676' : '#FFA500'}}>{previewStore.verification_status}</span></div>
                     </div>
                   </div>
                 </div>
@@ -452,16 +434,6 @@ export default function SuperAdminConEdicion(){
                   <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Haz click en "Vista previa" para verla aquí en vivo sin salir del admin, como escritorio pro.</p>
                 </div>
               )}
-
-              <div style={{background:'#fff', borderRadius:16, padding:14, border:'1px solid #EDE6E3'}}>
-                <p style={{fontSize:12, fontWeight:800}}>🛠 Herramientas rápidas</p>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10}}>
-                  <button onClick={()=>{const csv = stores.map(s=>`${s.name},${s.slug},${s.whatsapp},${s.departamento},${s.municipio}`).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tiendas.csv'; a.click()}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>📤 Exportar CSV</button>
-                  <button onClick={cargarTodo} style={{background:'#111', color:'#fff', border:'none', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>↻ Actualizar todo</button>
-                  <button onClick={()=>{const dup = stores.filter((s,i)=> stores.findIndex(x=>x.whatsapp===s.whatsapp)!==i); if(dup.length) alert('Duplicados por WhatsApp:\n'+dup.map(d=>d.name+' - '+d.whatsapp).join('\n')); else alert('No hay duplicados ✓')}} style={{background:'#FFF7ED', border:'1px solid #FFE0C0', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>🔍 Detectar duplicados</button>
-                  <button onClick={()=>{const sinProd = stores.filter(s=>!products.some(p=>p.store_id===s.id)); alert(sinProd.length?`Tiendas sin productos (${sinProd.length}):\n`+sinProd.map(s=>s.name).join('\n'):'Todas tienen productos ✓')}} style={{background:'#F0F7FF', border:'1px solid #C0D8FF', padding:'10px', borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>📦 Sin productos</button>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -476,19 +448,17 @@ export default function SuperAdminConEdicion(){
                   <p style={{fontSize:12, color:'#8A7F78', marginTop:2}}>Clasificación automática • Ubicación real • Portada pro • Link admin dueño instantáneo</p>
                 </div>
               </div>
-
               <form onSubmit={crearTienda} style={{display:'flex', flexDirection:'column', gap:12, marginTop:18}}>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <div>
                     <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>NOMBRE TIENDA *</label>
-                    <input required value={formTienda.name} onChange={e=>setFormTienda({...formTienda, name:e.target.value, slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')})} placeholder="Ej: Farmacia Mas Vida" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff', outline:'none'}}/>
+                    <input required value={formTienda.name} onChange={e=>setFormTienda({...formTienda, name:e.target.value, slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')})} placeholder="Ej: Motos El Chele" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff', outline:'none'}}/>
                   </div>
                   <div>
                     <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>SLUG URL *</label>
-                    <input required value={formTienda.slug} onChange={e=>setFormTienda({...formTienda, slug:e.target.value})} placeholder="farmacia-mas-vida" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#F5F1EC', fontSize:12, fontFamily:'monospace'}}/>
+                    <input required value={formTienda.slug} onChange={e=>setFormTienda({...formTienda, slug:e.target.value})} placeholder="motos-el-chele" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#F5F1EC', fontSize:12, fontFamily:'monospace'}}/>
                   </div>
                 </div>
-
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <div>
                     <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>WHATSAPP *</label>
@@ -500,10 +470,10 @@ export default function SuperAdminConEdicion(){
                       <option value="boutique">👗 BOUTIQUE (con tallas, premium)</option>
                       <option value="general">🛍 GENERAL</option>
                       <option value="comida">🍔 COMIDA</option>
+                      <option value="vehiculos">🏍 VEHICULOS / MOTOS</option>
                     </select>
                   </div>
                 </div>
-
                 <div style={{background:'#F5F1EC', borderRadius:14, padding:14, border:'1px solid #EDE6E3'}}>
                   <p style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>UBICACIÓN REAL NICARAGUA</p>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}>
@@ -514,39 +484,25 @@ export default function SuperAdminConEdicion(){
                   </div>
                   <input value={formTienda.direccion} onChange={e=>setFormTienda({...formTienda, direccion:e.target.value})} placeholder="Dirección exacta (opcional, para entrega)" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px', marginTop:10, background:'#fff', fontSize:12}}/>
                 </div>
-
                 <div style={{border:'1.5px dashed #FF6A00', borderRadius:16, padding:14, background:'linear-gradient(135deg, #FFF7ED, #FFFBF8)'}}>
                   <p style={{fontSize:12, fontWeight:800}}>📸 Portada / Logo Premium</p>
                   <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>Sube desde tu PC, se comprime automático y queda pro</p>
                   <input ref={fileLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormTienda({...formTienda, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:10, fontSize:12, width:'100%'}}/>
                   {formTienda.logo_preview && <img src={formTienda.logo_preview} style={{width:'100%', height:160, objectFit:'cover', borderRadius:12, marginTop:12, border:'1px solid #EDE6E3'}}/>}
                 </div>
-
                 <button type="submit" style={{background:'linear-gradient(135deg, #111, #333)', color:'#fff', border:'none', padding:14, borderRadius:14, fontWeight:900, fontSize:14, cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.2)'}}>Crear tienda premium →</button>
               </form>
             </div>
-
             <div style={{display:'flex', flexDirection:'column', gap:12}}>
               <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
                 <h3 style={{fontWeight:800, fontSize:14}}>👑 Link admin dueño - Automático</h3>
                 <div style={{background:'#1E1E1E', borderRadius:12, padding:12, marginTop:12, fontSize:12, fontFamily:'monospace', color:'#00FF88', border:'1px solid #2A2A2A'}}>https://tiendanica.store/{formTienda.slug||'tu-slug'}/admin</div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, marginTop:12, fontSize:11, lineHeight:1.5}}>
-                  <b style={{color:'#FFD60A'}}>Flujo pro:</b><br/>
-                  1. Creas tienda aquí<br/>
-                  2. Copias link admin dueño<br/>
-                  3. Se lo mandas por WhatsApp al dueño<br/>
-                  4. El dueño sube sus productos solo en su panel<br/>
-                  5. Tú solo verificas y le das badge ✓<br/>
-                  <br/>
-                  <span style={{opacity:0.6}}>Tip: Boutique = tallas activas automáticamente. General/Comida = sin tallas.</span>
-                </div>
-              </div>
-
-              <div style={{background:'#fff', borderRadius:16, padding:14, border:'1px solid #EDE6E3'}}>
-                <p style={{fontSize:12, fontWeight:800}}>⚡ Acciones rápidas premium</p>
-                <div style={{marginTop:10, display:'flex', flexDirection:'column', gap:8}}>
-                  <button onClick={()=>{if(!formTienda.slug) return alert('Escribe nombre primero'); const url=`https://tiendanica.store/${formTienda.slug}`; window.open(url,'_blank')}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'10px 12px', borderRadius:10, fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>🔍 Previsualizar slug antes de crear</button>
-                  <button onClick={()=>setFormTienda({name:'', slug:'', whatsapp:'', tipo_tienda:'boutique', departamento:'Managua', municipio:'', direccion:'', logo_file:null, logo_preview:''})} style={{background:'#fff', border:'1px dashed #E0D5CC', padding:'10px 12px', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', textAlign:'left'}}>🧹 Limpiar formulario</button>
+                  <b style={{color:'#FFD60A'}}>Nuevo tipo Vehiculos:</b><br/>
+                  - Usa categoria vehiculos, motos, autos, repuestos<br/>
+                  - Ideal para motos, carros usados, repuestos<br/>
+                  - Sin tallas, con fotos multiples y video<br/>
+                  - Link admin dueño funciona igual<br/>
                 </div>
               </div>
             </div>
@@ -574,7 +530,7 @@ export default function SuperAdminConEdicion(){
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
                   <input required value={formEdit.whatsapp} onChange={e=>setFormEdit({...formEdit, whatsapp:e.target.value})} placeholder="WhatsApp" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
                   <select value={formEdit.tipo_tienda} onChange={e=>setFormEdit({...formEdit, tipo_tienda:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
-                    <option value="boutique">BOUTIQUE</option><option value="general">GENERAL</option><option value="comida">COMIDA</option>
+                    <option value="boutique">BOUTIQUE</option><option value="general">GENERAL</option><option value="comida">COMIDA</option><option value="vehiculos">VEHICULOS</option>
                   </select>
                 </div>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
@@ -602,24 +558,23 @@ export default function SuperAdminConEdicion(){
           <div style={{display:'grid', gridTemplateColumns:'380px 1fr', gap:16, alignItems:'start'}}>
             <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3', position:'sticky', top:84}}>
               <h3 style={{fontWeight:900, fontSize:15}}>📦 Agregar producto pro</h3>
-              <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Edición sin salir del admin • Subida local premium</p>
               <select value={selectedStoreForProduct} onChange={e=>setSelectedStoreForProduct(e.target.value)} style={{width:'100%', border:'1.5px solid #0066FF', borderRadius:12, padding:12, marginTop:14, fontWeight:700, background:'#F0F7FF'}}>
                 <option value="">-- Selecciona tienda --</option>
                 {stores.map(s=><option key={s.id} value={s.id}>{s.name} - {s.tipo_tienda} - {s.municipio}</option>)}
               </select>
               {selectedStoreForProduct && (
                 <form onSubmit={crearProducto} style={{display:'flex', flexDirection:'column', gap:10, marginTop:14}}>
-                  <input required value={formProd.name} onChange={e=>setFormProd({...formProd, name:e.target.value})} placeholder="Nombre producto" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
+                  <input required value={formProd.name} onChange={e=>setFormProd({...formProd, name:e.target.value})} placeholder="Nombre producto (Ej: Moto Pulsar 2023)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
                     <input required value={formProd.price} onChange={e=>setFormProd({...formProd, price:e.target.value})} placeholder="Precio C$" type="number" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}/>
                     <select value={formProd.categoria} onChange={e=>setFormProd({...formProd, categoria:e.target.value})} style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12}}>
                       {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción que vende (opcional pero ayuda)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, minHeight:70, fontSize:12}}/>
+                  <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción (Ej: Año, kilometraje, papeles en regla)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, minHeight:70, fontSize:12}}/>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
                     <input value={formProd.video_url} onChange={e=>setFormProd({...formProd, video_url:e.target.value})} placeholder="Video URL (opcional)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
-                    <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L,XL" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
+                    <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L,XL (solo boutique)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
                   </div>
                   <div style={{border:'1.5px dashed #FF6A00', borderRadius:14, padding:12, background:'#FFF7ED'}}>
                     <p style={{fontSize:11, fontWeight:800}}>Fotos producto (multi)</p>
@@ -630,17 +585,9 @@ export default function SuperAdminConEdicion(){
                 </form>
               )}
             </div>
-
             <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10}}>
-                <h3 style={{fontWeight:900, fontSize:15}}>Productos {selectedStoreForProduct?`de ${stores.find(s=>s.id===selectedStoreForProduct)?.name}`:''} ({products.filter(p=> !selectedStoreForProduct || p.store_id===selectedStoreForProduct).length})</h3>
-                <div style={{display:'flex', gap:6}}>
-                  <button onClick={()=>setViewMode('grid')} style={{background: viewMode==='grid'?'#111':'#F5F1EC', color: viewMode==='grid'?'#fff':'#111', border:'none', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Grid</button>
-                  <button onClick={()=>setViewMode('list')} style={{background: viewMode==='list'?'#111':'#F5F1EC', color: viewMode==='list'?'#fff':'#111', border:'none', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Lista</button>
-                </div>
-              </div>
-
-              <div style={{marginTop:14, display: viewMode==='grid' ? 'grid' : 'flex', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', flexDirection:'column', gap:10, maxHeight:'80vh', overflowY:'auto', paddingRight:4}}>
+              <h3 style={{fontWeight:900, fontSize:15}}>Productos {selectedStoreForProduct?`de ${stores.find(s=>s.id===selectedStoreForProduct)?.name}`:''} ({products.filter(p=> !selectedStoreForProduct || p.store_id===selectedStoreForProduct).length})</h3>
+              <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10, maxHeight:'80vh', overflowY:'auto'}}>
                 {products.filter(p=> !selectedStoreForProduct || p.store_id===selectedStoreForProduct).map(p=>(
                   <div key={p.id} style={{display:'flex', gap:10, border:'1px solid #EDE6E3', borderRadius:14, padding:10, alignItems:'center', background:'#fff'}}>
                     <img src={p.image_url} style={{width:56, height:56, objectFit:'cover', borderRadius:10, background:'#F5F1EC'}}/>
@@ -705,7 +652,6 @@ export default function SuperAdminConEdicion(){
                     <span style={{fontSize:10, background:'#7000FF', color:'#fff', padding:'3px 8px', borderRadius:999, fontWeight:800}}>{v.status}</span>
                   </div>
                   <p style={{fontSize:11, color:'#666', marginTop:4}}>{v.stores?.whatsapp} • {v.stores?.slug} • {new Date(v.created_at).toLocaleString()}</p>
-                  <p style={{fontSize:11, marginTop:6}}><b>Cédula:</b> {v.cedula_nombre}</p>
                   <div style={{display:'flex', gap:6, marginTop:10}}>
                     <button onClick={()=>aprobarVerificacion(v.id, v.store_id)} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:'10px', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer'}}>✓ Aprobar + badge azul</button>
                     <button onClick={async()=>{const supabase=getSupabase(); await supabase.from('store_verifications').update({status:'rechazada'}).eq('id',v.id); setPendientes(p=>p.filter(x=>x.id!==v.id))}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:'10px', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer'}}>Rechazar</button>
@@ -713,7 +659,6 @@ export default function SuperAdminConEdicion(){
                 </div>
               ))}
             </div>
-            {pendientes.length===0 && <p style={{fontSize:13, color:'#999', marginTop:14, textAlign:'center', padding:20}}>No hay pendientes. Todo verificado ✓</p>}
           </div>
         )}
 
@@ -728,15 +673,9 @@ export default function SuperAdminConEdicion(){
                     <span style={{background:'#FF3B30', color:'#fff', padding:'3px 8px', borderRadius:999, fontSize:10, fontWeight:800}}>{r.tipo}</span>
                   </div>
                   <p style={{fontSize:12, marginTop:6, lineHeight:1.4}}>{r.descripcion}</p>
-                  <p style={{fontSize:10, color:'#666', marginTop:6}}>Reportó: {r.reporter_name} - {r.reporter_whatsapp} • {new Date(r.created_at).toLocaleString()}</p>
-                  <div style={{display:'flex', gap:6, marginTop:10}}>
-                    <button onClick={async()=>{const s=getSupabase(); await s.from('fraud_reports').update({status:'resuelto'}).eq('id',r.id); setReportes(p=>p.filter(x=>x.id!==r.id))}} style={{background:'#111', color:'#fff', border:'none', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Marcar resuelto</button>
-                    <a href={`https://wa.me/${r.reporter_whatsapp}`} target="_blank" style={{background:'#25D366', color:'#fff', padding:'8px 12px', borderRadius:10, fontSize:11, textDecoration:'none', fontWeight:700}}>WhatsApp reportante</a>
-                  </div>
                 </div>
               ))}
             </div>
-            {reportes.length===0 && <p style={{fontSize:13, color:'#999', marginTop:14, textAlign:'center', padding:20}}>Sin reportes ✓ Marketplace limpio</p>}
           </div>
         )}
 
@@ -745,35 +684,9 @@ export default function SuperAdminConEdicion(){
             <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
               <h3 style={{fontWeight:800, fontSize:14}}>📊 Analítica rápida</h3>
               <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10}}>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Vehiculos</span><b>{stats.vehiculos}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Tiendas activas</span><b>{stats.total}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Productos totales</span><b>{stats.productos}</b></div>
-                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Promedio prod/tienda</span><b>{stats.total? (stats.productos/stats.total).toFixed(1):0}</b></div>
-                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>% Verificadas</span><b>{stats.total? Math.round(stats.verificadas/stats.total*100):0}%</b></div>
-              </div>
-            </div>
-
-            <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
-              <h3 style={{fontWeight:800, fontSize:14}}>🛠 Herramientas de trabajo</h3>
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:14}}>
-                <button onClick={()=>{const data=JSON.stringify({stores,products},null,2); const blob=new Blob([data],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tiendanica-backup.json'; a.click()}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>💾 Backup JSON<br/><span style={{fontSize:10, color:'#8A7F78'}}>Todo tu market</span></button>
-                <button onClick={()=>{const csv = ['name,slug,whatsapp,departamento,municipio,tipo,productos',''].concat(stores.map(s=> `${s.name},${s.slug},${s.whatsapp},${s.departamento},${s.municipio},${s.tipo_tienda},${products.filter(p=>p.store_id===s.id).length}`)).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tiendas.csv'; a.click()}} style={{background:'#F0F7FF', border:'1px solid #C0D8FF', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>📤 Exportar CSV<br/><span style={{fontSize:10, color:'#6B7C9A'}}>Para Excel</span></button>
-                <button onClick={()=>{const q=prompt('Buscar producto por nombre:'); if(!q) return; const found=products.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())); alert(found.length? found.map(f=> `${f.name} - C$${f.price} - ${f.stores?.name}`).join('\n') : 'No encontrado')}} style={{background:'#FFF7ED', border:'1px solid #FFE0C0', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>🔍 Buscar producto global<br/><span style={{fontSize:10, color:'#8A6B4A'}}>En todas las tiendas</span></button>
-                <button onClick={()=>{const sin=stores.filter(s=>!products.some(p=>p.store_id===s.id)); alert(sin.length?`Tiendas sin productos (${sin.length}):\n`+sin.map(s=>s.name).join('\n'):'Todas tienen productos ✓')}} style={{background:'#F0FFF4', border:'1px solid #C0E8C0', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>📦 Tiendas vacías<br/><span style={{fontSize:10, color:'#5A7A5A'}}>Necesitan productos</span></button>
-                <button onClick={()=>{const dup=stores.filter((s,i)=> stores.findIndex(x=>x.whatsapp===s.whatsapp)!==i); alert(dup.length? 'Duplicados WhatsApp:\n'+dup.map(d=>d.name+' - '+d.whatsapp).join('\n'):'No duplicados ✓')}} style={{background:'#FFF5F5', border:'1px solid #FFD0D0', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>🔗 Duplicados<br/><span style={{fontSize:10, color:'#8A5A5A'}}>Por WhatsApp</span></button>
-                <button onClick={()=>{const b=stores.filter(s=>s.tipo_tienda==='boutique'); alert(`Boutique: ${b.length} tiendas\n`+b.map(s=>s.name+' - '+s.municipio).join('\n'))}} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:14, borderRadius:14, fontSize:12, fontWeight:700, textAlign:'left', cursor:'pointer'}}>👗 Solo boutique<br/><span style={{fontSize:10, color:'#6B5E55'}}>Filtro rápido</span></button>
-              </div>
-              <div style={{marginTop:14, background:'#111', borderRadius:14, padding:12}}>
-                <p style={{fontSize:11, color:'rgba(255,255,255,0.6)', fontWeight:700}}>TIP PRO</p>
-                <p style={{fontSize:11, color:'#fff', marginTop:4, lineHeight:1.4}}>Usa vista previa para revisar cada tienda antes de darle badge verificada. Productos con fotos malas = baja conversión.</p>
-              </div>
-            </div>
-
-            <div style={{background:'linear-gradient(135deg, #0066FF, #7000FF)', color:'#fff', borderRadius:20, padding:18}}>
-              <h3 style={{fontWeight:800, fontSize:14}}>🚀 Acciones masivas</h3>
-              <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10}}>
-                <button onClick={async()=>{if(!confirm('¿Verificar todas las tiendas nuevas automáticamente?')) return; const supabase=getSupabase(); await supabase.from('stores').update({verification_status:'verificada', verification_badge:'verificada'}).eq('verification_status','nueva'); alert('Todas verificadas ✓'); cargarTodo()}} style={{background:'rgba(255,255,255,0.15)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.2)', padding:'12px', borderRadius:12, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>✅ Verificar todas las nuevas (1 click)</button>
-                <button onClick={()=>{const text=stores.map(s=> `*${s.name}* - https://tiendanica.store/${s.slug} - ${s.departamento} ${s.municipio} - ${products.filter(p=>p.store_id===s.id).length} prod`).join('\n'); navigator.clipboard.writeText(text); alert('Lista copiada para WhatsApp')}} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.2)', padding:'12px', borderRadius:12, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>📋 Copiar lista tiendas para difusión</button>
-                <button onClick={()=>{if(confirm('¿Borrar productos sin imagen?')){const sinImg=products.filter(p=>!p.image_url||p.image_url.includes('logo')); alert(sinImg.length+ ' productos con logo placeholder');}}} style={{background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', padding:'12px', borderRadius:12, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', textAlign:'left'}}>🧹 Detectar productos con logo placeholder</button>
               </div>
             </div>
           </div>
