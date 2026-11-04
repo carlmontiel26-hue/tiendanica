@@ -527,6 +527,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           <div style={{textAlign:'center', marginBottom:18}}>
             <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
             <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
+            <a href="/acceso" style={{display:'inline-block', marginTop:8, fontSize:11, background:'#fff', color:'#000', padding:'6px 12px', borderRadius:999, fontWeight:800, textDecoration:'none', border:'1px solid rgba(255,255,255,0.2)'}}>🔑 Acceso dueños</a>
           </div>
           <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store</p>
         </div>
