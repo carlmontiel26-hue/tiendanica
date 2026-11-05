@@ -324,47 +324,26 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     const esComida = (tienda.tipo_tienda||'').toLowerCase().includes('comida') || (producto.categoria||'').toLowerCase()==='comida';
     
     if(esVehiculo){
-      return `🏍️ HOLA ${tienda.name?.toUpperCase()}!%0A%0A`+
-        `Me interesa:%0A`+
-        `📦 *${producto.name}*%0A`+
-        `🏷️ ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A`+
-        `⛽ ${producto.combustible||''} | ${producto.transmision||''} | Papeles: ${producto.papeles||'Al día'}%0A`+
-        `💰 Precio: *${precio}*%0A`+
-        `📍 Ubicación: ${producto.ubicacion||tienda.municipio||tienda.departamento||''}%0A`+
-        `🔗 ${urlProducto}%0A%0A`+
-        `¿Sigue disponible? ¿Acepta financiamiento o al crédito? Quiero verla hoy.`;
+      return `🏍️ ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}*%0A🏷️ ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A💰 *${precio}* | 📍${producto.ubicacion||tienda.municipio||''}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Financiamiento?`;
     }
     if(esComida){
-      return `🍔 HOLA ${tienda.name?.toUpperCase()}!%0A%0A`+
-        `Quiero pedir:%0A`+
-        `📦 *${producto.name}* - ${precio}%0A`+
-        `🏪 ${tienda.name} - ${tienda.municipio||''} ${tienda.direccion||''}%0A`+
-        `🔗 ${urlProducto}%0A%0A`+
-        `Mi dirección es: [ESCRIBE TU DIRECCIÓN]%0A`+
-        `¿Cuánto es el delivery y cuánto tarda?`;
+      return `🍔 ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}* - ${precio}%0A🔗 ${urlProducto}%0A📍 Mi dir: [ESCRIBE]%0A¿Delivery y tiempo?`;
     }
     const tallaTxt = talla ? `%0A📏 Talla: *${talla}*` : '';
     const tallasDisp = (producto.tallas||producto.sizes||[]).length>0 ? `%0A📏 Tallas disponibles: ${(producto.tallas||producto.sizes||[]).join(', ')}` : '';
-    return `👋 HOLA ${tienda.name?.toUpperCase()}!%0A%0A`+
-      `Me interesa:%0A`+
-      `👗 *${producto.name}*${tallaTxt}%0A`+
-      `💰 Precio: *${precio}*%0A`+
-      `${tallasDisp}%0A`+
-      `🔗 Lo vi en: ${urlProducto}%0A%0A`+
-      `¿Tiene disponible? ¿Hacen envíos a [MI MUNICIPIO]?%0A`+
-      `Visto en TiendaNica.store 🛍️`;
+    return `👋 ${tienda.name?.toUpperCase()}%0A👗 *${producto.name}*${tallaTxt} - *${precio}*%0A${tallasDisp}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Envío a [MUNICIPIO]?`;
   }
 
   const checkoutWhatsApp = ()=>{
     if(cart.length===0) return;
     trackPixel('InitiateCheckout', { num_items: cart.length, value: total, currency: 'NIO' });
     trackPixel('Contact', { content_name: 'Carrito multiple' });
-    let msg = `🛍️ HOLA! QUIERO COMPRAR EN TIENDANICA.STORE%0A%0A`;
+    let msg = `🛍️ HOLA! QUIERO COMPRAR%0A`;
     cart.forEach((i,idx)=>{
       const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : '';
       msg += `${idx+1}. *${i.name}${tallaTxt}* x${i.qty} - C$${i.price} (${i.storeName})%0A`;
     });
-    msg += `%0A💰 Total: *C$${total}*%0A%0A📍 Mi dirección / municipio: [ESCRIBE AQUÍ]%0A%0A¿Me confirma disponibilidad y envío?`;
+    msg += `%0A💰 Total: *C$${total}*%0A📍 Mi dir: [ESCRIBE]%0A¿Confirma?`;
     const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))];
     if(uniqueWAs.length===1){
       window.open(`https://wa.me/${uniqueWAs[0]}?text=${msg}`,'_blank')
