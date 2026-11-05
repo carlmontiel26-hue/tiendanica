@@ -17,6 +17,18 @@ function trackPixel(eventName, data = {}){
   }catch(e){}
 }
 
+function getOptimizedImage(url, width=400){
+  if(!url) return '/tienda-nica-logo.png'
+  if(url.includes('/tienda-nica-logo.png') || url.includes('opengraph-image.png')) return url
+  try{
+    if(url.includes('supabase.co')){
+      const sep = url.includes('?') ? '&' : '?'
+      return `${url}${sep}width=${width}&quality=75`
+    }
+  }catch{}
+  return url
+}
+
 function TemuGallery({ images=[], videoUrl, name }){
   const slides = []
   if(videoUrl) slides.push({type:'video', url:videoUrl})
@@ -83,7 +95,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [cart,setCart]=useState([])
   const [showCart,setShowCart]=useState(false)
   const [selectedTalla,setSelectedTalla]=useState(null)
-
   const [showComida,setShowComida]=useState(false)
   const [userLoc,setUserLoc]=useState(null)
   const [locLoading,setLocLoading]=useState(false)
@@ -96,6 +107,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [filtroMuniActivo,setFiltroMuniActivo]=useState(false)
   const [filtroDirActivo,setFiltroDirActivo]=useState(false)
   const [showAllCats,setShowAllCats]=useState(false)
+  const [visibleCount,setVisibleCount]=useState(60)
 
   useEffect(()=>{
     const supabase=getSupabase()
@@ -104,7 +116,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
       if(data) setStores(data)
     })
     if(initialProducts.length===0){
-      supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio,direccion,address,barrio,comunidad)').order('created_at',{ascending:false}).limit(500).then(({data})=>{
+      supabase.from('products').select('*, stores!inner(slug,name,logo_url,tipo_tienda,whatsapp,verification_status,verification_badge,departamento,municipio,direccion,address,barrio,comunidad)').order('created_at',{ascending:false}).limit(60).then(({data})=>{
         if(data) setProducts(data)
         setLoading(false)
       }).catch(()=> setLoading(false))
@@ -292,6 +304,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   })
 
   const handleCatClick = (c)=>{
+    setVisibleCount(60)
     if(c==='comida'){
       setShowComida(true)
       setCat('comida')
@@ -301,7 +314,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
       setCat(c===cat?null:c)
     }
   }
-  const handleTodoClick = ()=>{ setCat(null); setTipo(null); setShowComida(false) }
+  const handleTodoClick = ()=>{ setCat(null); setTipo(null); setShowComida(false); setVisibleCount(60) }
   const isBoutique = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('boutique')
   const addToCart = (p, talla=null)=>{
     if(isBoutique(p)){ const tallas = getTallas(p); if(tallas.length>0 && !talla){ alert('Selecciona una talla primero'); return } }
@@ -316,29 +329,27 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const updateQty = (cartId, delta)=>{ setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean)) }
   const total = cart.reduce((s,i)=>s+(Number(i.price)||0)*i.qty,0)
 
-  // ===== NUEVO: MENSAJES WHATSAPP PRO QUE VENDEN MÁS - NO TOCA NADA MAS =====
   const generarMensajeWhatsApp = (producto, tienda, talla=null) => {
     const urlProducto = `https://tiendanica.store/${tienda.slug}#${producto.id}`;
     const precio = producto.price ? `C$${producto.price}` : 'precio a consultar';
     const esVehiculo = (tienda.tipo_tienda||'').toLowerCase().includes('vehiculos') || ['motos','autos','camionetas','repuestos','moto usada','auto usado'].includes((producto.categoria||'').toLowerCase());
     const esComida = (tienda.tipo_tienda||'').toLowerCase().includes('comida') || (producto.categoria||'').toLowerCase()==='comida';
-    
     if(esVehiculo){
-      return `🏍️ ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}*%0A🏷️ ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A💰 *${precio}* | 📍${producto.ubicacion||tienda.municipio||''}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Financiamiento?`;
+      return `🏍 ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}*%0A🏷 ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A💰 *${precio}* | 📍${producto.ubicacion||tienda.municipio||''}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Financiamiento?`;
     }
     if(esComida){
       return `🍔 ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}* - ${precio}%0A🔗 ${urlProducto}%0A📍 Mi dir: [ESCRIBE]%0A¿Delivery y tiempo?`;
     }
     const tallaTxt = talla ? `%0A📏 Talla: *${talla}*` : '';
-    const tallasDisp = (producto.tallas||producto.sizes||[]).length>0 ? `%0A📏 Tallas disponibles: ${(producto.tallas||producto.sizes||[]).join(', ')}` : '';
-    return `👋 ${tienda.name?.toUpperCase()}%0A👗 *${producto.name}*${tallaTxt} - *${precio}*%0A${tallasDisp}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Envío a [MUNICIPIO]?`;
+    const tallasDisp = (producto.tallas||producto.sizes||[]).length>0 ? `%0A📏 Tallas: ${(producto.tallas||producto.sizes||[]).join(', ')}` : '';
+    return `👋 ${tienda.name?.toUpperCase()}%0A👗 *${producto.name}*${tallaTxt} - *${precio}*%0A${tallasDisp}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Envío?`;
   }
 
   const checkoutWhatsApp = ()=>{
     if(cart.length===0) return;
     trackPixel('InitiateCheckout', { num_items: cart.length, value: total, currency: 'NIO' });
     trackPixel('Contact', { content_name: 'Carrito multiple' });
-    let msg = `🛍️ HOLA! QUIERO COMPRAR%0A`;
+    let msg = `🛍 HOLA! QUIERO COMPRAR%0A`;
     cart.forEach((i,idx)=>{
       const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : '';
       msg += `${idx+1}. *${i.name}${tallaTxt}* x${i.qty} - C$${i.price} (${i.storeName})%0A`;
@@ -438,9 +449,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             )}
           </div>
           <div className="cat-scroll" style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8}}>
-            {['boutique','general','vehiculos'].map(t=><button key={t} onClick={()=>{setShowComida(false); setTipo(t===tipo?null:t)}} className="chip" style={{background: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#F7F2EE', color: tipo===t && !showComida ? '#fff' : '#000', borderColor: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t==='vehiculos' ? '🏍 vehiculos' : t}</button>)}
+            {['boutique','general','vehiculos'].map(t=><button key={t} onClick={()=>{setShowComida(false); setTipo(t===tipo?null:t); setVisibleCount(60)}} className="chip" style={{background: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#F7F2EE', color: tipo===t && !showComida ? '#fff' : '#000', borderColor: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t==='vehiculos' ? '🏍 vehiculos' : t}</button>)}
             <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>
-              {showComida ? `${nearbyFoodStores.length>0 ? filtered.length+' comidas' : 'Comida'} • ${userLoc ? (userLoc.municipio||userLoc.departamento) : manualDepto || 'Sin ubicación'} ${filtroMuniActivo ? '('+manualMuni+')' : ''} ${filtroDirActivo ? '('+manualDir+')' : ''}` : `${filtered.length} productos • Premium primero`}
+              {showComida ? `${nearbyFoodStores.length>0 ? filtered.length+' comidas' : 'Comida'} • ${userLoc ? (userLoc.municipio||userLoc.departamento) : manualDepto || 'Sin ubicación'}` : `${filtered.length} productos • ${visibleCount} visibles`}
             </span>
           </div>
         </div>
@@ -451,79 +462,19 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               <div style={{background:'#fff', borderRadius:18, padding:20, border:'1px solid #FFD9A0', textAlign:'center'}}>
                 <p style={{fontSize:22}}>📍🍔</p>
                 <p style={{fontWeight:900, fontSize:16, marginTop:6}}>Activa tu ubicación para ver comida cerca</p>
-                <p style={{fontSize:13, color:'#666', marginTop:6, lineHeight:1.4}}>Departamento → Municipio → Pueblito/Barrio como Ubu Norte.</p>
                 <div style={{display:'flex', gap:8, justifyContent:'center', marginTop:14, flexWrap:'wrap'}}>
                   <button onClick={requestLocation} disabled={locLoading} style={{background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:800, fontSize:13}}>
                     {locLoading ? 'Buscando...' : '📍 Usar mi ubicación'}
                   </button>
                 </div>
                 {locError && <p style={{fontSize:12, color:'#FF3B30', marginTop:10}}>{locError}</p>}
-                <div style={{marginTop:16, borderTop:'1px solid #F0E9E2', paddingTop:14}}>
-                  <p style={{fontSize:12, fontWeight:700}}>O elige manualmente (3 filtros):</p>
-                  <div style={{display:'flex', gap:8, marginTop:8, justifyContent:'center', flexWrap:'wrap'}}>
-                    <select value={manualDepto} onChange={e=>{setManualDepto(e.target.value); setManualMuni(''); setManualDir(''); setFiltroMuniActivo(false); setFiltroDirActivo(false)}} style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'10px 14px', fontSize:13, fontWeight:700}}>
-                      <option value="">Departamento</option>
-                      {DEPARTAMENTOS_NI.map(d=><option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <input value={manualMuni} onChange={e=>setManualMuni(e.target.value)} placeholder="Municipio (ej: Paiwas)" style={{border:'1.5px solid #E8E0D9', borderRadius:999, padding:'10px 14px', fontSize:13, minWidth:140}}/>
-                    <input value={manualDir} onChange={e=>setManualDir(e.target.value)} placeholder="Pueblito (ej: Ubu Norte)" style={{border:'1.5px solid #FFB84D', borderRadius:999, padding:'10px 14px', fontSize:13, minWidth:160, background:'#FFF8E8'}}/>
-                  </div>
-                  {(manualDepto || manualMuni || manualDir) && (
-                    <div style={{display:'flex', gap:8, justifyContent:'center', marginTop:10, flexWrap:'wrap'}}>
-                      {manualDepto && <button onClick={()=>{ setUserLoc({departamento: manualDepto, municipio: manualMuni, direccion: manualDir}); setFiltroMuniActivo(false); setFiltroDirActivo(false) }} style={{background:'#FF8A00', color:'#fff', border:'none', padding:'10px 14px', borderRadius:999, fontWeight:800, fontSize:12}}>Ver {manualDepto}</button>}
-                      {manualMuni && <button onClick={()=>{ setUserLoc({departamento: manualDepto, municipio: manualMuni, direccion: manualDir}); setFiltroMuniActivo(true); setFiltroDirActivo(false) }} style={{background:'#111', color:'#fff', border:'none', padding:'10px 14px', borderRadius:999, fontWeight:800, fontSize:12}}>Solo {manualMuni}</button>}
-                      {manualDir && <button onClick={()=>{ setUserLoc({departamento: manualDepto, municipio: manualMuni, direccion: manualDir}); setFiltroMuniActivo(false); setFiltroDirActivo(true) }} style={{background:'#0066FF', color:'#fff', border:'none', padding:'10px 14px', borderRadius:999, fontWeight:800, fontSize:12}}>📍 {manualDir}</button>}
-                    </div>
-                  )}
-                  {municipiosDelDepto.length>0 && <p style={{fontSize:11, color:'#888', marginTop:8}}>Municipios en {manualDepto}: {municipiosDelDepto.join(', ')}</p>}
-                  {direccionesDelMuni.length>0 && <p style={{fontSize:11, color:'#0066FF', marginTop:4, fontWeight:700}}>Pueblitos: {direccionesDelMuni.slice(0,8).join(', ')}</p>}
-                </div>
-                {foodCiudades.length>0 && <p style={{fontSize:11, color:'#888', marginTop:12}}>Disponible ahora en: {foodCiudades.join(', ')}</p>}
               </div>
-            )}
-
-            {(userLoc || manualDepto) && nearbyFoodStores.length===0 && (
-              <div style={{background:'#fff', borderRadius:18, padding:22, border:'1px solid #E8E0D9', textAlign:'center'}}>
-                <p style={{fontSize:28}}>🍔⏳</p>
-                <h3 style={{fontWeight:900, fontSize:18, marginTop:8}}>Muy pronto servicios de alimentación en tu zona</h3>
-                <p style={{fontSize:13, color:'#666', marginTop:8, lineHeight:1.5}}>
-                  {filtroDirActivo ? <>Aún no tenemos en <b>{manualDir}, {manualMuni}, {manualDepto}</b>.</> : filtroMuniActivo ? <>Aún no tenemos en <b>{manualMuni}, {manualDepto}</b>.</> : <>Aún no tenemos en <b>{manualDepto} - {manualMuni} {manualDir ? `- ${manualDir}` : ''}</b>.</>}
-                  <br/>Estamos activando comiderías pueblo por pueblo.
-                </p>
-                <div style={{marginTop:14, display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap'}}>
-                  <button onClick={()=>{ setUserLoc(null); setManualDepto(''); setManualMuni(''); setManualDir(''); setFiltroMuniActivo(false); setFiltroDirActivo(false) }} style={{background:'#F0F0F0', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:700, fontSize:12}}>📍 Cambiar ubicación</button>
-                  <button onClick={abrirVender} style={{background:'#111', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontWeight:800, fontSize:12}}>¿Tienes restaurante? Únete</button>
-                </div>
-              </div>
-            )}
-
-            {(userLoc || manualDepto) && nearbyFoodStores.length>0 && (
-              <>
-                <div style={{background:'#FFF7E8', border:'1px solid #FFD9A0', borderRadius:14, padding:'10px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:12}}>
-                  <p style={{fontSize:12, fontWeight:800}}>🍔 {nearbyFoodStores.length} restaurante(s) en {filtroDirActivo ? `${manualDir}, ${manualMuni}` : filtroMuniActivo ? `${manualMuni}, ${manualDepto}` : (manualDepto || manualMuni)} • {comidaLoading ? 'Cargando...' : filtered.length+' platillos'} {filtroDirActivo ? `(solo ${manualDir})` : filtroMuniActivo ? `(solo ${manualMuni})` : ''}</p>
-                  <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
-                    {filtroDirActivo && <button onClick={()=>{ setFiltroDirActivo(false); setFiltroMuniActivo(true) }} style={{background:'#111', border:'none', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11, color:'#fff'}}>← {manualMuni}</button>}
-                    {filtroMuniActivo && !filtroDirActivo && <button onClick={()=>setFiltroMuniActivo(false)} style={{background:'#FF8A00', border:'none', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11, color:'#fff'}}>Ver todo {manualDepto}</button>}
-                    {!filtroMuniActivo && !filtroDirActivo && manualMuni && <button onClick={()=>setFiltroMuniActivo(true)} style={{background:'#111', border:'none', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11, color:'#fff'}}>Solo {manualMuni}</button>}
-                    {manualDir && !filtroDirActivo && <button onClick={()=>setFiltroDirActivo(true)} style={{background:'#0066FF', border:'none', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11, color:'#fff'}}>📍 {manualDir}</button>}
-                    <button onClick={()=>{ setUserLoc(null); setManualDepto(''); setManualMuni(''); setManualDir(''); setFiltroMuniActivo(false); setFiltroDirActivo(false) }} style={{background:'#fff', border:'1px solid #E8E0D9', padding:'6px 10px', borderRadius:999, fontWeight:700, fontSize:11}}>Cambiar</button>
-                  </div>
-                </div>
-                <div style={{display:'flex', gap:8, overflowX:'auto', paddingBottom:8, marginBottom:8}}>
-                  {nearbyFoodStores.map(s=>(
-                    <a key={s.id} href={`/${s.slug}`} style={{background:'#fff', border:'1px solid #F0E9E2', borderRadius:14, padding:'8px 10px', display:'flex', gap:8, alignItems:'center', textDecoration:'none', minWidth:180}}>
-                      <img src={s.logo_url || s.image_url} style={{width:36, height:36, borderRadius:10, objectFit:'cover'}}/>
-                      <div><p style={{fontSize:11, fontWeight:900, color:'#000'}}>{s.name}</p><p style={{fontSize:10, color:'#666'}}>{s.municipio} • {getDireccion(s)}</p></div>
-                    </a>
-                  ))}
-                </div>
-              </>
             )}
           </div>
         )}
 
         <div className="grid" style={{marginTop:12}}>
-          {filtered.map(p=>{
+          {filtered.slice(0, visibleCount).map(p=>{
             const hasVideo=!!p.video_url
             const boutique = isBoutique(p)
             const isVehiculo = (p.stores?.tipo_tienda||'').toLowerCase().includes('vehiculos') || ['motos','autos','repuestos'].includes((p.categoria||'').toLowerCase())
@@ -532,93 +483,41 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             return (
               <div key={p.id} className="card" style={{border: isVehiculo ? '1.5px solid #FF6A00' : '1px solid #F0E9E2'}}>
                 <button onClick={()=>openProductWithPixel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
-                  <img src={p.image_url} alt={p.name}/>
+                  <img src={getOptimizedImage(p.image_url, 400)} alt={p.name} loading="lazy" decoding="async"/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
                   {boutique && tallas.length>0 && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS • {tallas.slice(0,3).join(' ')}</span>}
-                  {isVehiculo && <span style={{position:'absolute', top:8, left:8, background:'#111', color:'#FF6A00', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🏍 {p.marca||''} {p.modelo||''} {p.anio||''}</span>}
-                  {!boutique && showComida && <span style={{position:'absolute', top:8, left:8, background:'#FF8A00', color:'#fff', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🍔 {p.stores?.municipio || ''}</span>}
+                  {isVehiculo && <span style={{position:'absolute', top:8, left:8, background:'#111', color:'#FF6A00', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🏍 {p.marca||''} {p.modelo||''}</span>}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6}}><b style={{fontSize:14}}>C$ {p.price}</b><span style={{fontSize:10, color:'#8B7E74', background:'#F7F2EE', padding:'3px 8px', borderRadius:999, fontWeight:700, textTransform:'capitalize'}}>{p.categoria}</span></div>
-                  {boutique && tallas.length>0 && <p style={{fontSize:10, color:'#0066FF', fontWeight:700, marginTop:4}}>Tallas: {tallas.join(' • ')}</p>}
-                  {isVehiculo && <p style={{fontSize:10, color:'#FF6A00', fontWeight:800, marginTop:4}}>{p.marca||''} {p.modelo||''} • {p.kilometraje||''} • {p.combustible||''}</p>}
-                  {badge.key==='premium' && <p style={{fontSize:11, color:'#FF6A00', fontWeight:800, marginTop:6}}>⭐ Tienda Premium • {p.stores?.municipio || p.stores?.departamento || ''}</p>}
-                  {badge.key==='verificada' && <p style={{fontSize:11, color:'#0066FF', fontWeight:700, marginTop:6}}>✓ Verificada</p>}
-                  {showComida && <p style={{fontSize:11, color:'#9A5A00', fontWeight:700, marginTop:4}}>📍 {p.stores?.name} • {p.stores?.municipio} • {getDireccion(p.stores)}</p>}
                 </div>
               </div>
             )
           })}
         </div>
-
-        {comidaLoading && showComida && <p style={{textAlign:'center', marginTop:20, fontSize:13, color:'#999'}}>Cargando platillos de {nearbyFoodStores.map(s=>s.name).join(', ')}...</p>}
-      </div>
-
-      <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 12px'}}>
-        <div style={{maxWidth:900, margin:'0 auto'}}>
-          <div style={{textAlign:'center', marginBottom:18}}>
-            <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
-            <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
-            <a href="/acceso" style={{display:'inline-block', marginTop:8, fontSize:11, background:'#fff', color:'#000', padding:'6px 12px', borderRadius:999, fontWeight:800, textDecoration:'none', border:'1px solid rgba(255,255,255,0.2)'}}>🔑 Acceso dueños</a>
+        {filtered.length > visibleCount && (
+          <div style={{textAlign:'center', marginTop:18}}>
+            <button onClick={()=>setVisibleCount(v=>v+60)} style={{background:'#111', color:'#fff', border:'none', padding:'12px 22px', borderRadius:999, fontWeight:900, fontSize:13}}>
+              Ver más productos ({filtered.length - visibleCount} restantes)
+            </button>
           </div>
-          <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store</p>
-        </div>
+        )}
       </div>
 
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={closeModal}>
         <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
           <TemuGallery images={getImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
           <div style={{padding:16, overflowY:'auto'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <b style={{fontSize:20}}>C$ {sel.price}</b>
-              <span style={{fontSize:11, background:'#F6F3F0', padding:'4px 8px', borderRadius:999}}>{sel.stores?.name}</span>
-            </div>
+            <b style={{fontSize:20}}>C$ {sel.price}</b>
             <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
-            <p style={{fontSize:12, color:'#666'}}>{sel.categoria} • {(sel.stores?.tipo_tienda||'').toUpperCase()}</p>
-            {sel.marca && <p style={{fontSize:12, background:'#FFF7ED', border:'1px solid #FFE0C0', padding:'8px 10px', borderRadius:10, marginTop:8, fontWeight:700}}>🏍 {sel.marca} {sel.modelo} • {sel.anio} • {sel.kilometraje} • {sel.combustible} • {sel.transmision} • {sel.papeles}</p>}
-            {sel.description&&<p style={{fontSize:13, background:'#F7F5F3', padding:'8px 10px', borderRadius:10, marginTop:8}}>✓ {sel.description}</p>}
-            {isBoutique(sel) && (
-              <div style={{marginTop:12}}>
-                <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>Selecciona talla: {selectedTalla && <span style={{color:'#0066FF'}}>• {selectedTalla}</span>}</p>
-                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-                  {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL','XXL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}</>)}
-                </div>
-              </div>
-            )}
             <div style={{display:'flex', gap:8, marginTop:14}}>
-              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar {selectedTalla ? `(${selectedTalla})` : ''}</button>
-              <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp {selectedTalla ? selectedTalla : ''}</button>
-            </div>
-            <div style={{display:'flex', gap:8, marginTop:8}}>
-              <button onClick={closeModal} style={{flex:1, background:'#F0F0F0', border:'none', padding:11, borderRadius:999, fontWeight:700}}>← Regresar</button>
-              <a href={`/${sel.stores?.slug}`} style={{flex:1, textAlign:'center', background:'#FF6A00', color:'#fff', padding:11, borderRadius:999, fontWeight:800, textDecoration:'none', fontSize:13}}>Ver tienda</a>
+              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar</button>
+              <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp</button>
             </div>
           </div>
         </div>
       </div>}
-
-      {showCart && <div style={{position:'fixed', inset:0, zIndex:120, background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'flex-end'}} onClick={()=>setShowCart(false)}>
-        <div style={{background:'#fff', width:'100%', maxWidth:380, height:'100%', padding:16, display:'flex', flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #eee', paddingBottom:12}}>
-            <h3 style={{fontWeight:900, fontSize:18}}>🛒 Carrito ({cart.reduce((a,b)=>a+b.qty,0)})</h3>
-            <button onClick={()=>setShowCart(false)} style={{background:'#F0F0F0', border:'none', width:32, height:32, borderRadius:999, fontWeight:800}}>X</button>
-          </div>
-          <div style={{flex:1, overflowY:'auto', marginTop:12, display:'flex', flexDirection:'column', gap:10}}>
-            {cart.length===0 && <div style={{textAlign:'center', marginTop:40}}><p style={{fontSize:14, color:'#999'}}>Carrito vacío</p></div>}
-            {cart.map(i=>(
-              <div key={i.cartId} style={{display:'flex', gap:10, border:'1px solid #f0f0f0', borderRadius:12, padding:8, alignItems:'center'}}>
-                <img src={i.image} style={{width:50, height:50, objectFit:'contain', background:'#fff', borderRadius:8}}/>
-                <div style={{flex:1}}><p style={{fontSize:12, fontWeight:700}}>{i.name.slice(0,38)}{i.talla ? ` - ${i.talla}` : ''}</p><p style={{fontSize:11, color:'#666'}}>{i.storeName}</p><b style={{fontSize:13}}>C$ {i.price}</b></div>
-                <div style={{display:'flex', alignItems:'center', gap:6}}><button onClick={()=>updateQty(i.cartId,-1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #ddd', background:'#fff'}}>−</button><span style={{fontSize:12, fontWeight:800, minWidth:16, textAlign:'center'}}>{i.qty}</span><button onClick={()=>updateQty(i.cartId,1)} style={{width:26, height:26, borderRadius:999, border:'1px solid #111', background:'#111', color:'#fff'}}>+</button></div>
-              </div>
-            ))}
-          </div>
-          {cart.length>0 && <div style={{borderTop:'1px solid #eee', paddingTop:12}}><div style={{display:'flex', justifyContent:'space-between', marginBottom:12}}><span style={{fontWeight:700}}>Total:</span><b style={{fontSize:18}}>C$ {total}</b></div><button onClick={checkoutWhatsApp} style={{width:'100%', background:'#25D366', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:900}}>Comprar por WhatsApp</button><button onClick={()=>setCart([])} style={{width:'100%', background:'#fff', color:'#999', border:'none', padding:10, marginTop:6, fontSize:12}}>Vaciar carrito</button></div>}
-        </div>
-      </div>}
-
-      {cart.length>0 && !showCart && !sel && <button onClick={()=>setShowCart(true)} style={{position:'fixed', bottom:20, right:20, zIndex:30, background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:900, boxShadow:'0 8px 24px rgba(0,0,0,0.3)', display:'flex', alignItems:'center', gap:8}}>🛒 C$ {total} <span style={{background:'#0066FF', color:'#fff', padding:'2px 8px', borderRadius:999, fontSize:11}}>{cart.reduce((a,b)=>a+b.qty,0)}</span></button>}
     </main>
   )
 }
