@@ -10,6 +10,19 @@ function getSupabase(){
   return createClient(url,key)
 }
 
+function getOptimizedImage(url, width=400){
+  if(!url) return '/tienda-nica-logo.png'
+  if(url.includes('/tienda-nica-logo.png')) return url
+  if(url.includes('images.unsplash.com')) return url
+  try{
+    if(url.includes('supabase.co')){
+      const sep = url.includes('?') ? '&' : '?'
+      return `${url}${sep}width=${width}&quality=75`
+    }
+  }catch{}
+  return url
+}
+
 function TemuProductGallery({ images=[], videoUrl, name }){
   const slides = []
   if(videoUrl) slides.push({type:'video', url:videoUrl})
@@ -114,7 +127,7 @@ export default function StorePage(){
       {/* ===== PORTADA RESTAURADA - SIN CORTARSE EN MOVIL ===== */}
       <div className="banner-wrap">
         <div style={{position:'absolute', inset:0, background: 'linear-gradient(180deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%)', zIndex:0}}/>
-        <img src={cover} alt="portada" className="banner-img" style={{zIndex:1, opacity:0.95}}/>
+        <img src={getOptimizedImage(cover, 800)} alt="portada" className="banner-img" style={{zIndex:1, opacity:0.95}}/>
         <div style={{position:'absolute', inset:0, zIndex:2, background: 'linear-gradient(to top, #0A0A0A 0%, transparent 70%)', pointerEvents:'none'}}/>
         <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: 'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
         <div style={{position:'absolute',top:10,left:10,right:10, display:'flex', justifyContent:'space-between', zIndex:4}}>
@@ -123,7 +136,7 @@ export default function StorePage(){
         </div>
         <div className="info-card">
           <div style={{display:'flex', gap:10, alignItems:'center'}}>
-            <img src={store.logo_url || store.image_url || '/tienda-nica-logo.png'} className="info-logo" style={{width:44,height:44,borderRadius:12,objectFit:'cover',border:'2px solid #fff'}}/>
+            <img src={getOptimizedImage(store.logo_url || store.image_url, 200)} className="info-logo" style={{width:44,height:44,borderRadius:12,objectFit:'cover',border:'2px solid #fff'}}/>
             <div>
               <h1 style={{fontSize:15,fontWeight:900,margin:0,lineHeight:1.1}}>{store.name}</h1>
               <p style={{fontSize:10,margin:0,opacity:0.6, marginTop:2}}>{prods.length} productos • {store.municipio||store.departamento||'Nicaragua'}</p>
@@ -138,7 +151,7 @@ export default function StorePage(){
           <div style={{display:'flex',justifyContent:'space-between'}}><b>Carrito ({count})</b><button onClick={()=>setShowCart(false)} style={{border:'none',background:'#eee',borderRadius:999,width:28,height:28}}>X</button></div>
           <div style={{marginTop:10, display:'grid', gap:8, maxHeight:300, overflowY:'auto'}}>
             {cart.length===0 && <p style={{fontSize:12, opacity:0.6}}>Vacío</p>}
-            {cart.map(i=><div key={i.cid} style={{display:'flex',gap:8, background:'#F6F3F0', padding:8, borderRadius:12}}><img src={i.image_url} style={{width:44,height:44,borderRadius:8,objectFit:'contain', background:'#fff'}}/><div style={{flex:1,fontSize:12}}><b>{i.name}</b>{isBoutique && i.tallaSel&&<span style={{background:'#000',color:'#fff',fontSize:9,padding:'2px 6px',borderRadius:99,marginLeft:6}}>{i.tallaSel}</span>}<br/>{i.qty} x C$ {i.price}</div><button onClick={()=>setCart(v=>v.filter(x=>x.cid!==i.cid))} style={{border:'none',background:'none'}}>🗑</button></div>)}
+            {cart.map(i=><div key={i.cid} style={{display:'flex',gap:8, background:'#F6F3F0', padding:8, borderRadius:12}}><img src={getOptimizedImage(i.image_url, 100)} style={{width:44,height:44,borderRadius:8,objectFit:'contain', background:'#fff'}}/><div style={{flex:1,fontSize:12}}><b>{i.name}</b>{isBoutique && i.tallaSel&&<span style={{background:'#000',color:'#fff',fontSize:9,padding:'2px 6px',borderRadius:99,marginLeft:6}}>{i.tallaSel}</span>}<br/>{i.qty} x C$ {i.price}</div><button onClick={()=>setCart(v=>v.filter(x=>x.cid!==i.cid))} style={{border:'none',background:'none'}}>🗑</button></div>)}
           </div>
           <div style={{marginTop:10,display:'flex',justifyContent:'space-between',fontWeight:900}}><span>Total</span><span>C$ {total}</span></div>
           <button onClick={waCart} style={{marginTop:10,width:'100%',background:'#000',color:'#fff',padding:12,borderRadius:999,fontWeight:900,border:'none'}}>Enviar por WhatsApp</button>
@@ -158,7 +171,7 @@ export default function StorePage(){
             return (
               <div key={p.id} style={{background:'#fff',borderRadius:20,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.05)', border:'1px solid #f5f5f5'}}>
                 <button onClick={()=>setSel(p)} style={{width:'100%',aspectRatio:'1/1',border:'none',background:'#fff',position:'relative', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                  <img src={p.image_url} style={{width:'100%',height:'100%',objectFit:'contain', background:'#fff'}}/>
+                  <img src={getOptimizedImage(p.image_url, 400)} loading="lazy" decoding="async" style={{width:'100%',height:'100%',objectFit:'contain', background:'#fff'}}/>
                   {im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}
                   {hasVideo&&<span style={{position:'absolute',top:8,right:8,background:'#FF3B30',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>▶ VIDEO</span>}
                   {isBoutique && p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800, border:'1px solid #eee'}}>{p.tallas.join(' ')}</span>}
