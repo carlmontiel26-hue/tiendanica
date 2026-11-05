@@ -58,7 +58,6 @@ function TemuGallery({ images=[], videoUrl, name }){
   )
 }
 
-// ===== FIX PC: ORDEN PREMIUM CON VEHICULOS =====
 const ORDEN_PREMIUM = ['vestidos','blusas','jeans','conjuntos','faldas','shorts','pijamas','zapatos','carteras','accesorios','belleza','salud','general','hogar','otros','nuevo','comida','motos','autos','camionetas','moto usada','auto usado','repuestos','accesorios moto','cascos','llantas','vehiculos']
 const DEPARTAMENTOS_NI = ['Managua','Masaya','Granada','León','Chinandega','Carazo','Rivas','Estelí','Matagalpa','Jinotega','Boaco','Chontales','Madriz','Nueva Segovia','Río San Juan','RAAN','RAAS']
 
@@ -316,15 +315,71 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   }
   const updateQty = (cartId, delta)=>{ setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean)) }
   const total = cart.reduce((s,i)=>s+(Number(i.price)||0)*i.qty,0)
+
+  // ===== NUEVO: MENSAJES WHATSAPP PRO QUE VENDEN MÁS - NO TOCA NADA MAS =====
+  const generarMensajeWhatsApp = (producto, tienda, talla=null) => {
+    const urlProducto = `https://tiendanica.store/${tienda.slug}#${producto.id}`;
+    const precio = producto.price ? `C$${producto.price}` : 'precio a consultar';
+    const esVehiculo = (tienda.tipo_tienda||'').toLowerCase().includes('vehiculos') || ['motos','autos','camionetas','repuestos','moto usada','auto usado'].includes((producto.categoria||'').toLowerCase());
+    const esComida = (tienda.tipo_tienda||'').toLowerCase().includes('comida') || (producto.categoria||'').toLowerCase()==='comida';
+    
+    if(esVehiculo){
+      return `🏍️ HOLA ${tienda.name?.toUpperCase()}!%0A%0A`+
+        `Me interesa:%0A`+
+        `📦 *${producto.name}*%0A`+
+        `🏷️ ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A`+
+        `⛽ ${producto.combustible||''} | ${producto.transmision||''} | Papeles: ${producto.papeles||'Al día'}%0A`+
+        `💰 Precio: *${precio}*%0A`+
+        `📍 Ubicación: ${producto.ubicacion||tienda.municipio||tienda.departamento||''}%0A`+
+        `🔗 ${urlProducto}%0A%0A`+
+        `¿Sigue disponible? ¿Acepta financiamiento o al crédito? Quiero verla hoy.`;
+    }
+    if(esComida){
+      return `🍔 HOLA ${tienda.name?.toUpperCase()}!%0A%0A`+
+        `Quiero pedir:%0A`+
+        `📦 *${producto.name}* - ${precio}%0A`+
+        `🏪 ${tienda.name} - ${tienda.municipio||''} ${tienda.direccion||''}%0A`+
+        `🔗 ${urlProducto}%0A%0A`+
+        `Mi dirección es: [ESCRIBE TU DIRECCIÓN]%0A`+
+        `¿Cuánto es el delivery y cuánto tarda?`;
+    }
+    const tallaTxt = talla ? `%0A📏 Talla: *${talla}*` : '';
+    const tallasDisp = (producto.tallas||producto.sizes||[]).length>0 ? `%0A📏 Tallas disponibles: ${(producto.tallas||producto.sizes||[]).join(', ')}` : '';
+    return `👋 HOLA ${tienda.name?.toUpperCase()}!%0A%0A`+
+      `Me interesa:%0A`+
+      `👗 *${producto.name}*${tallaTxt}%0A`+
+      `💰 Precio: *${precio}*%0A`+
+      `${tallasDisp}%0A`+
+      `🔗 Lo vi en: ${urlProducto}%0A%0A`+
+      `¿Tiene disponible? ¿Hacen envíos a [MI MUNICIPIO]?%0A`+
+      `Visto en TiendaNica.store 🛍️`;
+  }
+
   const checkoutWhatsApp = ()=>{
     if(cart.length===0) return;
     trackPixel('InitiateCheckout', { num_items: cart.length, value: total, currency: 'NIO' });
     trackPixel('Contact', { content_name: 'Carrito multiple' });
-    let msg = `Hola TiendaNica! Quiero comprar desde el market:\n\n`; cart.forEach((i,idx)=>{ const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : ''; msg += `${idx+1}. ${i.name}${tallaTxt} x${i.qty} - C$ ${i.price} (Tienda: ${i.storeName})\n` }); msg += `\nTotal: C$ ${total}\n\nMi direccion: `; const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))]; if(uniqueWAs.length===1){ window.open(`https://wa.me/${uniqueWAs[0]}?text=${encodeURIComponent(msg)}`,'_blank') } else { window.open(`https://wa.me/50581732620?text=${encodeURIComponent(msg + "\n\n(Son de varias tiendas)")}`,'_blank') } }
+    let msg = `🛍️ HOLA! QUIERO COMPRAR EN TIENDANICA.STORE%0A%0A`;
+    cart.forEach((i,idx)=>{
+      const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : '';
+      msg += `${idx+1}. *${i.name}${tallaTxt}* x${i.qty} - C$${i.price} (${i.storeName})%0A`;
+    });
+    msg += `%0A💰 Total: *C$${total}*%0A%0A📍 Mi dirección / municipio: [ESCRIBE AQUÍ]%0A%0A¿Me confirma disponibilidad y envío?`;
+    const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))];
+    if(uniqueWAs.length===1){
+      window.open(`https://wa.me/${uniqueWAs[0]}?text=${msg}`,'_blank')
+    } else {
+      window.open(`https://wa.me/50581732620?text=${msg}%0A%0A(Son de varias tiendas)`,'_blank')
+    }
+  }
+
   const waProductDirect = (p, talla=null)=>{
     trackPixel('Contact', { content_name: p.name, content_ids: [p.id], value: Number(p.price)||0, currency: 'NIO' });
     trackPixel('Lead', { content_name: p.name });
-    const tallaTxt = talla ? ` Talla: ${talla}` : ''; let m=`Hola ${p.stores.name}! Vi en TiendaNica Market: ${p.name}${tallaTxt} - C$ ${p.price} https://tiendanica.store/${p.stores.slug}`; if(p.description) m+=` - ${p.description}`; window.open(`https://wa.me/${p.stores.whatsapp}?text=${encodeURIComponent(m)}`,'_blank') }
+    const mensaje = generarMensajeWhatsApp(p, p.stores, talla);
+    window.open(`https://wa.me/${p.stores.whatsapp}?text=${mensaje}`,'_blank')
+  }
+
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
 
   const openProductWithPixel = (p)=>{
@@ -355,7 +410,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .chip-vehiculos.active{ background:#FF6A00; color:#fff; border-color:#FF6A00; }
         .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
         .card{ background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06); border:1px solid #F0E9E2; }
-        .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; align-items:center; justifyContent:center; }
+        .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; alignItems:center; justifyContent:center; }
         .card-img img{ width:100%; height:100%; object-fit:contain; background:#fff; }
         .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
@@ -393,7 +448,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           <div className="cat-scroll" style={{marginTop:10}}>
             <button onClick={handleTodoClick} className={`chip ${!cat && !tipo && !showComida ? 'active' : ''}`} style={{textTransform:'none'}}>Todo</button>
             <button onClick={()=>handleCatClick('comida')} className={`chip chip-comida ${showComida ? 'active' : ''}`}>🍔 Comida</button>
-            {/* FIX PC: mostrar categorias con wrap y separar vehiculos */}
             {(showAllCats ? catsOrdenadas : catsOrdenadas.slice(0, 14)).map(c=>{
               const isVeh = ['motos','autos','camionetas','repuestos','vehiculos','accesorios moto','cascos','llantas'].includes(c.toLowerCase())
               return <button key={c} onClick={()=>{setShowComida(false); setCat(c===cat?null:c)}} className={`chip ${cat===c && !showComida ? 'active' : ''} ${isVeh ? 'chip-vehiculos' : ''}`}>{c}</button>
