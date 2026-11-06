@@ -121,9 +121,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const handleConfigPressStart = ()=>{ longPressRef.current = setTimeout(()=>{ setShowSuperPrompt(true); }, 3000) }
   const handleConfigPressEnd = ()=>{ if(longPressRef.current){ clearTimeout(longPressRef.current); longPressRef.current=null } }
   const handleSuperAccess = ()=>{ if(superPinInput === MASTER_PIN){ window.location.href = '/admin' } else { alert('PIN incorrecto'); setSuperPinInput('') } }
-  const [showSuperPrompt,setShowSuperPrompt]=useState(false)
-  const [superPinInput,setSuperPinInput]=useState('')
-  const longPressRef = __import__('react').useRef ? null : null
 
 
   useEffect(()=>{
