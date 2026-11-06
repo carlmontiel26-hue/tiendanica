@@ -57,13 +57,38 @@ export default function SuperAdminConEdicion(){
 
   const cargarTodo = async ()=>{
     setLoading(true)
-    const supabase = getSupabase()
-    if(!supabase){ setLoading(false); return }
-    const {data: s} = await supabase.from('stores').select('*').order('created_at',{ascending:false}).limit(300)
-    const {data: p} = await supabase.from('products').select('*, stores(name,slug,tipo_tienda)').order('created_at',{ascending:false}).limit(500)
-    const {data: v} = await supabase.from('store_verifications').select('*, stores(name, whatsapp, slug)').in('status',['pendiente','revision']).order('created_at',{ascending:false}).limit(100)
-    const {data: r} = await supabase.from('fraud_reports').select('*, stores(name, whatsapp)').in('status',['abierto','investigando']).order('created_at',{ascending:false}).limit(100)
-    setStores(s||[]); setProducts(p||[]); setPendientes(v||[]); setReportes(r||[]); setLoading(false)
+    try{
+      const supabase = getSupabase()
+      if(!supabase){ 
+        console.error('SUPABASE ENV MISSING')
+        alert('Error: NEXT_PUBLIC_SUPABASE_URL o ANON_KEY no configurado en Vercel')
+        setLoading(false); return 
+      }
+      // Carga tiendas sin depender de columnas nuevas
+      const {data: s, error: errS} = await supabase.from('stores').select('*').order('created_at',{ascending:false}).limit(300)
+      if(errS){ console.error('stores error', errS); alert('Error cargando tiendas: '+errS.message) }
+      
+      const {data: p, error: errP} = await supabase.from('products').select('*, stores(name,slug,tipo_tienda)').order('created_at',{ascending:false}).limit(500)
+      if(errP) console.error('products error', errP)
+      
+      // Estas dos tablas pueden no existir, no bloquear si fallan
+      let v=[], r=[]
+      try{
+        const resV = await supabase.from('store_verifications').select('*, stores(name, whatsapp, slug)').in('status',['pendiente','revision']).order('created_at',{ascending:false}).limit(100)
+        v = resV.data || []
+      }catch(e){ console.log('verifications no existe o vacia', e) }
+      try{
+        const resR = await supabase.from('fraud_reports').select('*, stores(name, whatsapp)').in('status',['abierto','investigando']).order('created_at',{ascending:false}).limit(100)
+        r = resR.data || []
+      }catch(e){ console.log('fraud_reports no existe', e) }
+
+      setStores(s||[]); setProducts(p||[]); setPendientes(v||[]); setReportes(r||[])
+    }catch(e){
+      console.error('cargarTodo fatal', e)
+      alert('Error fatal cargando: '+e.message)
+    }finally{
+      setLoading(false)
+    }
   }
 
   const uploadFile = async (file, bucket='product-images')=>{

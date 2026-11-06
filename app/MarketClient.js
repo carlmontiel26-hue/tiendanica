@@ -114,7 +114,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const MASTER_PIN = '6052611890000'
   const handleConfigPressStart = ()=>{ longPressRef.current = setTimeout(()=>{ setShowSuperPrompt(true); }, 3000) }
   const handleConfigPressEnd = ()=>{ if(longPressRef.current){ clearTimeout(longPressRef.current); longPressRef.current=null } }
-  const handleSuperAccess = ()=>{ if(superPinInput === MASTER_PIN){ window.location.href = '/super-admin' } else { alert('PIN incorrecto'); setSuperPinInput('') } }
+  const handleSuperAccess = ()=>{ if(superPinInput === MASTER_PIN){ window.location.href = '/admin' } else { alert('PIN incorrecto'); setSuperPinInput('') } }
 
   useEffect(()=>{
     const supabase=getSupabase()
