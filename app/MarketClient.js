@@ -371,6 +371,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   }
 
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
+  const abrirAccesoDueno = ()=>{ window.location.href = '/acceso' }
 
   const openProductWithPixel = (p)=>{
     trackPixel('ViewContent', { content_name: p.name, content_category: p.categoria, content_ids: [p.id], content_type: 'product', value: Number(p.price)||0, currency: 'NIO' });
@@ -389,6 +390,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; }
         .portada-img{ width:100%; height:auto; display:block; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
+        .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
         .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; alignItems:center; justifyContent:center; gap:2px; }
         .cat-scroll{ display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; padding:2px 0 6px; -webkit-overflow-scrolling:touch; }
         .cat-scroll::-webkit-scrollbar{ display:none; }
@@ -414,7 +416,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         }
         @media(min-width:1280px){ .portada-wrap{ max-height:240px; } .portada-img{ height:240px; } }
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
+        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .btn-config-dueno{ width:38px; height:38px; bottom:10px; right:10px; border-radius:10px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
       `}</style>
 
       <div className="portada-wrap">
@@ -422,6 +424,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         <button onClick={abrirVender} className="btn-vender-azul">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span>vender</span>
+        </button>
+        <button onClick={abrirAccesoDueno} className="btn-config-dueno" aria-label="Acceso dueño" title="Acceso dueño">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 9 15a1.65 1.65 0 0 0-1-1.51V13a2 2 0 0 1 0-4v-.49c.294-.2.636-.34 1-.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 13 11.5a1.65 1.65 0 0 0 1 1.51V13a2 2 0 0 1 0 4v.49c-.294.2-.636.34-1 .51Z"/></svg>
         </button>
       </div>
 
