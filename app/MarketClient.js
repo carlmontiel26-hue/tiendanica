@@ -536,11 +536,30 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
           <TemuGallery images={getImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
           <div style={{padding:16, overflowY:'auto'}}>
-            <b style={{fontSize:20}}>C$ {sel.price}</b>
-            <h2 style={{fontWeight:900, fontSize:16, marginTop:6}}>{sel.name}</h2>
-            <div style={{display:'flex', gap:8, marginTop:14}}>
-              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:800}}>🛒 Agregar</button>
-              <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:12, borderRadius:999, fontWeight:900}}>WhatsApp</button>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <b style={{fontSize:20}}>C$ {sel.price}</b>
+              <span style={{fontSize:11, color:'#666', background:'#F5F1EC', padding:'4px 10px', borderRadius:999}}>{sel.categoria}</span>
+            </div>
+            <h2 style={{fontWeight:900, fontSize:16, marginTop:8, lineHeight:1.3}}>{sel.name}</h2>
+            {sel.stores && <p style={{fontSize:12, color:'#8A7F78', marginTop:4}}>🏪 {sel.stores.name} • 📍 {sel.stores.municipio || sel.stores.departamento || ''}</p>}
+            {sel.description && <p style={{fontSize:13, color:'#333', marginTop:10, lineHeight:1.5, background:'#FFFBF8', padding:'10px 12px', borderRadius:12, border:'1px solid #F0E9E2'}}>{sel.description}</p>}
+            {isBoutique(sel) && getTallas(sel).length>0 && (
+              <div style={{marginTop:14}}>
+                <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>📏 Selecciona talla:</p>
+                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                  {getTallas(sel).map(t=>(
+                    <button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`} style={{padding:'8px 14px', borderRadius:999, border:'1.5px solid', borderColor: selectedTalla===t ? '#111' : '#E0D6CF', background: selectedTalla===t ? '#111' : '#fff', color: selectedTalla===t ? '#fff' : '#111', fontSize:13, fontWeight:800, cursor:'pointer'}}>{t}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{display:'flex', gap:8, marginTop:16}}>
+              <button onClick={()=>{addToCart(sel, selectedTalla);}} style={{flex:1, background:'#111', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:800, fontSize:14}}>🛒 Agregar</button>
+              <button onClick={()=>waProductDirect(sel, selectedTalla)} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:14, borderRadius:999, fontWeight:900, fontSize:14}}>WhatsApp</button>
+            </div>
+            <div style={{display:'flex', gap:8, marginTop:10}}>
+              <button onClick={closeModal} style={{flex:1, background:'#F5F1EC', border:'1px solid #EDE6E3', padding:12, borderRadius:999, fontWeight:700, fontSize:12}}>Cerrar</button>
+              <a href={`/${sel.stores?.slug}`} style={{flex:1, background:'#fff', border:'1.5px solid #111', padding:12, borderRadius:999, fontWeight:800, fontSize:12, textAlign:'center', textDecoration:'none', color:'#111'}}>Ver tienda 🏪</a>
             </div>
           </div>
         </div>
