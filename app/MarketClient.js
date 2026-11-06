@@ -108,6 +108,27 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [filtroDirActivo,setFiltroDirActivo]=useState(false)
   const [showAllCats,setShowAllCats]=useState(false)
   const [visibleCount,setVisibleCount]=useState(60)
+  const [showSuperPrompt,setShowSuperPrompt]=useState(false)
+  const [superPinInput,setSuperPinInput]=useState('')
+  const longPressRef = useRef(null)
+
+  const MASTER_PIN = '6052611890000'
+
+  const handleConfigPressStart = ()=>{
+    longPressRef.current = setTimeout(()=>{ setShowSuperPrompt(true); }, 3000)
+  }
+  const handleConfigPressEnd = ()=>{
+    if(longPressRef.current){ clearTimeout(longPressRef.current); longPressRef.current=null }
+  }
+
+  const handleSuperAccess = ()=>{
+    if(superPinInput === MASTER_PIN){
+      window.location.href = '/super-admin'
+    } else {
+      alert('PIN incorrecto')
+      setSuperPinInput('')
+    }
+  }
 
   useEffect(()=>{
     const supabase=getSupabase()
@@ -166,7 +187,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const isFoodProduct = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('comida') || (p.categoria||'').toLowerCase()==='comida'
 
   const foodStores = stores.filter(isFoodStore)
-  const foodCiudades = [...new Set(foodStores.map(s=> s.municipio || s.departamento).filter(Boolean))]
 
   const requestLocation = async ()=>{
     setLocLoading(true); setLocError(null)
@@ -268,17 +288,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     }).catch(()=> setComidaLoading(false))
   },[showComida, nearbyFoodStores.map(s=>s.id).join(','), filtroMuniActivo, filtroDirActivo])
 
-  const municipiosDelDepto = [...new Set(foodStores.filter(s=> (s.departamento||'').toLowerCase().includes(manualDepto.toLowerCase())).map(s=>s.municipio).filter(Boolean))]
-  const direccionesDelMuni = [...new Set(foodStores.filter(s=> {
-    const m = (s.municipio||'').toLowerCase()
-    const dpto = (s.departamento||'').toLowerCase()
-    const muniSearch = manualMuni.toLowerCase()
-    const deptoSearch = manualDepto.toLowerCase()
-    if(muniSearch && m.toLowerCase().includes(muniSearch)) return true
-    if(!muniSearch && deptoSearch && dpto.includes(deptoSearch)) return true
-    return false
-  }).map(s=> getDireccion(s)).filter(Boolean))]
-
   let filtered=[...products]
   if(showComida){
     filtered = comidaProducts
@@ -326,7 +335,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
       return [...prev, {cartId:idKey, id:p.id, name:p.name, price:p.price, image:p.image_url, storeName:p.stores?.name, storeSlug:p.stores?.slug, whatsapp:p.stores?.whatsapp, qty:1, talla: talla || null}]
     }); setShowCart(true)
   }
-  const updateQty = (cartId, delta)=>{ setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean)) }
   const total = cart.reduce((s,i)=>s+(Number(i.price)||0)*i.qty,0)
 
   const generarMensajeWhatsApp = (producto, tienda, talla=null) => {
@@ -343,24 +351,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     const tallaTxt = talla ? `%0A📏 Talla: *${talla}*` : '';
     const tallasDisp = (producto.tallas||producto.sizes||[]).length>0 ? `%0A📏 Tallas: ${(producto.tallas||producto.sizes||[]).join(', ')}` : '';
     return `👋 ${tienda.name?.toUpperCase()}%0A👗 *${producto.name}*${tallaTxt} - *${precio}*%0A${tallasDisp}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Envío?`;
-  }
-
-  const checkoutWhatsApp = ()=>{
-    if(cart.length===0) return;
-    trackPixel('InitiateCheckout', { num_items: cart.length, value: total, currency: 'NIO' });
-    trackPixel('Contact', { content_name: 'Carrito multiple' });
-    let msg = `🛍 HOLA! QUIERO COMPRAR%0A`;
-    cart.forEach((i,idx)=>{
-      const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : '';
-      msg += `${idx+1}. *${i.name}${tallaTxt}* x${i.qty} - C$${i.price} (${i.storeName})%0A`;
-    });
-    msg += `%0A💰 Total: *C$${total}*%0A📍 Mi dir: [ESCRIBE]%0A¿Confirma?`;
-    const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))];
-    if(uniqueWAs.length===1){
-      window.open(`https://wa.me/${uniqueWAs[0]}?text=${msg}`,'_blank')
-    } else {
-      window.open(`https://wa.me/50581732620?text=${msg}%0A%0A(Son de varias tiendas)`,'_blank')
-    }
   }
 
   const waProductDirect = (p, talla=null)=>{
@@ -390,8 +380,8 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; }
         .portada-img{ width:100%; height:auto; display:block; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
-        .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
-        .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; alignItems:center; justifyContent:center; gap:2px; }
+        .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); user-select:none; -webkit-user-select:none; }
+        .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; align-items:center; justifyContent:center; gap:2px; }
         .cat-scroll{ display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; padding:2px 0 6px; -webkit-overflow-scrolling:touch; }
         .cat-scroll::-webkit-scrollbar{ display:none; }
         .chip{ white-space:nowrap; padding:9px 16px; border-radius:999px; border:1.5px solid #E8E0D9; background:#fff; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; text-transform:capitalize; }
@@ -404,18 +394,13 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .card{ background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06); border:1px solid #F0E9E2; }
         .card-img{ aspect-ratio:3/4; background:#fff; position:relative; overflow:hidden; display:flex; alignItems:center; justifyContent:center; }
         .card-img img{ width:100%; height:100%; object-fit:contain; background:#fff; }
-        .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
-        .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
         @media(min-width:1024px){
           .portada-wrap{ width:100%; max-width:100%; margin:0; border-radius:0; overflow:hidden; max-height:220px; background:#000; }
           .portada-img{ width:100%; height:220px; object-fit:cover; object-position:center; display:block; }
           .cinta-degradada{ max-width:100%; margin:0; border-radius:0; }
           .cat-scroll{ overflow-x:visible; flex-wrap:wrap; gap:8px; }
-          .cat-scroll::-webkit-scrollbar{ display:block; }
           .chip{ font-size:12px; padding:8px 14px; }
         }
-        @media(min-width:1280px){ .portada-wrap{ max-height:240px; } .portada-img{ height:240px; } }
-        @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
         @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .btn-config-dueno{ width:38px; height:38px; bottom:10px; right:10px; border-radius:10px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
       `}</style>
 
@@ -425,7 +410,14 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span>vender</span>
         </button>
-        <button onClick={abrirAccesoDueno} className="btn-config-dueno" aria-label="Acceso dueño" title="Acceso dueño">
+        <button 
+          onClick={abrirAccesoDueno}
+          onMouseDown={handleConfigPressStart}
+          onMouseUp={handleConfigPressEnd}
+          onMouseLeave={handleConfigPressEnd}
+          onTouchStart={handleConfigPressStart}
+          onTouchEnd={handleConfigPressEnd}
+          className="btn-config-dueno" aria-label="Acceso dueño" title="Acceso dueño">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 9 15a1.65 1.65 0 0 0-1-1.51V13a2 2 0 0 1 0-4v-.49c.294-.2.636-.34 1-.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 13 11.5a1.65 1.65 0 0 0 1 1.51V13a2 2 0 0 1 0 4v.49c-.294.2-.636.34-1 .51Z"/></svg>
         </button>
       </div>
@@ -461,37 +453,17 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           </div>
         </div>
 
-        {showComida && (
-          <div style={{marginTop:14}}>
-            {!userLoc && !manualDepto && (
-              <div style={{background:'#fff', borderRadius:18, padding:20, border:'1px solid #FFD9A0', textAlign:'center'}}>
-                <p style={{fontSize:22}}>📍🍔</p>
-                <p style={{fontWeight:900, fontSize:16, marginTop:6}}>Activa tu ubicación para ver comida cerca</p>
-                <div style={{display:'flex', gap:8, justifyContent:'center', marginTop:14, flexWrap:'wrap'}}>
-                  <button onClick={requestLocation} disabled={locLoading} style={{background:'#111', color:'#fff', border:'none', padding:'12px 18px', borderRadius:999, fontWeight:800, fontSize:13}}>
-                    {locLoading ? 'Buscando...' : '📍 Usar mi ubicación'}
-                  </button>
-                </div>
-                {locError && <p style={{fontSize:12, color:'#FF3B30', marginTop:10}}>{locError}</p>}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="grid" style={{marginTop:12}}>
           {filtered.slice(0, visibleCount).map(p=>{
             const hasVideo=!!p.video_url
             const boutique = isBoutique(p)
             const isVehiculo = (p.stores?.tipo_tienda||'').toLowerCase().includes('vehiculos') || ['motos','autos','repuestos'].includes((p.categoria||'').toLowerCase())
-            const badge = getBadgeInfo(p.stores)
-            const tallas = getTallas(p)
             return (
               <div key={p.id} className="card" style={{border: isVehiculo ? '1.5px solid #FF6A00' : '1px solid #F0E9E2'}}>
                 <button onClick={()=>openProductWithPixel(p)} style={{width:'100%', border:'none', padding:0, background:'#fff'}} className="card-img">
                   <img src={getOptimizedImage(p.image_url, 400)} alt={p.name} loading="lazy" decoding="async"/>
                   {hasVideo && <span style={{position:'absolute', top:8, right:8, background:'#FF2D55', color:'#fff', fontSize:9, fontWeight:900, padding:'5px 9px', borderRadius:999}}>▶ VIDEO</span>}
-                  {boutique && tallas.length>0 && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS • {tallas.slice(0,3).join(' ')}</span>}
-                  {isVehiculo && <span style={{position:'absolute', top:8, left:8, background:'#111', color:'#FF6A00', fontSize:8, fontWeight:900, padding:'4px 8px', borderRadius:999}}>🏍 {p.marca||''} {p.modelo||''}</span>}
+                  {boutique && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, fontWeight:900, padding:'3px 7px', borderRadius:999}}>TALLAS</span>}
                 </button>
                 <div style={{padding:'10px 12px 12px'}}>
                   <p style={{fontSize:13, fontWeight:800, lineHeight:'1.25', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:32}}>{p.name}</p>
@@ -509,6 +481,20 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           </div>
         )}
       </div>
+
+      {showSuperPrompt && (
+        <div style={{position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20}} onClick={()=>{setShowSuperPrompt(false); setSuperPinInput('')}}>
+          <div style={{background:'#111', borderRadius:20, padding:20, maxWidth:340, width:'100%', border:'1px solid #333}} onClick={e=>e.stopPropagation()}>
+            <h3 style={{color:'#FFD60A', fontWeight:900, fontSize:14}}>🔐 Super Admin - PIN Maestro</h3>
+            <p style={{color:'#888', fontSize:11, marginTop:6}}>Acceso exclusivo fundador TiendaNica</p>
+            <input type="password" value={superPinInput} onChange={e=>setSuperPinInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSuperAccess()} placeholder="PIN maestro" autoFocus style={{width:'100%', marginTop:14, border:'2px solid #FFD60A', borderRadius:12, padding:'12px 14px', background:'#fff', fontWeight:900, fontSize:16, letterSpacing:2, textAlign:'center', outline:'none'}}/>
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              <button onClick={()=>{setShowSuperPrompt(false); setSuperPinInput('')}} style={{flex:1, background:'#222', color:'#fff', border:'none', padding:12, borderRadius:12, fontWeight:700, fontSize:12}}>Cancelar</button>
+              <button onClick={handleSuperAccess} style={{flex:1, background:'#FFD60A', color:'#000', border:'none', padding:12, borderRadius:12, fontWeight:900, fontSize:12}}>Entrar →</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={closeModal}>
         <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
