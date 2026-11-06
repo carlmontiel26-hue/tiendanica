@@ -596,18 +596,26 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         {comidaLoading && showComida && <p style={{textAlign:'center', marginTop:20, fontSize:13, color:'#999'}}>Cargando platillos de {nearbyFoodStores.map(s=>s.name).join(', ')}...</p>}
       </div>
 
-      <div style={{background:'#111', color:'#fff', marginTop:30, padding:'24px 16px 12px'}}>
+      <div style={{background:'#111', color:'#fff', marginTop:30, padding:'22px 16px 14px'}}>
         <div style={{maxWidth:900, margin:'0 auto'}}>
-          <div style={{textAlign:'center', marginBottom:18}}>
-            <p style={{fontWeight:900, fontSize:16}}>TiendaNica.store</p>
-            <p style={{fontSize:11, opacity:0.6, marginTop:4}}>El marketplace verificado de Nicaragua</p>
-            <a href="/acceso" style={{display:'inline-block', marginTop:8, fontSize:11, background:'#fff', color:'#000', padding:'6px 12px', borderRadius:999, fontWeight:800, textDecoration:'none', border:'1px solid rgba(255,255,255,0.2)'}}>🔑 Acceso dueños</a>
+          <div style={{textAlign:'center'}}>
+            <p style={{fontWeight:900, fontSize:15, letterSpacing:0.2}}>TiendaNica.store</p>
+            <p style={{fontSize:11, opacity:0.55, marginTop:4}}>El marketplace verificado de Nicaragua • Tiendas con video y cédula</p>
+            <div style={{display:'flex', gap:14, justifyContent:'center', flexWrap:'wrap', marginTop:14}}>
+              <a href="/terminos" style={{fontSize:11, color:'rgba(255,255,255,0.65)', textDecoration:'none'}}>Términos</a>
+              <span style={{opacity:0.2, fontSize:11}}>•</span>
+              <a href="/privacidad" style={{fontSize:11, color:'rgba(255,255,255,0.65)', textDecoration:'none'}}>Privacidad</a>
+              <span style={{opacity:0.2, fontSize:11}}>•</span>
+              <a href="/vendedores" style={{fontSize:11, color:'rgba(255,255,255,0.65)', textDecoration:'none'}}>Vendedores</a>
+              <span style={{opacity:0.2, fontSize:11}}>•</span>
+              <a href="/reportar" style={{fontSize:11, color:'#FF8A8A', textDecoration:'none', fontWeight:800}}>Reportar / Reclamo</a>
+            </div>
           </div>
-          <p style={{fontSize:10, opacity:0.3, marginTop:16, textAlign:'center'}}>© 2025 TiendaNica.store</p>
+          <p style={{fontSize:10, opacity:0.25, marginTop:14, textAlign:'center'}}>© 2025 TiendaNica.store • Reporte antifraude 24h • soporte@tiendanica.store</p>
         </div>
       </div>
 
-            {showSuperPrompt && (
+      {showSuperPrompt && (
         <div style={{position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20}} onClick={()=>{setShowSuperPrompt(false); setSuperPinInput('')}}>
           <div style={{background:'#111', borderRadius:20, padding:20, maxWidth:340, width:'100%', border:'1px solid #333'}} onClick={e=>e.stopPropagation()}>
             <h3 style={{color:'#FFD60A', fontWeight:900, fontSize:14}}>Super Admin - PIN Maestro</h3>
