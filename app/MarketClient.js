@@ -289,10 +289,10 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   let filtered=[...products]
   if(showComida){
     filtered = comidaProducts
-    if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
+    if(q){ const qq=q.toLowerCase(); filtered=filtered.filter(p=> p.name.toLowerCase().includes(qq) || p.stores?.name?.toLowerCase().includes(qq) || (p.categoria||'').toLowerCase().includes(qq) || (p.stores?.tipo_tienda||'').toLowerCase().includes(qq)) }
   }else{
     filtered = filtered.filter(p=> !isFoodProduct(p))
-    if(q) filtered=filtered.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()) || p.stores?.name?.toLowerCase().includes(q.toLowerCase()))
+    if(q){ const qq=q.toLowerCase(); filtered=filtered.filter(p=> p.name.toLowerCase().includes(qq) || p.stores?.name?.toLowerCase().includes(qq) || (p.categoria||'').toLowerCase().includes(qq) || (p.stores?.tipo_tienda||'').toLowerCase().includes(qq)) }
     if(cat && cat!=='comida') filtered=filtered.filter(p=>p.categoria===cat)
     if(tipo) filtered=filtered.filter(p=> (p.stores?.tipo_tienda||'').toLowerCase().includes(tipo.toLowerCase()))
   }
@@ -532,7 +532,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         </div>
       )}
 
-      {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={closeModal}>
+            {sel&&<div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={closeModal}>
         <div style={{background:'#fff',width:'100%',maxWidth:500,borderTopLeftRadius:24,borderTopRightRadius:24,overflow:'hidden',maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
           <TemuGallery images={getImages(sel)} videoUrl={sel.video_url} name={sel.name}/>
           <div style={{padding:16, overflowY:'auto'}}>
@@ -548,7 +548,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                 <p style={{fontSize:12, fontWeight:800, marginBottom:8}}>📏 Selecciona talla:</p>
                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
                   {getTallas(sel).map(t=>(
-                    <button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`} style={{padding:'8px 14px', borderRadius:999, border:'1.5px solid', borderColor: selectedTalla===t ? '#111' : '#E0D6CF', background: selectedTalla===t ? '#111' : '#fff', color: selectedTalla===t ? '#fff' : '#111', fontSize:13, fontWeight:800, cursor:'pointer'}}>{t}</button>
+                    <button key={t} onClick={()=>setSelectedTalla(t)} style={{padding:'8px 14px', borderRadius:999, border:'1.5px solid', borderColor: selectedTalla===t ? '#111' : '#E0D6CF', background: selectedTalla===t ? '#111' : '#fff', color: selectedTalla===t ? '#fff' : '#111', fontSize:13, fontWeight:800, cursor:'pointer'}}>{t}</button>
                   ))}
                 </div>
               </div>
