@@ -1,3 +1,4 @@
+
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -8,6 +9,16 @@ function getSupabase(){
   const key=(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'').trim()
   if(!url||!key||!url.startsWith('http')) return null
   return createClient(url,key)
+}
+
+function getTallas(p){
+  const raw = p?.tallas || p?.sizes || p?.talla || p?.size || p?.tallas_disponibles || p?.sizes_available || p?.tallasDisponibles || []
+  if(Array.isArray(raw) && raw.length>0) return raw
+  if(typeof raw === 'string' && raw.length>0){
+    try{ const j=JSON.parse(raw); if(Array.isArray(j)) return j }catch{}
+    return raw.split(',').map(s=>s.trim()).filter(Boolean)
+  }
+  return []
 }
 
 function getOptimizedImage(url, width=400){
@@ -75,6 +86,7 @@ export default function StorePage(){
   const [talla,setTalla]=useState(null)
   const [cat,setCat]=useState(null)
   const [q,setQ]=useState('')
+  useEffect(()=>{ if(sel){ setTalla(null) } },[sel])
 
   useEffect(()=>{
     if(!slug) return
@@ -87,9 +99,10 @@ export default function StorePage(){
     })
   },[slug])
 
-  const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique')
+  const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique') || (store?.tipo_tienda||'').toLowerCase().includes('ropa') || (store?.tipo_tienda||'').toLowerCase().includes('moda')
   const add=(p,t=null)=>{
-    if(isBoutique && p.tallas?.length>0 && !t) return false
+    const tallasP = getTallas(p)
+    if(isBoutique && tallasP.length>0 && !t) return false
     const key=t? p.id+'-'+t : p.id
     setCart(v=>{ const ex=v.find(i=>i.cid===key); if(ex) return v.map(i=>i.cid===key?{...i,qty:i.qty+1}:i); return [...v,{...p,cid:key,qty:1,tallaSel:t}] }); return true
   }
@@ -174,7 +187,7 @@ export default function StorePage(){
                   <img src={getOptimizedImage(p.image_url, 400)} loading="lazy" decoding="async" style={{width:'100%',height:'100%',objectFit:'contain', background:'#fff'}}/>
                   {im.length>1&&<span style={{position:'absolute',top:8,left:8,background:'rgba(0,0,0,0.7)',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999}}>{im.length} fotos</span>}
                   {hasVideo&&<span style={{position:'absolute',top:8,right:8,background:'#FF3B30',color:'#fff',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800}}>▶ VIDEO</span>}
-                  {isBoutique && p.tallas?.length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800, border:'1px solid #eee'}}>{p.tallas.join(' ')}</span>}
+                  {isBoutique && getTallas(p).length>0&&<span style={{position:'absolute',bottom:8,left:8,background:'#fff',color:'#000',fontSize:9,padding:'4px 8px',borderRadius:999,fontWeight:800, border:'1px solid #eee'}}>{getTallas(p).join(' ')}</span>}
                 </button>
                 <div style={{padding:12, background:'#fff'}}>
                   <p style={{fontSize:12,fontWeight:600, color:'#000', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', minHeight:28}}>{p.name}</p>
@@ -197,7 +210,7 @@ export default function StorePage(){
             {sel.description&&<p style={{fontSize:13, color:'#333', marginTop:6, lineHeight:1.4, background:'#F7F5F3', padding:'8px 10px', borderRadius:10}}>✓ {sel.description}</p>}
             <div style={{display:'flex', gap:8, marginTop:8, fontSize:11, color:'#666'}}><span>★ 4.8</span><span>•</span><span>1.2k+ vendidos</span><span>•</span><span style={{color:'#00C853', fontWeight:700}}>Envío Gratis</span></div>
             {sel.categoria&&<span style={{display:'inline-block',marginTop:8,background:'#F6F3F0',padding:'4px 10px',borderRadius:999,fontSize:11,textTransform:'capitalize'}}>{sel.categoria}</span>}
-            {isBoutique && sel.tallas?.length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{sel.tallas.map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
+            {isBoutique && getTallas(sel).length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{getTallas(sel).map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
             <div style={{display:'flex',gap:10,marginTop:16}}><button onClick={()=>setSel(null)} style={{flex:1,background:'#F0F0F0',border:'none',padding:12,borderRadius:999,fontWeight:700}}>Cerrar</button><button onClick={waOne} style={{flex:1.5,background:'#25D366',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:900}}>WhatsApp</button></div>
             <button onClick={()=>{ if(add(sel,talla)){ setShowCart(true); } else alert('Elige talla')}} style={{marginTop:8,width:'100%',background:'#000',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:800}}>Añadir al carrito {isBoutique && talla?`(${talla})`:''}</button>
           </div>
