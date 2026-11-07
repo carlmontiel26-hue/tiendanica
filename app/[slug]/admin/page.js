@@ -1,3 +1,4 @@
+
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -19,14 +20,23 @@ function getCategoriasPorTipo(store){
     return ['comidas','desayunos','almuerzos','cenas','bebidas','postres','snacks','combos','entradas','sopas','asados','mariscos','vegetariano','otros','eskimos','comida rapida']
   }
   if(tipo.includes('boutique') || tipo.includes('ropa') || tipo.includes('moda')){
-    return ['vestidos','blusas','jeans','faldas','conjuntos','shorts','hombres','niños','niñas','bebes','pantalon','accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','otros','chaquetas','ropa usada como nueva']
+    return ['vestidos','blusas','jeans','faldas','conjuntos','shorts','hombres','niños','niñas','bebes','pantalon','accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','licras','chaquetas','ropa usada como nueva','sudaderas','mujer','taloneras','calcetines','medias','boxer','lloguer','cárdigans','chaleco','gorras','gorras','gorros','chor','variado','sabanas','colchas','pañuelos','camisas','playeras','camiasetas']
   }
-  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios']
+  return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios','salud']
+}
+
+function parseTallas(raw){
+  if(!raw) return []
+  if(Array.isArray(raw) && raw.length>0) return raw
+  if(typeof raw === 'string' && raw.length>0){
+    try{ const j=JSON.parse(raw); if(Array.isArray(j)) return j }catch{}
+    return raw.split(',').map(s=>s.trim()).filter(Boolean)
+  }
+  return []
 }
 
 export default function AdminPage(){
   const { slug } = useParams()
-  // ===== PIN SEGURIDAD =====
   const [pinAuthed, setPinAuthed] = useState(false)
   const [pinChecking, setPinChecking] = useState(true)
   const [pinInput, setPinInput] = useState('')
@@ -55,11 +65,13 @@ export default function AdminPage(){
   const [vehiculo,setVehiculo]=useState({
     marca:'', modelo:'', anio:'', km:'', combustible:'gasolina', transmision:'mecanica', condicion:'usado', papeles:'en regla', ubicacion:''
   })
+  const [tallas,setTallas]=useState([])
+  const [tallaInput,setTallaInput]=useState('')
 
   const categoriasDisponibles = store ? getCategoriasPorTipo(store) : ['otros']
   const isVehiculos = (store?.tipo_tienda||'').toLowerCase().includes('vehiculos') || (store?.tipo_tienda||'').toLowerCase().includes('moto') || (store?.tipo_tienda||'').toLowerCase().includes('auto')
+  const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique') || (store?.tipo_tienda||'').toLowerCase().includes('ropa') || (store?.tipo_tienda||'').toLowerCase().includes('moda')
 
-  // ===== CHECK PIN AUTH AL CARGAR =====
   useEffect(()=>{
     const check = async ()=>{
       const savedAuth = localStorage.getItem('tn_my_store_auth')
@@ -226,6 +238,7 @@ export default function AdminPage(){
 
   const resetForm = ()=>{
     setName(''); setPrice(''); setDescription(''); setImages(['']); setVideoUrl(''); setEditing(null); setShowForm(false)
+    setTallas([]); setTallaInput('')
     setVehiculo({marca:'', modelo:'', anio:'', km:'', combustible:'gasolina', transmision:'mecanica', condicion:'usado', papeles:'en regla', ubicacion:''})
     if(store) setCategoria(getCategoriasPorTipo(store)[0])
   }
@@ -251,6 +264,9 @@ export default function AdminPage(){
     setPrice(p.price||''); 
     setCategoria(p.categoria||categoriasDisponibles[0]); 
     setDescription(p.description||'');
+    const tallasExistentes = parseTallas(p.tallas || p.sizes || p.talla || p.size || p.sizes_available || p.tallas_disponibles)
+    setTallas(tallasExistentes)
+    setTallaInput('')
     if(p.marca || p.modelo || p.anio){
       setVehiculo({
         marca: p.marca||'', modelo: p.modelo||'', anio: p.anio||'', km: p.kilometraje||p.km||'',
@@ -299,6 +315,15 @@ export default function AdminPage(){
         ubicacion_vehiculo: vehiculo.ubicacion
       }
     }
+    if(isBoutique){
+      extraPayload = {
+        ...extraPayload,
+        tallas: tallas,
+        sizes: tallas,
+        tallas_disponibles: tallas,
+        sizes_available: tallas
+      }
+    }
     const basePayload = {
       store_id: store.id,
       name: name.trim(),
@@ -315,12 +340,12 @@ export default function AdminPage(){
       if(editing) res = await supabase.from('products').update(payloadToSave).eq('id', editing.id)
       else res = await supabase.from('products').insert(payloadToSave)
       if(res.error){
-        console.log('Fallback sin columnas vehiculo:', res.error.message)
+        console.log('Fallback sin columnas extra:', res.error.message)
         if(editing) res = await supabase.from('products').update(basePayload).eq('id', editing.id)
         else res = await supabase.from('products').insert(basePayload)
         if(res.error) throw res.error
       }
-      await loadData(); resetForm(); alert(editing ? 'Vehículo actualizado!' : isVehiculos ? 'Vehículo publicado!' : 'Producto creado!')
+      await loadData(); resetForm(); alert(editing ? (isVehiculos ? 'Vehículo actualizado!' : 'Producto actualizado!') : isVehiculos ? 'Vehículo publicado!' : 'Producto creado!')
     }catch(e){ alert('Error: '+e.message) } finally{ setSaving(false) }
   }
 
@@ -331,7 +356,6 @@ export default function AdminPage(){
     loadData()
   }
 
-  // ===== PANTALLA DE PIN - NO TOCA NADA MAS DEL ADMIN =====
   if(pinChecking) return <div style={{padding:40, textAlign:'center', fontFamily:'Inter'}}>🔐 Verificando acceso seguro...</div>
 
   if(!pinAuthed){
@@ -362,7 +386,6 @@ export default function AdminPage(){
 
   return (
     <main style={{background:'#F7F5F3', minHeight:'100vh', fontFamily:'Inter, system-ui', padding:14}}>
-      {/* BARRA SEGURA CON CAMBIO DE PIN */}
       <div style={{maxWidth:1100, margin:'0 auto 10px', background:'#111', color:'#fff', borderRadius:12, padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:11}}>
         <span style={{fontWeight:800}}>🔐 {store.name} • PIN activo • Protegido</span>
         <div style={{display:'flex', gap:6}}>
@@ -385,11 +408,11 @@ export default function AdminPage(){
         <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:16, display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
           <div style={{display:'flex', gap:12, alignItems:'center'}}>
             <img src={store.logo_url||'/tienda-nica-logo.png'} style={{width:48,height:48, borderRadius:12, objectFit:'cover'}}/>
-            <div><b>{store.name}</b><div style={{fontSize:11, color:'#9A9590'}}>{slug} • {products.length} productos • {tipoLabel} {isVehiculos ? '🏍' : ''}</div></div>
+            <div><b>{store.name}</b><div style={{fontSize:11, color:'#9A9590'}}>{slug} • {products.length} productos • {tipoLabel} {isVehiculos ? '🏍' : isBoutique ? '👗' : ''}</div></div>
           </div>
           <div style={{display:'flex', gap:8}}>
             <button onClick={()=>setShowCoverEdit(true)} style={{background:'#fff', color:'#111', border:'1.5px solid #111', padding:'10px 14px', borderRadius:999, fontSize:11, fontWeight:800, cursor:'pointer'}}>🖼 Portada</button>
-            <button onClick={()=>{resetForm(); setShowForm(true)}} style={{background: isVehiculos ? '#FF6A00' : '#0A0A0A', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontSize:12, fontWeight:900, cursor:'pointer'}}>+ {isVehiculos ? 'Nuevo Vehículo' : 'Nuevo'}</button>
+            <button onClick={()=>{resetForm(); setShowForm(true)}} style={{background: isVehiculos ? '#FF6A00' : '#0A0A0A', color:'#fff', border:'none', padding:'10px 16px', borderRadius:999, fontSize:12, fontWeight:900, cursor:'pointer'}}>+ {isVehiculos ? 'Nuevo Vehículo' : isBoutique ? 'Nueva Prenda' : 'Nuevo'}</button>
           </div>
         </div>
 
@@ -411,9 +434,9 @@ export default function AdminPage(){
         )}
 
         {showForm && (
-          <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:18, marginBottom:16, border: isVehiculos ? '2px solid #FF6A00' : '2px solid #0A0A0A'}}>
+          <div style={{background:'#fff', border:'1px solid #EAE6E1', borderRadius:16, padding:18, marginBottom:16, border: isVehiculos ? '2px solid #FF6A00' : isBoutique ? '2px solid #0066FF' : '2px solid #0A0A0A'}}>
             <div style={{display:'flex', justifyContent:'space-between', marginBottom:14}}>
-              <h3 style={{fontWeight:900, fontSize:14}}>{editing ? 'Editar' : isVehiculos ? '🏍 Nuevo Vehículo Profesional' : `Nuevo producto - ${tipoLabel}`}</h3>
+              <h3 style={{fontWeight:900, fontSize:14}}>{editing ? 'Editar' : isVehiculos ? '🏍 Nuevo Vehículo Profesional' : isBoutique ? '👗 Nueva Prenda con Tallas' : `Nuevo producto - ${tipoLabel}`}</h3>
               <button onClick={resetForm} style={{width:28,height:28, borderRadius:999, border:'1px solid #EAE6E1', background:'#fff'}}>✕</button>
             </div>
 
@@ -483,27 +506,51 @@ export default function AdminPage(){
                     </select>
                   </div>
                 </div>
+
+                {isBoutique && (
+                  <div style={{background:'linear-gradient(135deg, #F0F7FF, #F8FBFF)', border:'1.5px solid #0066FF', borderRadius:14, padding:14, marginBottom:14}}>
+                    <p style={{fontSize:12, fontWeight:900, color:'#0066FF', marginBottom:8}}>📏 TALLAS DISPONIBLES (Boutique)</p>
+                    <p style={{fontSize:11, color:'#666', marginBottom:10}}>Agrega las tallas que tienes en stock. Ej: S, M, L, XL, 32, 34, Única</p>
+                    <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:10}}>
+                      {tallas.map((t,i)=>(
+                        <span key={i} style={{background:'#111', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:12, fontWeight:800, display:'flex', alignItems:'center', gap:6}}>
+                          {t} <button onClick={()=>setTallas(tallas.filter((_,idx)=>idx!==i))} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'#fff', width:18, height:18, borderRadius:999, fontSize:10, cursor:'pointer'}}>✕</button>
+                        </span>
+                      ))}
+                      {tallas.length===0 && <span style={{fontSize:11, color:'#999', fontStyle:'italic'}}>Sin tallas agregadas - se mostrará como talla única</span>}
+                    </div>
+                    <div style={{display:'flex', gap:8}}>
+                      <input value={tallaInput} onChange={e=>setTallaInput(e.target.value.toUpperCase())} onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); if(tallaInput.trim() && !tallas.includes(tallaInput.trim().toUpperCase())){ setTallas([...tallas, tallaInput.trim().toUpperCase()]); setTallaInput('') } } }} placeholder="Ej: M, L, XL, 32, ÚNICA" style={{flex:1, padding:'10px 14px', borderRadius:999, border:'1.5px solid #0066FF', fontWeight:700, fontSize:13, textTransform:'uppercase'}}/>
+                      <button onClick={()=>{ if(tallaInput.trim() && !tallas.includes(tallaInput.trim().toUpperCase())){ setTallas([...tallas, tallaInput.trim().toUpperCase()]); setTallaInput('') } }} style={{background:'#0066FF', color:'#fff', border:'none', padding:'10px 18px', borderRadius:999, fontWeight:900, fontSize:12, cursor:'pointer'}}>+ Agregar</button>
+                    </div>
+                    <div style={{display:'flex', gap:6, flexWrap:'wrap', marginTop:10}}>
+                      {['XS','S','M','L','XL','XXL','28','30','32','34','36','38','ÚNICA'].map(s=>(
+                        <button key={s} onClick={()=>{ if(!tallas.includes(s)) setTallas([...tallas, s]) }} style={{background: tallas.includes(s) ? '#0066FF' : '#fff', color: tallas.includes(s) ? '#fff' : '#111', border:'1px solid #E0D6CF', padding:'5px 10px', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer'}}>{s}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
-            <label style={{fontSize:12, fontWeight:900, marginTop:8, display:'block'}}>{isVehiculos ? '📸 Fotos del vehículo (hasta 5 - exterior, interior, motor, papeles)' : '📸 Carrusel (hasta 5 fotos) - vista completa'}</label>
+            <label style={{fontSize:12, fontWeight:900, marginTop:8, display:'block'}}>{isVehiculos ? '📸 Fotos del vehículo (hasta 5 - exterior, interior, motor, papeles)' : isBoutique ? '📸 Fotos de la prenda (hasta 5 - frente, atrás, detalles, etiqueta)' : '📸 Carrusel (hasta 5 fotos) - vista completa'}</label>
             <div style={{display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8, marginTop:8, marginBottom:16}}>
               {[0,1,2,3,4].map(i=>(
-                <div key={i} style={{aspectRatio:'1/1', border: isVehiculos ? '1.5px dashed #FF6A00' : '1px dashed #EAE6E1', borderRadius:12, overflow:'hidden', position:'relative', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                  {images[i] ? <img src={images[i]} style={{width:'100%', height:'100%', objectFit:'cover', background:'#fff'}}/> : <div style={{fontSize:10, color:'#9A9590', textAlign:'center'}}>{isVehiculos ? ['Frente','Lateral','Interior','Motor','Papeles'][i] : `Foto ${i+1}`}</div>}
+                <div key={i} style={{aspectRatio:'1/1', border: isVehiculos ? '1.5px dashed #FF6A00' : isBoutique ? '1.5px dashed #0066FF' : '1px dashed #EAE6E1', borderRadius:12, overflow:'hidden', position:'relative', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  {images[i] ? <img src={images[i]} style={{width:'100%', height:'100%', objectFit:'cover', background:'#fff'}}/> : <div style={{fontSize:10, color:'#9A9590', textAlign:'center'}}>{isVehiculos ? ['Frente','Lateral','Interior','Motor','Papeles'][i] : isBoutique ? ['Frente','Atrás','Detalle','Etiqueta','Puesta'][i] : `Foto ${i+1}`}</div>}
                   <input type="file" accept="image/*" onChange={e=>handleImageUpload(e,i)} style={{position:'absolute', inset:0, opacity:0, cursor:'pointer'}}/>
                   {images[i] && <button onClick={()=>{const n=[...images]; n[i]=''; setImages(n)}} style={{position:'absolute', top:2, right:2, background:'rgba(0,0,0,0.7)', color:'#fff', border:'none', width:18, height:18, borderRadius:999, fontSize:10}}>✕</button>}
                 </div>
               ))}
             </div>
 
-            <label style={{fontSize:12, fontWeight:900, display:'block'}}>{isVehiculos ? '🎬 Video del vehículo arrancando / funcionando (15 seg)' : '🎬 Video corto (15 seg, opcional)'}</label>
+            <label style={{fontSize:12, fontWeight:900, display:'block'}}>{isVehiculos ? '🎬 Video del vehículo arrancando / funcionando (15 seg)' : isBoutique ? '🎬 Video corto de la prenda (15 seg, opcional)' : '🎬 Video corto (15 seg, opcional)'}</label>
             <div style={{border:'1px dashed #00C853', borderRadius:12, padding:12, marginTop:8, background:'#F0FFF4'}}>
-              {videoUrl ? <video src={videoUrl} controls style={{width:'100%', borderRadius:8, maxHeight:200}}/> : <div style={{fontSize:11, color:'#555'}}>{isVehiculos ? 'Sube video del vehículo encendido, motor sonando, prueba de manejo.' : 'Sube un video corto mostrando el producto.'}</div>}
+              {videoUrl ? <video src={videoUrl} controls style={{width:'100%', borderRadius:8, maxHeight:200}}/> : <div style={{fontSize:11, color:'#555'}}>{isVehiculos ? 'Sube video del vehículo encendido, motor sonando, prueba de manejo.' : isBoutique ? 'Sube video corto mostrando la prenda puesta, caída, tela.' : 'Sube un video corto mostrando el producto.'}</div>}
               <input type="file" accept="video/*" onChange={handleVideoUpload} style={{marginTop:8, fontSize:12}}/>
             </div>
-            <button onClick={handleSave} disabled={saving||uploading} style={{width:'100%', marginTop:16, background: isVehiculos ? '#FF6A00' : '#0A0A0A', color:'#fff', border:'none', padding:'13px', borderRadius:999, fontWeight:900, cursor:'pointer'}}>
-              {saving ? 'Guardando...' : uploading ? 'Subiendo...' : editing ? (isVehiculos ? 'Actualizar Vehículo' : 'Actualizar') : (isVehiculos ? 'Publicar Vehículo 🏍' : 'Guardar')}
+            <button onClick={handleSave} disabled={saving||uploading} style={{width:'100%', marginTop:16, background: isVehiculos ? '#FF6A00' : isBoutique ? '#0066FF' : '#0A0A0A', color:'#fff', border:'none', padding:'13px', borderRadius:999, fontWeight:900, cursor:'pointer'}}>
+              {saving ? 'Guardando...' : uploading ? 'Subiendo...' : editing ? (isVehiculos ? 'Actualizar Vehículo' : isBoutique ? 'Actualizar Prenda' : 'Actualizar') : (isVehiculos ? 'Publicar Vehículo 🏍' : isBoutique ? 'Publicar Prenda 👗 con Tallas' : 'Guardar')}
             </button>
           </div>
         )}
@@ -511,18 +558,22 @@ export default function AdminPage(){
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:12}}>
           {products.map(p=>{
             const isVeh = (p.marca || p.modelo || (p.description||'').includes('MARCA:'))
+            const tallasProd = parseTallas(p.tallas || p.sizes || p.talla || p.size || p.sizes_available || p.tallas_disponibles)
+            const isBoutiqueProd = tallasProd.length>0
             return (
-            <div key={p.id} style={{background:'#fff', border: isVeh ? '1.5px solid #FF6A00' : '1px solid #EAE6E1', borderRadius:16, padding:10, position:'relative'}}>
+            <div key={p.id} style={{background:'#fff', border: isVeh ? '1.5px solid #FF6A00' : isBoutiqueProd ? '1.5px solid #0066FF' : '1px solid #EAE6E1', borderRadius:16, padding:10, position:'relative'}}>
               {isVeh && <span style={{position:'absolute', top:8, left:8, background:'#FF6A00', color:'#fff', fontSize:9, padding:'3px 8px', borderRadius:999, fontWeight:900, zIndex:2}}>🏍 VEHICULO</span>}
+              {isBoutiqueProd && !isVeh && <span style={{position:'absolute', top:8, left:8, background:'#0066FF', color:'#fff', fontSize:8, padding:'3px 7px', borderRadius:999, fontWeight:900, zIndex:2}}>📏 {tallasProd.join(' ')}</span>}
               <div style={{position:'relative', width:'100%', aspectRatio:'1/1', background:'#fff', borderRadius:12, overflow:'hidden', border:'1px solid #F0F0F0', display:'flex', alignItems:'center', justifyContent:'center'}}>
                 <img src={p.images?.[0]||p.image_url} style={{width:'100%', height:'100%', objectFit: isVeh ? 'cover' : 'contain', background:'#fff'}}/>
-                {p.video_url && <span style={{position:'absolute', top:6, left: isVeh ? 90 : 6, background:'#000', color:'#fff', fontSize:9, padding:'3px 6px', borderRadius:999}}>▶ VIDEO</span>}
+                {p.video_url && <span style={{position:'absolute', top:6, left: isVeh || isBoutiqueProd ? 90 : 6, background:'#000', color:'#fff', fontSize:9, padding:'3px 6px', borderRadius:999}}>▶ VIDEO</span>}
                 <span style={{position:'absolute', bottom:6, right:6, background:'#F7F5F3', color:'#000', fontSize:9, padding:'3px 6px', borderRadius:999, textTransform:'capitalize'}}>{p.categoria}</span>
               </div>
               <b style={{fontSize:12, marginTop:6, display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</b>
               {p.marca && <div style={{fontSize:10, color:'#FF6A00', fontWeight:800, marginTop:2}}>{p.marca} {p.modelo} {p.anio ? `• ${p.anio}` : ''} {p.kilometraje ? `• ${p.kilometraje}` : ''}</div>}
+              {isBoutiqueProd && <div style={{fontSize:10, color:'#0066FF', fontWeight:700, marginTop:2}}>Tallas: {tallasProd.join(' • ')}</div>}
               <b style={{fontSize:12}}>C$ {p.price}</b>
-              {p.description && !p.marca && <div style={{fontSize:10, color:'#666', marginTop:2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{p.description.slice(0,80)}</div>}
+              {p.description && !p.marca && !isBoutiqueProd && <div style={{fontSize:10, color:'#666', marginTop:2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden'}}>{p.description.slice(0,80)}</div>}
               <div style={{display:'flex', gap:6, marginTop:8}}><button onClick={()=>openEdit(p)} style={{flex:1, background:'#fff', border:'1px solid #EAE6E1', padding:'6px', borderRadius:999, fontSize:10}}>Editar</button><button onClick={()=>handleDelete(p.id)} style={{flex:1, background:'#fff', border:'1px solid #FFE0E0', color:'#ff5555', padding:'6px', borderRadius:999, fontSize:10}}>Borrar</button></div>
             </div>
           )})}
