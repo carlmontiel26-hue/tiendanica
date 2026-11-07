@@ -68,21 +68,18 @@ function getBadgeInfo(store){
   return { key:'nueva' }
 }
 
-
 function getOptimizedImage(url, width=400){
   if(!url) return '/tienda-nica-logo.png'
   if(url.includes('/tienda-nica-logo.png') || url.includes('opengraph-image.png')) return url
   try{
-    // Supabase Storage transformation - sin perder calidad visible en grilla de 300px
     if(url.includes('supabase.co')){
       const sep = url.includes('?') ? '&' : '?'
-      // width 400px, quality 75, formato automatico webp/avif - se ve HD en celular
       return `${url}${sep}width=${width}&quality=75`
     }
   }catch{}
   return url
 }
-function getOriginalImage(url){ return url } // para modal, mantiene original full HD
+function getOriginalImage(url){ return url }
 
 function getDireccion(store){
   return store.direccion || store.dirección || store.address || store.barrio || store.comunidad || store.zona || store.referencia || store.direccion_exacta || ''
@@ -99,7 +96,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const [cart,setCart]=useState([])
   const [showCart,setShowCart]=useState(false)
   const [selectedTalla,setSelectedTalla]=useState(null)
-
   const [showComida,setShowComida]=useState(false)
   const [userLoc,setUserLoc]=useState(null)
   const [locLoading,setLocLoading]=useState(false)
@@ -121,7 +117,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const handleConfigPressStart = ()=>{ longPressRef.current = setTimeout(()=>{ setShowSuperPrompt(true); }, 3000) }
   const handleConfigPressEnd = ()=>{ if(longPressRef.current){ clearTimeout(longPressRef.current); longPressRef.current=null } }
   const handleSuperAccess = ()=>{ if(superPinInput === MASTER_PIN){ window.location.href = '/admin' } else { alert('PIN incorrecto'); setSuperPinInput('') } }
-
 
   useEffect(()=>{
     const supabase=getSupabase()
@@ -169,16 +164,23 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
 
   const closeModal = ()=>{ setSel(null); if(history.state && history.state.modal){ history.back() } }
   const getImages = (p)=> p.images?.length>0 ? p.images.filter(Boolean) : [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
+  // FIX TALLAS - soporta [] vacio que antes rompia boutique
   const getTallas = (p)=>{
-    const raw = p.tallas || p.sizes || p.talla || p.size || p.sizes_available || p.tallas_disponibles || []
-    if(Array.isArray(raw) && raw.length>0) return raw
-    if(typeof raw === 'string' && raw.length>0){ try{ const j=JSON.parse(raw); if(Array.isArray(j)) return j }catch{}; return raw.split(',').map(s=>s.trim()).filter(Boolean) }
+    const keys = ['tallas','sizes','tallas_disponibles','sizes_available','tallasDisponibles','sizesAvailable','talla','size']
+    for(const k of keys){
+      const v = p?.[k]
+      if(Array.isArray(v) && v.length>0) return v
+      if(typeof v === 'string' && v.trim().length>0){
+        try{ const j=JSON.parse(v); if(Array.isArray(j) && j.length>0) return j }catch{}
+        const arr = v.split(',').map(s=>s.trim()).filter(Boolean)
+        if(arr.length>0) return arr
+      }
+    }
     return []
   }
 
   const isFoodStore = (s)=> (s?.tipo_tienda||'').toLowerCase().includes('comida')
   const isFoodProduct = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('comida') || (p.categoria||'').toLowerCase()==='comida'
-
   const foodStores = stores.filter(isFoodStore)
   const foodCiudades = [...new Set(foodStores.map(s=> s.municipio || s.departamento).filter(Boolean))]
 
@@ -311,8 +313,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     return (order[ba] ?? 2) - (order[bb] ?? 2)
   })
 
-
-  // ===== FASE 1: LIMITADOR ANTI-MONOPOLIO - MAX 2 SEGUIDOS DE LA MISMA TIENDA =====
   const aplicarLimitadorTienda = (lista, maxSeguidos=2) => {
     if(!lista || lista.length<=3) return lista
     const res = []
@@ -321,7 +321,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     let countSeguidos = 0
     while(pendientes.length>0){
       let idx = -1
-      // Busca el siguiente que no rompa la regla
       for(let i=0;i<pendientes.length;i++){
         const sid = pendientes[i].stores?.id || pendientes[i].store_id || pendientes[i].stores?.slug
         if(sid !== lastStoreId || countSeguidos < maxSeguidos){
@@ -329,26 +328,15 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
           break
         }
       }
-      // Si todos son de la misma tienda y ya llegamos al limite, igual lo metemos para no perder productos
       if(idx===-1) idx = 0
       const prod = pendientes.splice(idx,1)[0]
       const sid = prod.stores?.id || prod.store_id || prod.stores?.slug
-      if(sid === lastStoreId){
-        countSeguidos++
-      }else{
-        lastStoreId = sid
-        countSeguidos = 1
-      }
+      if(sid === lastStoreId){ countSeguidos++ }else{ lastStoreId = sid; countSeguidos = 1 }
       res.push(prod)
     }
     return res
   }
-
-  // Aplicar limitador solo en feed principal (no comida)
-  if(!showComida){
-    filtered = aplicarLimitadorTienda(filtered, 2)
-  }
-
+  if(!showComida){ filtered = aplicarLimitadorTienda(filtered, 2) }
 
   const catsRaw=[...new Set(products.filter(p=> !isFoodProduct(p)).map(p=>p.categoria).filter(Boolean))]
   const catsOrdenadas = catsRaw.sort((a,b)=>{
@@ -358,14 +346,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
 
   const handleCatClick = (c)=>{
     setVisibleCount(60);
-    if(c==='comida'){
-      setShowComida(true)
-      setCat('comida')
-      setTipo(null)
-    }else{
-      setShowComida(false)
-      setCat(c===cat?null:c)
-    }
+    if(c==='comida'){ setShowComida(true); setCat('comida'); setTipo(null) }else{ setShowComida(false); setCat(c===cat?null:c) }
   }
   const handleTodoClick = ()=>{ setCat(null); setTipo(null); setShowComida(false); setVisibleCount(60) }
   const isBoutique = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('boutique')
@@ -381,53 +362,35 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   }
   const updateQty = (cartId, delta)=>{ setCart(prev=> prev.map(i=>{ if(i.cartId===cartId){ const n=i.qty+delta; return n<=0 ? null : {...i, qty:n} } return i }).filter(Boolean)) }
   const total = cart.reduce((s,i)=>s+(Number(i.price)||0)*i.qty,0)
-
-  // ===== NUEVO: MENSAJES WHATSAPP PRO QUE VENDEN MÁS - NO TOCA NADA MAS =====
   const generarMensajeWhatsApp = (producto, tienda, talla=null) => {
     const urlProducto = `https://tiendanica.store/${tienda.slug}#${producto.id}`;
     const precio = producto.price ? `C$${producto.price}` : 'precio a consultar';
     const esVehiculo = (tienda.tipo_tienda||'').toLowerCase().includes('vehiculos') || ['motos','autos','camionetas','repuestos','moto usada','auto usado'].includes((producto.categoria||'').toLowerCase());
     const esComida = (tienda.tipo_tienda||'').toLowerCase().includes('comida') || (producto.categoria||'').toLowerCase()==='comida';
-    
-    if(esVehiculo){
-      return `🏍️ ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}*%0A🏷️ ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A💰 *${precio}* | 📍${producto.ubicacion||tienda.municipio||''}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Financiamiento?`;
-    }
-    if(esComida){
-      return `🍔 ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}* - ${precio}%0A🔗 ${urlProducto}%0A📍 Mi dir: [ESCRIBE]%0A¿Delivery y tiempo?`;
-    }
+    if(esVehiculo){ return `🏍 ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}*%0A🏷 ${producto.marca||''} ${producto.modelo||''} ${producto.anio||producto.año||''} - ${producto.kilometraje||'0km'}%0A💰 *${precio}* | 📍${producto.ubicacion||tienda.municipio||''}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Financiamiento?`; }
+    if(esComida){ return `🍔 ${tienda.name?.toUpperCase()}%0A📦 *${producto.name}* - ${precio}%0A🔗 ${urlProducto}%0A📍 Mi dir: [ESCRIBE]%0A¿Delivery y tiempo?`; }
     const tallaTxt = talla ? `%0A📏 Talla: *${talla}*` : '';
     const tallasDisp = (producto.tallas||producto.sizes||[]).length>0 ? `%0A📏 Tallas disponibles: ${(producto.tallas||producto.sizes||[]).join(', ')}` : '';
     return `👋 ${tienda.name?.toUpperCase()}%0A👗 *${producto.name}*${tallaTxt} - *${precio}*%0A${tallasDisp}%0A🔗 ${urlProducto}%0A¿Disponible? ¿Envío a [MUNICIPIO]?`;
   }
-
   const checkoutWhatsApp = ()=>{
     if(cart.length===0) return;
     trackPixel('InitiateCheckout', { num_items: cart.length, value: total, currency: 'NIO' });
     trackPixel('Contact', { content_name: 'Carrito multiple' });
-    let msg = `🛍️ HOLA! QUIERO COMPRAR%0A`;
-    cart.forEach((i,idx)=>{
-      const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : '';
-      msg += `${idx+1}. *${i.name}${tallaTxt}* x${i.qty} - C$${i.price} (${i.storeName})%0A`;
-    });
+    let msg = `🛍 HOLA! QUIERO COMPRAR%0A`;
+    cart.forEach((i,idx)=>{ const tallaTxt = i.talla ? ` (Talla: ${i.talla})` : ''; msg += `${idx+1}. *${i.name}${tallaTxt}* x${i.qty} - C$${i.price} (${i.storeName})%0A`; });
     msg += `%0A💰 Total: *C$${total}*%0A📍 Mi dir: [ESCRIBE]%0A¿Confirma?`;
     const uniqueWAs = [...new Set(cart.map(c=>c.whatsapp).filter(Boolean))];
-    if(uniqueWAs.length===1){
-      window.open(`https://wa.me/${uniqueWAs[0]}?text=${msg}`,'_blank')
-    } else {
-      window.open(`https://wa.me/50581732620?text=${msg}%0A%0A(Son de varias tiendas)`,'_blank')
-    }
+    if(uniqueWAs.length===1){ window.open(`https://wa.me/${uniqueWAs[0]}?text=${msg}`,'_blank') } else { window.open(`https://wa.me/50581732620?text=${msg}%0A%0A(Son de varias tiendas)`,'_blank') }
   }
-
   const waProductDirect = (p, talla=null)=>{
     trackPixel('Contact', { content_name: p.name, content_ids: [p.id], value: Number(p.price)||0, currency: 'NIO' });
     trackPixel('Lead', { content_name: p.name });
     const mensaje = generarMensajeWhatsApp(p, p.stores, talla);
     window.open(`https://wa.me/${p.stores.whatsapp}?text=${mensaje}`,'_blank')
   }
-
   const abrirAccesoDueno = ()=>{ window.location.href = '/acceso' }
   const abrirVender = ()=>{ const mensaje = 'Hola TiendaNica! Quiero vender en el market, me interesa abrir mi tienda.'; window.open(`https://wa.me/50581732620?text=${encodeURIComponent(mensaje)}`,'_blank') }
-
   const openProductWithPixel = (p)=>{
     trackPixel('ViewContent', { content_name: p.name, content_category: p.categoria, content_ids: [p.id], content_type: 'product', value: Number(p.price)||0, currency: 'NIO' });
     setSel(p);
@@ -509,9 +472,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               </button>
             )}
           </div>
-          <div className="cat-scroll" style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8}}>
-            {['boutique','general','vehiculos'].map(t=><button key={t} onClick={()=>{setShowComida(false); setTipo(t===tipo?null:t)}} className="chip" style={{background: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#F7F2EE', color: tipo===t && !showComida ? '#fff' : '#000', borderColor: tipo===t && !showComida ? (t==='vehiculos' ? '#FF6A00' : '#0066FF') : '#EDE6DF', fontSize:11, fontWeight:900, textTransform:'uppercase'}}>{t==='vehiculos' ? '🏍 vehiculos' : t}</button>)}
-            <span style={{fontSize:11, color:'#999', alignSelf:'center', marginLeft:6}}>
+          {/* FILA ELIMINADA: boutique / general / vehiculos - ahora solo info */}
+          <div style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8, display:'flex', alignItems:'center'}}>
+            <span style={{fontSize:11, color:'#999'}}>
               {showComida ? `${nearbyFoodStores.length>0 ? filtered.length+' comidas' : 'Comida'} • ${userLoc ? (userLoc.municipio||userLoc.departamento) : manualDepto || 'Sin ubicación'} ${filtroMuniActivo ? '('+manualMuni+')' : ''} ${filtroDirActivo ? '('+manualDir+')' : ''}` : `${filtered.length} productos • Premium primero`}
             </span>
           </div>
