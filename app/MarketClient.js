@@ -311,6 +311,45 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     return (order[ba] ?? 2) - (order[bb] ?? 2)
   })
 
+
+  // ===== FASE 1: LIMITADOR ANTI-MONOPOLIO - MAX 2 SEGUIDOS DE LA MISMA TIENDA =====
+  const aplicarLimitadorTienda = (lista, maxSeguidos=2) => {
+    if(!lista || lista.length<=3) return lista
+    const res = []
+    const pendientes = [...lista]
+    let lastStoreId = null
+    let countSeguidos = 0
+    while(pendientes.length>0){
+      let idx = -1
+      // Busca el siguiente que no rompa la regla
+      for(let i=0;i<pendientes.length;i++){
+        const sid = pendientes[i].stores?.id || pendientes[i].store_id || pendientes[i].stores?.slug
+        if(sid !== lastStoreId || countSeguidos < maxSeguidos){
+          idx = i
+          break
+        }
+      }
+      // Si todos son de la misma tienda y ya llegamos al limite, igual lo metemos para no perder productos
+      if(idx===-1) idx = 0
+      const prod = pendientes.splice(idx,1)[0]
+      const sid = prod.stores?.id || prod.store_id || prod.stores?.slug
+      if(sid === lastStoreId){
+        countSeguidos++
+      }else{
+        lastStoreId = sid
+        countSeguidos = 1
+      }
+      res.push(prod)
+    }
+    return res
+  }
+
+  // Aplicar limitador solo en feed principal (no comida)
+  if(!showComida){
+    filtered = aplicarLimitadorTienda(filtered, 2)
+  }
+
+
   const catsRaw=[...new Set(products.filter(p=> !isFoodProduct(p)).map(p=>p.categoria).filter(Boolean))]
   const catsOrdenadas = catsRaw.sort((a,b)=>{
     const ia = ORDEN_PREMIUM.indexOf(a.toLowerCase()); const ib = ORDEN_PREMIUM.indexOf(b.toLowerCase())
