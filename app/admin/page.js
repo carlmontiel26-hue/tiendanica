@@ -31,6 +31,26 @@ export default function SuperAdminConEdicion(){
   const fileProductRef = useRef(null)
   const fileEditProductRef = useRef(null)
 
+  // ===== VISITAS - NUEVO, NO TOCA LO DEMAS =====
+  const [visitas,setVisitas]=useState([])
+  const [visitasLoading,setVisitasLoading]=useState(false)
+
+  const cargarVisitas = async ()=>{
+    const supabase = getSupabase()
+    if(!supabase) return
+    setVisitasLoading(true)
+    try{
+      const {data, error} = await supabase.from('visitas_market').select('*').order('created_at',{ascending:false}).limit(500)
+      if(error){ console.log('visitas error', error); setVisitas([]) }
+      else setVisitas(data||[])
+    }catch(e){ console.log(e) }
+    setVisitasLoading(false)
+  }
+
+  useEffect(()=>{
+    if(tab==='visitas') cargarVisitas()
+  },[tab])
+
   // ===== SOLO AGREGADO PIN - NO TOCA LO DEMAS =====
   const genPIN = ()=> Math.floor(100000 + Math.random()*900000).toString()
 
@@ -302,6 +322,20 @@ export default function SuperAdminConEdicion(){
     productos: products.length
   }
 
+  // Stats visitas
+  const visitasPorDepto = visitas.reduce((acc,v)=>{
+    const d = v.departamento || 'Desconocido'
+    acc[d] = (acc[d]||0)+1
+    return acc
+  },{})
+  const visitasPorDeptoOrdenadas = Object.entries(visitasPorDepto).sort((a,b)=>b[1]-a[1])
+  const visitasPorPagina = visitas.reduce((acc,v)=>{
+    const p = v.pagina || '/'
+    acc[p] = (acc[p]||0)+1
+    return acc
+  },{})
+  const visitasPorPaginaOrdenadas = Object.entries(visitasPorPagina).sort((a,b)=>b[1]-a[1]).slice(0,10)
+
   if(!auth){
     return (
       <div style={{minHeight:'100vh', background:'radial-gradient(1200px 600px at 20% -10%, #FF6A00 0%, transparent 50%), radial-gradient(1000px 500px at 80% 100%, #0066FF 0%, transparent 50%), #0A0A0B', display:'flex', alignItems:'center', justifyContent:'center', padding:20, fontFamily:'Inter, system-ui'}}>
@@ -326,7 +360,6 @@ export default function SuperAdminConEdicion(){
         *{font-family:'Inter', system-ui}
         ::-webkit-scrollbar{width:6px;height:6px}
         ::-webkit-scrollbar-thumb{background:#D9D0C8;border-radius:999px}
-        /* === MOBILE ONLY - NO TOCA DESKTOP === */
         @media (max-width: 768px){
           input, select, textarea{ font-size:16px !important; }
           .super-header{ padding:10px 12px !important; }
@@ -354,7 +387,7 @@ export default function SuperAdminConEdicion(){
             <div style={{width:42, height:42, borderRadius:12, background:'linear-gradient(135deg, #111 0%, #333 100%)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:900, fontSize:14}}>TN</div>
             <div>
               <h1 style={{fontWeight:900, fontSize:16, letterSpacing:-0.3, lineHeight:1}}>TiendaNica • Super Admin</h1>
-              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {pendientes.length} por verificar • {stats.vehiculos} vehiculos</p>
+              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {pendientes.length} por verificar • {stats.vehiculos} vehiculos • {visitas.length} visitas registradas</p>
             </div>
           </div>
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
@@ -377,6 +410,7 @@ export default function SuperAdminConEdicion(){
           {k:'Vehiculos', v:stats.vehiculos, c:'#fff', bg:'linear-gradient(135deg, #111, #FF6A00)'},
           {k:'Verificadas', v:stats.verificadas, c:'#fff', bg:'linear-gradient(135deg, #00C853, #00E676)'},
           {k:'Productos', v:stats.productos, c:'#111', bg:'linear-gradient(135deg, #EDE6E3, #F6F1EC)'},
+          {k:'Visitas Hoy', v:visitas.filter(v=> new Date(v.created_at).toDateString() === new Date().toDateString()).length, c:'#fff', bg:'linear-gradient(135deg, #7000FF, #0066FF)'},
         ].map(s=>(
           <div key={s.k} style={{background:s.bg, color:s.c, borderRadius:16, padding:'14px 16px', position:'relative', overflow:'hidden'}}>
             <p style={{fontSize:10, fontWeight:800, opacity:0.7, textTransform:'uppercase', letterSpacing:0.5}}>{s.k}</p>
@@ -390,6 +424,7 @@ export default function SuperAdminConEdicion(){
           {id:'tiendas', label:`🏪 Tiendas (${tiendasFiltradas.length})`, active:'#111'},
           {id:'crear', label:'➕ Crear Premium', active:'#FF6A00'},
           {id:'productos', label:`📦 Productos (${products.length})`, active:'#0066FF'},
+          {id:'visitas', label:`📊 Visitas (${visitas.length})`, active:'#7000FF'},
           {id:'verificaciones', label:`🛡 Verificar (${pendientes.length})`, active:'#7000FF'},
           {id:'reportes', label:`🚨 Reportes (${reportes.length})`, active:'#FF3B30'},
           {id:'herramientas', label:'🛠 Herramientas', active:'#111'},
@@ -399,6 +434,84 @@ export default function SuperAdminConEdicion(){
       </div>
 
       <div className="super-main" style={{maxWidth:1400, margin:'16px auto', padding:'0 20px 40px'}}>
+
+        {tab==='visitas' && (
+          <div style={{display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:16, alignItems:'start'}} className="tiendas-grid">
+            <div style={{display:'flex', flexDirection:'column', gap:16}}>
+              <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <h3 style={{fontWeight:900, fontSize:15}}>📊 Visitas por Departamento - Nicaragua</h3>
+                  <button onClick={cargarVisitas} style={{background:'#111', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontSize:11, fontWeight:700}}>{visitasLoading?'Cargando...':'↻ Actualizar'}</button>
+                </div>
+                <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Datos reales desde /api/geo (headers de Vercel) - Se actualiza solo</p>
+                <div style={{marginTop:14, display:'grid', gap:8}}>
+                  {visitasPorDeptoOrdenadas.length===0 && <p style={{fontSize:12, color:'#999'}}>Aún no hay visitas registradas. Ejecuta el SQL visitas_market.sql y asegúrate que VisitTracker esté en layout.js</p>}
+                  {visitasPorDeptoOrdenadas.map(([depto,count])=>{
+                    const max = visitasPorDeptoOrdenadas[0]?.[1]||1
+                    const pct = Math.round((count/max)*100)
+                    return (
+                      <div key={depto} style={{display:'flex', alignItems:'center', gap:10}}>
+                        <span style={{fontSize:12, fontWeight:800, minWidth:110}}>{depto}</span>
+                        <div style={{flex:1, height:22, background:'#F5F1EC', borderRadius:999, overflow:'hidden', position:'relative'}}>
+                          <div style={{width:`${pct}%`, height:'100%', background:'linear-gradient(90deg, #7000FF, #0066FF)', borderRadius:999, transition:'width 0.5s'}}/>
+                          <span style={{position:'absolute', left:10, top:2, fontSize:11, fontWeight:800, color: pct>30 ? '#fff' : '#111'}}>{count} visitas - {pct}%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+                <h3 style={{fontWeight:900, fontSize:14}}>📄 Páginas más vistas</h3>
+                <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:6}}>
+                  {visitasPorPaginaOrdenadas.map(([pag,c])=>(
+                    <div key={pag} style={{display:'flex', justifyContent:'space-between', background:'#F9F6F2', padding:'8px 12px', borderRadius:10}}>
+                      <span style={{fontSize:12, fontFamily:'monospace'}}>{pag.slice(0,60)}</span>
+                      <b style={{fontSize:12}}>{c}</b>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:'flex', flexDirection:'column', gap:16}} className="preview-col">
+              <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
+                <h3 style={{fontWeight:900, fontSize:14}}>⚡ Últimas 20 visitas en vivo</h3>
+                <p style={{fontSize:11, color:'#888', marginTop:4}}>{visitas.length} total registradas • Hoy: {visitas.filter(v=> new Date(v.created_at).toDateString() === new Date().toDateString()).length}</p>
+                <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:6, maxHeight:500, overflowY:'auto'}}>
+                  {visitas.slice(0,20).map(v=>(
+                    <div key={v.id} style={{background:'rgba(255,255,255,0.06)', borderRadius:10, padding:'8px 10px'}}>
+                      <div style={{display:'flex', justifyContent:'space-between'}}>
+                        <b style={{fontSize:11}}>{v.departamento||'Desconocido'} {v.municipio?`• ${v.municipio}`:''}</b>
+                        <span style={{fontSize:10, color:'#888'}}>{new Date(v.created_at).toLocaleTimeString()}</span>
+                      </div>
+                      <p style={{fontSize:10, color:'#aaa', marginTop:2, fontFamily:'monospace'}}>{v.pagina}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:12, display:'flex', gap:6}}>
+                  <button onClick={async()=>{
+                    if(!confirm('¿Borrar todas las visitas? Solo para reset')) return
+                    const supabase=getSupabase()
+                    await supabase.from('visitas_market').delete().neq('id','00000000-0000-0000-0000-000000000000')
+                    cargarVisitas()
+                  }} style={{flex:1, background:'rgba(255,255,255,0.1)', border:'none', padding:10, borderRadius:10, color:'#fff', fontSize:11, fontWeight:700}}>🗑 Limpiar</button>
+                  <button onClick={()=>{const csv = visitas.map(v=>`${v.created_at},${v.departamento||''},${v.municipio||''},${v.pagina}`).join('\n'); navigator.clipboard.writeText(csv); alert('CSV copiado')}} style={{flex:1, background:'#7000FF', border:'none', padding:10, borderRadius:10, color:'#fff', fontSize:11, fontWeight:800}}>📋 Copiar CSV</button>
+                </div>
+              </div>
+
+              <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+                <h3 style={{fontWeight:900, fontSize:13}}>🛠 SQL útil</h3>
+                <div style={{marginTop:10, background:'#F9F6F2', padding:10, borderRadius:10, fontSize:10, fontFamily:'monospace', lineHeight:1.5}}>
+                  -- Visitas por depto hoy<br/>
+                  SELECT departamento, COUNT(*) FROM visitas_market WHERE created_at &gt;= CURRENT_DATE GROUP BY departamento ORDER BY COUNT DESC;
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab==='tiendas' && (
           <div className="tiendas-grid" style={{display:'grid', gridTemplateColumns:'1fr 380px', gap:16, alignItems:'start'}}>
             <div style={{background:'#fff', borderRadius:20, padding:16, border:'1px solid #EDE6E3', boxShadow:'0 4px 24px rgba(0,0,0,0.04)'}}>
@@ -763,6 +876,7 @@ export default function SuperAdminConEdicion(){
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Vehiculos</span><b>{stats.vehiculos}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Tiendas activas</span><b>{stats.total}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Productos totales</span><b>{stats.productos}</b></div>
+                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Visitas registradas</span><b>{visitas.length}</b></div>
                 <button onClick={async()=>{
                   const sql = `ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_password TEXT;`
                   alert('Ejecuta esto en Supabase SQL Editor:\n\n'+sql+'\n\nLuego UPDATE stores SET admin_password = RIGHT(whatsapp,6) WHERE admin_password IS NULL;')

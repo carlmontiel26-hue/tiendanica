@@ -1,5 +1,6 @@
 import Script from "next/script";
 import "./globals.css";
+import VisitTracker from "@/components/VisitTracker";
 
 export const metadata = {
   metadataBase: new URL("https://tiendanica.store"),
@@ -26,7 +27,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es">
       <head>
-        {/* Meta Pixel Code - TiendaNica.store ID: 1011358985329179 */}
         <Script id="fb-pixel" strategy="afterInteractive">
           {`
             !function(f,b,e,v,n,t,s)
@@ -43,7 +43,6 @@ export default function RootLayout({ children }) {
         </Script>
       </head>
       <body>
-        {/* Noscript fallback Meta Pixel */}
         <noscript>
           <img 
             height="1" 
@@ -54,6 +53,7 @@ export default function RootLayout({ children }) {
           />
         </noscript>
         {children}
+        <VisitTracker />
       </body>
     </html>
   );
