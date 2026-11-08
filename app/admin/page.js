@@ -34,7 +34,7 @@ export default function SuperAdminConEdicion(){
   // ===== VISITAS - PREMIUM =====
   const [visitas,setVisitas]=useState([])
   const [visitasLoading,setVisitasLoading]=useState(false)
-  const [filtroVisitas,setFiltroVisitas]=useState('todo') // hoy, 7d, todo
+  const [filtroVisitas,setFiltroVisitas]=useState('todo')
 
   const cargarVisitas = async ()=>{
     const supabase = getSupabase()
@@ -51,6 +51,23 @@ export default function SuperAdminConEdicion(){
   useEffect(()=>{
     if(tab==='visitas') cargarVisitas()
   },[tab])
+
+  // ===== MARKET PREVIEW - NUEVO SOLO AGREGADO =====
+  const [marketKey,setMarketKey]=useState(0)
+  const [marketUrl,setMarketUrl]=useState('/')
+  const [marketConfig,setMarketConfig]=useState(null)
+  const [marketBannerFile,setMarketBannerFile]=useState(null)
+  const [marketBannerPreview,setMarketBannerPreview]=useState('')
+
+  const cargarMarketConfig = async ()=>{
+    const supabase = getSupabase()
+    if(!supabase) return
+    try{
+      const {data} = await supabase.from('market_config').select('*').limit(1).single()
+      if(data) setMarketConfig(data)
+    }catch(e){ console.log('market_config no existe aún', e) }
+  }
+  useEffect(()=>{ if(tab==='market') cargarMarketConfig() },[tab])
 
   const genPIN = ()=> Math.floor(100000 + Math.random()*900000).toString()
 
@@ -333,19 +350,14 @@ export default function SuperAdminConEdicion(){
     return acc
   },{})
   const visitasPorDeptoOrdenadas = Object.entries(visitasPorDepto).sort((a,b)=>b[1]-a[1])
-  
-  // Para donut: top 5
   const topDeptos = visitasPorDeptoOrdenadas.slice(0,5)
   const totalReal = visitasPorDeptoOrdenadas.reduce((s,[,c])=>s+c,0) || 1
-
   const visitasPorPagina = visitasFiltradas.reduce((acc,v)=>{
     const p = v.pagina || '/'
     acc[p] = (acc[p]||0)+1
     return acc
   },{})
   const visitasPorPaginaOrdenadas = Object.entries(visitasPorPagina).sort((a,b)=>b[1]-a[1]).slice(0,8)
-
-  // Visitas por dia ultimos 7 dias para linea
   const dias = []
   for(let i=6;i>=0;i--){
     const d = new Date()
@@ -355,7 +367,6 @@ export default function SuperAdminConEdicion(){
     dias.push({label: d.toLocaleDateString('es-NI',{weekday:'short'}), count, key})
   }
   const maxDia = Math.max(...dias.map(d=>d.count),1)
-
   const colores = ['#7000FF','#0066FF','#FF6A00','#00C853','#FF3B30','#FFD60A','#111']
 
   if(!auth){
@@ -399,6 +410,7 @@ export default function SuperAdminConEdicion(){
           .btn-action{ min-height:44px !important; padding:12px !important; font-size:13px !important; }
           .modal-box{ margin:10px !important; max-width:calc(100vw - 20px) !important; border-radius:20px !important; max-height:90vh !important; }
           .visitas-premium-grid{ grid-template-columns:1fr !important; }
+          .market-grid{ grid-template-columns:1fr !important; }
         }
       `}</style>
 
@@ -443,6 +455,7 @@ export default function SuperAdminConEdicion(){
       <div className="super-tabs" style={{maxWidth:1400, margin:'14px auto 0', padding:'0 20px', display:'flex', gap:8, overflowX:'auto'}}>
         {[
           {id:'tiendas', label:`🏪 Tiendas (${tiendasFiltradas.length})`, active:'#111'},
+          {id:'market', label:'🏬 Market Preview', active:'#FF6A00'},
           {id:'crear', label:'➕ Crear Premium', active:'#FF6A00'},
           {id:'productos', label:`📦 Productos (${products.length})`, active:'#0066FF'},
           {id:'visitas', label:`📊 Visitas (${visitas.length})`, active:'#7000FF'},
@@ -456,9 +469,108 @@ export default function SuperAdminConEdicion(){
 
       <div className="super-main" style={{maxWidth:1400, margin:'16px auto', padding:'0 20px 40px'}}>
 
+        {/* ===== NUEVA PESTAÑA MARKET - SOLO AGREGADA, NO TOCA LO DEMAS ===== */}
+        {tab==='market' && (
+          <div style={{display:'flex', flexDirection:'column', gap:16}}>
+            <div style={{background:'linear-gradient(135deg, #111 0%, #222 100%)', borderRadius:20, padding:18, color:'#fff', border:'1px solid #333', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:12, alignItems:'center'}}>
+              <div style={{display:'flex', gap:12, alignItems:'center'}}>
+                <div style={{width:44, height:44, borderRadius:12, background:'linear-gradient(135deg, #FF6A00, #FFD60A)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22}}>🏬</div>
+                <div>
+                  <h2 style={{fontWeight:900, fontSize:16}}>Market Control • Vista Previa en Vivo</h2>
+                  <p style={{fontSize:11, color:'#999', marginTop:2}}>Aquí ves el market real como lo ven tus clientes. Desde aquí puedes abrirlo, actualizar portadas y gestionar el home sin salir del admin.</p>
+                </div>
+              </div>
+              <div style={{display:'flex', gap:8}}>
+                <button onClick={()=>setMarketKey(k=>k+1)} style={{background:'#fff', color:'#111', border:'none', padding:'10px 16px', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer'}}>↻ Recargar preview</button>
+                <a href={marketUrl} target="_blank" style={{background:'#FF6A00', color:'#fff', padding:'10px 16px', borderRadius:12, fontSize:12, fontWeight:800, textDecoration:'none'}}>Abrir Market ↗</a>
+              </div>
+            </div>
+
+            <div className="market-grid" style={{display:'grid', gridTemplateColumns:'1.2fr 0.6fr', gap:16, alignItems:'start'}}>
+              {/* PREVIEW MARKET */}
+              <div style={{background:'#111', borderRadius:20, padding:14, border:'1px solid #222'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+                  <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                    <span style={{width:10, height:10, borderRadius:'50%', background:'#FF5F56'}}/>
+                    <span style={{width:10, height:10, borderRadius:'50%', background:'#FFBD2E'}}/>
+                    <span style={{width:10, height:10, borderRadius:'50%', background:'#27C93F'}}/>
+                    <span style={{fontSize:11, color:'#888', marginLeft:8, fontFamily:'monospace'}}>tiendanica.store{marketUrl} • Vista previa real</span>
+                  </div>
+                  <div style={{display:'flex', gap:6}}>
+                    <button onClick={()=>setMarketUrl('/')} style={{background: marketUrl==='/' ? '#fff' : '#222', color: marketUrl==='/' ? '#111' : '#888', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>Home</button>
+                    <button onClick={()=>setMarketUrl('/acceso')} style={{background: marketUrl==='/acceso' ? '#fff' : '#222', color: marketUrl==='/acceso' ? '#111' : '#888', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>/acceso</button>
+                    <button onClick={()=>setMarketUrl('/privacidad')} style={{background: marketUrl==='/privacidad' ? '#fff' : '#222', color: marketUrl==='/privacidad' ? '#111' : '#888', border:'none', padding:'6px 10px', borderRadius:999, fontSize:10, fontWeight:700, cursor:'pointer'}}>Legal</button>
+                  </div>
+                </div>
+                <div style={{background:'#fff', borderRadius:14, overflow:'hidden', height:640, border:'1px solid #222'}}>
+                  <iframe key={marketKey} src={marketUrl} style={{width:'100%', height:'100%', border:'none', background:'#fff'}} title="market preview"/>
+                </div>
+                <div style={{display:'flex', gap:8, marginTop:12}}>
+                  <input value={marketUrl} onChange={e=>setMarketUrl(e.target.value)} placeholder="/motos-el-chele o /categoria" style={{flex:1, background:'#1A1A1A', border:'1px solid #333', borderRadius:12, padding:'10px 14px', color:'#fff', fontSize:12, fontFamily:'monospace'}}/>
+                  <button onClick={()=>setMarketKey(k=>k+1)} style={{background:'#FF6A00', color:'#fff', border:'none', padding:'10px 16px', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer'}}>Ir →</button>
+                </div>
+              </div>
+
+              {/* CONTROLES MARKET */}
+              <div style={{display:'flex', flexDirection:'column', gap:14, position:'sticky', top:84}} className="preview-col">
+                <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
+                  <h3 style={{fontWeight:900, fontSize:14}}>🎨 Portadas & Banners Market</h3>
+                  <p style={{fontSize:11, color:'#8A7F78', marginTop:6, lineHeight:1.4}}>Aquí podrás cambiar la portada principal del market, hero images, y banners promocionales. Por ahora subes la imagen y te da el link para poner en tu MarketClient.jsx</p>
+                  
+                  <div style={{border:'1.5px dashed #FF6A00', borderRadius:16, padding:14, background:'#FFF7ED', marginTop:14}}>
+                    <p style={{fontSize:11, fontWeight:800}}>Subir nueva portada / banner</p>
+                    <input type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f){setMarketBannerFile(f); setMarketBannerPreview(URL.createObjectURL(f))}}} style={{marginTop:10, fontSize:11, width:'100%'}}/>
+                    {marketBannerPreview && (
+                      <div style={{marginTop:12}}>
+                        <img src={marketBannerPreview} style={{width:'100%', height:160, objectFit:'cover', borderRadius:12, border:'1px solid #EDE6E3'}}/>
+                        <button onClick={async()=>{
+                          if(!marketBannerFile) return
+                          const url = await uploadFile(marketBannerFile, 'store-logos')
+                          if(url){ alert('Portada subida ✓ URL:\n'+url+'\n\nCopia este link y pégalo en tu MarketClient.jsx heroImage o banner.'); copiar(url) }
+                        }} style={{width:'100%', marginTop:10, background:'#111', color:'#fff', border:'none', padding:'12px', borderRadius:12, fontWeight:800, fontSize:12, cursor:'pointer'}}>⬆ Subir a Supabase + Copiar URL</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{background:'#F5F1EC', borderRadius:14, padding:12, marginTop:14, border:'1px solid #EDE6E3'}}>
+                    <p style={{fontSize:11, fontWeight:800}}>Accesos rápidos Market</p>
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10}}>
+                      <a href="/" target="_blank" style={{background:'#111', color:'#fff', padding:'10px', borderRadius:10, fontSize:11, fontWeight:700, textAlign:'center', textDecoration:'none'}}>🏠 Abrir Market</a>
+                      <button onClick={()=>{copiar('https://tiendanica.store'); alert('Link market copiado')}} style={{background:'#fff', border:'1px solid #EDE6E3', padding:'10px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>🔗 Copiar link</button>
+                      <a href="/acceso" target="_blank" style={{background:'#F0F7FF', border:'1px solid #C2DDFF', color:'#0066FF', padding:'10px', borderRadius:10, fontSize:11, fontWeight:700, textAlign:'center', textDecoration:'none'}}>🔐 /acceso</a>
+                      <a href="/admin" target="_blank" style={{background:'#FFF7ED', border:'1px solid #FFD6B0', color:'#FF6A00', padding:'10px', borderRadius:10, fontSize:11, fontWeight:700, textAlign:'center', textDecoration:'none'}}>👑 /admin</a>
+                    </div>
+                  </div>
+
+                  <div style={{background:'#111', color:'#fff', borderRadius:14, padding:14, marginTop:14}}>
+                    <p style={{fontSize:11, fontWeight:800, color:'#FFD60A'}}>💡 Cómo actualizar portada Market</p>
+                    <p style={{fontSize:11, color:'#AAA', marginTop:6, lineHeight:1.5}}>
+                      1. Sube imagen arriba → copia URL<br/>
+                      2. Abre tu archivo `MarketClient.jsx`<br/>
+                      3. Busca `heroImage` o `bannerUrl`<br/>
+                      4. Pega la URL y haz `git push`<br/>
+                      5. Vercel actualiza en 1 min<br/><br/>
+                      Próximamente: edición directa desde aquí sin código.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{background:'linear-gradient(135deg, #7000FF, #0066FF)', borderRadius:16, padding:14, color:'#fff'}}>
+                  <p style={{fontSize:11, fontWeight:800, opacity:0.8}}>📊 MARKET LIVE STATS</p>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}>
+                    <div style={{background:'rgba(255,255,255,0.15)', borderRadius:10, padding:10}}><p style={{fontSize:10, opacity:0.7}}>Tiendas</p><b style={{fontSize:16}}>{stats.total}</b></div>
+                    <div style={{background:'rgba(255,255,255,0.15)', borderRadius:10, padding:10}}><p style={{fontSize:10, opacity:0.7}}>Productos</p><b style={{fontSize:16}}>{stats.productos}</b></div>
+                    <div style={{background:'rgba(255,255,255,0.15)', borderRadius:10, padding:10}}><p style={{fontSize:10, opacity:0.7}}>Visitas</p><b style={{fontSize:16}}>{visitas.length}</b></div>
+                    <div style={{background:'rgba(255,255,255,0.15)', borderRadius:10, padding:10}}><p style={{fontSize:10, opacity:0.7}}>Hoy</p><b style={{fontSize:16}}>{visitas.filter(v=> new Date(v.created_at).toDateString() === new Date().toDateString()).length}</b></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab==='visitas' && (
           <div style={{display:'flex', flexDirection:'column', gap:16}}>
-            {/* HEADER PREMIUM */}
             <div style={{background:'linear-gradient(135deg, #0F0F10 0%, #1A1A1E 50%, #252529 100%)', borderRadius:24, padding:22, color:'#fff', position:'relative', overflow:'hidden', border:'1px solid #2A2A2E'}}>
               <div style={{position:'absolute', top:-40, right:-40, width:200, height:200, background:'radial-gradient(circle, rgba(112,0,255,0.3) 0%, transparent 70%)', borderRadius:'50%'}}/>
               <div style={{position:'absolute', bottom:-30, left:-30, width:180, height:180, background:'radial-gradient(circle, rgba(0,102,255,0.25) 0%, transparent 70%)', borderRadius:'50%'}}/>
@@ -501,9 +613,7 @@ export default function SuperAdminConEdicion(){
             </div>
 
             <div className="visitas-premium-grid" style={{display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:16, alignItems:'start'}}>
-              {/* IZQUIERDA - GRAFICOS */}
               <div style={{display:'flex', flexDirection:'column', gap:16}}>
-                {/* GRAFICO LINEA 7 DIAS */}
                 <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.04)'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <h3 style={{fontWeight:900, fontSize:14}}>📈 Tendencia • Últimos 7 días</h3>
@@ -526,7 +636,6 @@ export default function SuperAdminConEdicion(){
                   </div>
                 </div>
 
-                {/* BARRAS DEPARTAMENTOS PREMIUM */}
                 <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.04)'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <h3 style={{fontWeight:900, fontSize:14}}>📍 Visitas por Departamento • Nicaragua</h3>
@@ -554,7 +663,6 @@ export default function SuperAdminConEdicion(){
                   </div>
                 </div>
 
-                {/* PAGINAS MAS VISTAS */}
                 <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px solid #EDE6E3'}}>
                   <h3 style={{fontWeight:900, fontSize:14}}>🔥 Páginas más visitadas</h3>
                   <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:8}}>
@@ -575,16 +683,12 @@ export default function SuperAdminConEdicion(){
                 </div>
               </div>
 
-              {/* DERECHA - DONUT + LIVE */}
               <div style={{display:'flex', flexDirection:'column', gap:16, position:'sticky', top:84}} className="preview-col">
-                {/* DONUT CHART */}
                 <div style={{background:'#111', color:'#fff', borderRadius:20, padding:20, border:'1px solid #222', position:'relative', overflow:'hidden'}}>
                   <div style={{position:'absolute', top:-20, right:-20, width:120, height:120, background:'radial-gradient(circle, rgba(112,0,255,0.4), transparent 70%)', borderRadius:'50%'}}/>
                   <h3 style={{fontWeight:900, fontSize:14, position:'relative'}}>🎯 Distribución Top Departamentos</h3>
                   <p style={{fontSize:11, color:'#888', marginTop:4, position:'relative'}}>{totalReal} visitas reales con geo</p>
-                  
                   <div style={{position:'relative', marginTop:16, display:'flex', alignItems:'center', gap:16}}>
-                    {/* Donut visual con conic-gradient */}
                     <div style={{
                       width:110, height:110, borderRadius:'50%',
                       background: `conic-gradient(${topDeptos.map(([_,c],i)=>{
@@ -612,12 +716,11 @@ export default function SuperAdminConEdicion(){
                   </div>
                 </div>
 
-                {/* LIVE FEED */}
                 <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.04)'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <h3 style={{fontWeight:900, fontSize:13}}>⚡ En vivo • Últimas 20</h3>
                     <span style={{display:'flex', alignItems:'center', gap:6, fontSize:10, background:'#E8FFE8', color:'#00C853', padding:'4px 8px', borderRadius:999, fontWeight:800}}>
-                      <span style={{width:6, height:6, background:'#00C853', borderRadius:'50%', display:'inline-block', animation:'pulse 1.5s infinite'}}/> LIVE
+                      <span style={{width:6, height:6, background:'#00C853', borderRadius:'50%', display:'inline-block'}}/> LIVE
                     </span>
                   </div>
                   <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:8, maxHeight:420, overflowY:'auto'}}>
@@ -771,7 +874,7 @@ export default function SuperAdminConEdicion(){
                 <div className="form-2col" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <div>
                     <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>WHATSAPP *</label>
-                    <input required value={formTienda.whatsapp} onChange={e=>setFormTienda({...formTienda, whatsapp:e.target.value})} placeholder="50581732620" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff'}}/>
+                    <input required value={formTienda.whatsapp} onChange={e=>setFormTienda({...formTienda, whatsapp:e.target.value})} placeholder="50578402288" style={{width:'100%', border:'1.5px solid #E8E0DC', borderRadius:12, padding:'12px 14px', marginTop:6, background:'#fff'}}/>
                   </div>
                   <div>
                     <label style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>TIPO TIENDA *</label>
