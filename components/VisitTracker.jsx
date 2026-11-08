@@ -9,54 +9,80 @@ function getSupabase(){
   return createClient(url,key)
 }
 
-function hashIP(ip){
-  try{
-    let h=0
-    for(let i=0;i<ip.length;i++){ h = ((h<<5)-h)+ip.charCodeAt(i); h|=0 }
-    return h.toString(36)
-  }catch{ return 'unknown' }
-}
-
 export default function VisitTracker(){
   useEffect(()=>{
-    // Evitar contar 2 veces en la misma sesion (15 min)
-    const last = typeof window !== 'undefined' ? sessionStorage.getItem('tn_visit_logged') : null
-    if(last && Date.now() - parseInt(last) < 15*60*1000) return
-
     const supabase = getSupabase()
-    if(!supabase) return
-
-    const pagina = window.location.pathname + window.location.search
-    const referrer = document.referrer || ''
-    const userAgent = navigator.userAgent || ''
-    
-    // Vercel ya inyecta geo en headers, pero desde cliente lo leemos de la API interna si existe
-    // Por ahora guardamos lo que tenemos, el departamento lo sacamos en el servidor mas adelante
-    const payload = {
-      pagina: pagina.slice(0, 200),
-      slug: window.location.pathname.split('/').filter(Boolean)[0] || null,
-      pais: 'NI',
-      ip_hash: hashIP(userAgent + pagina).slice(0, 20),
-      user_agent: userAgent.slice(0, 250),
-      referrer: referrer.slice(0, 250),
+    if(!supabase){
+      console.log('[TN Visitas] Supabase no configurado')
+      return
     }
 
-    // Intentar obtener geo desde una API ligera si existe /api/geo, si no, solo guarda pagina
-    // No bloquea la pagina
-    fetch('/api/geo').then(r=>r.json()).then(geo=>{
-      if(geo){
-        payload.departamento = geo.departamento || geo.region || geo.city || null
-        payload.municipio = geo.municipio || geo.city || null
-        payload.ciudad_raw = geo.city || null
-        payload.pais = geo.country || 'NI'
+    const run = async ()=>{
+      try{
+        const pagina = window.location.pathname + window.location.search
+        const referrer = document.referrer || ''
+        const userAgent = navigator.userAgent || ''
+        
+        let departamento = 'Desconocido'
+        let municipio = ''
+        let ciudad_raw = ''
+        let pais = 'NI'
+
+        try{
+          const geoRes = await fetch('/api/geo', { cache: 'no-store' })
+          if(geoRes.ok){
+            const geo = await geoRes.json()
+            departamento = geo.departamento || geo.region || geo.city || 'Desconocido'
+            municipio = geo.municipio || geo.city || ''
+            ciudad_raw = geo.city || ''
+            pais = geo.country || 'NI'
+            console.log('[TN Visitas] GEO:', geo)
+          }
+        }catch(e){
+          console.log('[TN Visitas] /api/geo no disponible, guardando sin geo', e.message)
+        }
+
+        const payload = {
+          pagina: pagina.slice(0, 200),
+          slug: window.location.pathname.split('/').filter(Boolean)[0] || null,
+          departamento: departamento,
+          municipio: municipio,
+          ciudad_raw: ciudad_raw,
+          pais: pais,
+          ip_hash: Math.random().toString(36).slice(2,10),
+          user_agent: userAgent.slice(0, 250),
+          referrer: referrer.slice(0, 250),
+        }
+
+        console.log('[TN Visitas] Insertando:', payload)
+
+        const { error, data } = await supabase.from('visitas_market').insert(payload).select()
+
+        if(error){
+          console.error('[TN Visitas] Error insert:', error.message, error)
+          // Si falla por RLS, muestra hint
+          if(error.message.includes('RLS') || error.message.includes('policy')){
+            console.error('[TN Visitas] FIX: Corre FIX_VISITAS_RLS.sql en Supabase')
+          }
+        }else{
+          console.log('[TN Visitas] OK guardado:', data)
+          try{ sessionStorage.setItem('tn_visit_logged_v2', Date.now().toString()) }catch{}
+        }
+
+      }catch(e){
+        console.error('[TN Visitas] Fatal:', e)
       }
-      return supabase.from('visitas_market').insert(payload)
-    }).catch(()=>{
-      // Si no hay /api/geo, igual inserta sin geo
-      supabase.from('visitas_market').insert(payload)
-    }).then(()=>{
-      try{ sessionStorage.setItem('tn_visit_logged', Date.now().toString()) }catch{}
-    })
+    }
+
+    // Evita doble conteo rapido pero permite ver si funciona
+    const last = typeof window !== 'undefined' ? sessionStorage.getItem('tn_visit_logged_v2') : null
+    if(last && Date.now() - parseInt(last) < 2*60*1000){
+      console.log('[TN Visitas] Ya contado hace poco, skip (2 min)')
+      return
+    }
+
+    // Delay 1 seg para no bloquear carga inicial
+    setTimeout(run, 1000)
 
   },[])
 
