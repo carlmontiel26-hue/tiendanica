@@ -118,6 +118,16 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const handleConfigPressEnd = ()=>{ if(longPressRef.current){ clearTimeout(longPressRef.current); longPressRef.current=null } }
   const handleSuperAccess = ()=>{ if(superPinInput === MASTER_PIN){ window.location.href = '/admin' } else { alert('PIN incorrecto'); setSuperPinInput('') } }
 
+  // ===== MARKET DIRECTO - PORTADA SIN CODIGO - SOLO ESTO AGREGADO =====
+  const [marketConfig,setMarketConfig]=useState(null)
+  useEffect(()=>{
+    const supabase=getSupabase()
+    if(!supabase) return
+    supabase.from('market_config').select('*').eq('id',1).single().then(({data})=>{
+      if(data) setMarketConfig(data)
+    })
+  },[])
+
   useEffect(()=>{
     const supabase=getSupabase()
     if(!supabase){ setLoading(false); return }
@@ -164,7 +174,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
 
   const closeModal = ()=>{ setSel(null); if(history.state && history.state.modal){ history.back() } }
   const getImages = (p)=> p.images?.length>0 ? p.images.filter(Boolean) : [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
-  // FIX TALLAS - soporta [] vacio que antes rompia boutique
   const getTallas = (p)=>{
     const keys = ['tallas','sizes','tallas_disponibles','sizes_available','tallasDisponibles','sizesAvailable','talla','size']
     for(const k of keys){
@@ -405,8 +414,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   return (
     <main style={{minHeight:'100vh', background:'#F5F1ED', fontFamily:'Inter, system-ui', paddingBottom:40}}>
       <style>{`
-        .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; }
+        .portada-wrap{ position:relative; width:100%; line-height:0; background:#000; overflow:hidden; }
         .portada-img{ width:100%; height:auto; display:block; }
+        .portada-overlay{ position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding:20px 14px 56px; color:#fff; z-index:2; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
         .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
         .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; alignItems:center; justifyContent:center; gap:2px; }
@@ -425,21 +435,32 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
         @media(min-width:1024px){
-          .portada-wrap{ width:100%; max-width:100%; margin:0; border-radius:0; overflow:hidden; max-height:220px; background:#000; }
-          .portada-img{ width:100%; height:220px; object-fit:cover; object-position:center; display:block; }
+          .portada-wrap{ width:100%; max-width:100%; margin:0; border-radius:0; overflow:hidden; max-height:320px; background:#000; }
+          .portada-img{ width:100%; height:320px; object-fit:cover; object-position:center; display:block; }
           .cinta-degradada{ max-width:100%; margin:0; border-radius:0; }
           .cat-scroll{ overflow-x:visible; flex-wrap:wrap; gap:8px; }
           .cat-scroll::-webkit-scrollbar{ display:block; }
           .chip{ font-size:12px; padding:8px 14px; }
         }
-        @media(min-width:1280px){ .portada-wrap{ max-height:240px; } .portada-img{ height:240px; } }
+        @media(min-width:1280px){ .portada-wrap{ max-height:360px; } .portada-img{ height:360px; } }
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
         @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
         .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .btn-config-dueno{ width:38px; height:38px; bottom:10px; right:10px; border-radius:10px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
       `}</style>
 
+      {/* ===== PORTADA MARKET DIRECTO - AHORA EDITABLE DESDE ADMIN ===== */}
       <div className="portada-wrap">
-        <img src="/opengraph-image.png" alt="TiendaNica" className="portada-img"/>
+        <img 
+          src={marketConfig?.banner_url ? getOptimizedImage(marketConfig.banner_url, 1200) : "/opengraph-image.png"} 
+          alt={marketConfig?.hero_title || "TiendaNica"} 
+          className="portada-img"
+        />
+        {marketConfig?.hero_title && (
+          <div className="portada-overlay">
+            <h1 style={{fontWeight:900, fontSize:20, letterSpacing:-0.5, textShadow:'0 2px 10px rgba(0,0,0,0.5)'}}>{marketConfig.hero_title}</h1>
+            {marketConfig?.hero_subtitle && <p style={{fontSize:12, marginTop:4, opacity:0.9}}>{marketConfig.hero_subtitle}</p>}
+          </div>
+        )}
         <button onClick={abrirVender} className="btn-vender-azul">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span>vender</span>
@@ -472,7 +493,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
               </button>
             )}
           </div>
-          {/* FILA ELIMINADA: boutique / general / vehiculos - ahora solo info */}
           <div style={{marginTop:6, borderTop:'1px solid #F5F0EB', paddingTop:8, display:'flex', alignItems:'center'}}>
             <span style={{fontSize:11, color:'#999'}}>
               {showComida ? `${nearbyFoodStores.length>0 ? filtered.length+' comidas' : 'Comida'} • ${userLoc ? (userLoc.municipio||userLoc.departamento) : manualDepto || 'Sin ubicación'} ${filtroMuniActivo ? '('+manualMuni+')' : ''} ${filtroDirActivo ? '('+manualDir+')' : ''}` : `${filtered.length} productos • Premium primero`}
