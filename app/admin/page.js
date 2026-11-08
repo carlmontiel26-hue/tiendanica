@@ -31,16 +31,17 @@ export default function SuperAdminConEdicion(){
   const fileProductRef = useRef(null)
   const fileEditProductRef = useRef(null)
 
-  // ===== VISITAS - NUEVO, NO TOCA LO DEMAS =====
+  // ===== VISITAS - PREMIUM =====
   const [visitas,setVisitas]=useState([])
   const [visitasLoading,setVisitasLoading]=useState(false)
+  const [filtroVisitas,setFiltroVisitas]=useState('todo') // hoy, 7d, todo
 
   const cargarVisitas = async ()=>{
     const supabase = getSupabase()
     if(!supabase) return
     setVisitasLoading(true)
     try{
-      const {data, error} = await supabase.from('visitas_market').select('*').order('created_at',{ascending:false}).limit(500)
+      const {data, error} = await supabase.from('visitas_market').select('*').order('created_at',{ascending:false}).limit(1000)
       if(error){ console.log('visitas error', error); setVisitas([]) }
       else setVisitas(data||[])
     }catch(e){ console.log(e) }
@@ -51,7 +52,6 @@ export default function SuperAdminConEdicion(){
     if(tab==='visitas') cargarVisitas()
   },[tab])
 
-  // ===== SOLO AGREGADO PIN - NO TOCA LO DEMAS =====
   const genPIN = ()=> Math.floor(100000 + Math.random()*900000).toString()
 
   const [formTienda,setFormTienda]=useState({
@@ -84,14 +84,10 @@ export default function SuperAdminConEdicion(){
         alert('Error: NEXT_PUBLIC_SUPABASE_URL o ANON_KEY no configurado en Vercel')
         setLoading(false); return 
       }
-      // Carga tiendas sin depender de columnas nuevas
       const {data: s, error: errS} = await supabase.from('stores').select('*').order('created_at',{ascending:false}).limit(300)
       if(errS){ console.error('stores error', errS); alert('Error cargando tiendas: '+errS.message) }
-      
       const {data: p, error: errP} = await supabase.from('products').select('*, stores(name,slug,tipo_tienda)').order('created_at',{ascending:false}).limit(500)
       if(errP) console.error('products error', errP)
-      
-      // Estas dos tablas pueden no existir, no bloquear si fallan
       let v=[], r=[]
       try{
         const resV = await supabase.from('store_verifications').select('*, stores(name, whatsapp, slug)').in('status',['pendiente','revision']).order('created_at',{ascending:false}).limit(100)
@@ -101,7 +97,6 @@ export default function SuperAdminConEdicion(){
         const resR = await supabase.from('fraud_reports').select('*, stores(name, whatsapp)').in('status',['abierto','investigando']).order('created_at',{ascending:false}).limit(100)
         r = resR.data || []
       }catch(e){ console.log('fraud_reports no existe', e) }
-
       setStores(s||[]); setProducts(p||[]); setPendientes(v||[]); setReportes(r||[])
     }catch(e){
       console.error('cargarTodo fatal', e)
@@ -322,19 +317,46 @@ export default function SuperAdminConEdicion(){
     productos: products.length
   }
 
-  // Stats visitas
-  const visitasPorDepto = visitas.reduce((acc,v)=>{
-    const d = v.departamento || 'Desconocido'
-    acc[d] = (acc[d]||0)+1
+  // ===== CALCULO VISITAS PREMIUM =====
+  const ahora = new Date()
+  const visitasFiltradas = visitas.filter(v=>{
+    const d = new Date(v.created_at)
+    if(filtroVisitas==='hoy') return d.toDateString() === ahora.toDateString()
+    if(filtroVisitas==='7d') return d >= new Date(ahora - 7*24*60*60*1000)
+    return true
+  })
+
+  const visitasPorDepto = visitasFiltradas.reduce((acc,v)=>{
+    const dep = v.departamento || 'Desconocido'
+    if(dep==='Desconocido') return acc
+    acc[dep] = (acc[dep]||0)+1
     return acc
   },{})
   const visitasPorDeptoOrdenadas = Object.entries(visitasPorDepto).sort((a,b)=>b[1]-a[1])
-  const visitasPorPagina = visitas.reduce((acc,v)=>{
+  
+  // Para donut: top 5
+  const topDeptos = visitasPorDeptoOrdenadas.slice(0,5)
+  const totalReal = visitasPorDeptoOrdenadas.reduce((s,[,c])=>s+c,0) || 1
+
+  const visitasPorPagina = visitasFiltradas.reduce((acc,v)=>{
     const p = v.pagina || '/'
     acc[p] = (acc[p]||0)+1
     return acc
   },{})
-  const visitasPorPaginaOrdenadas = Object.entries(visitasPorPagina).sort((a,b)=>b[1]-a[1]).slice(0,10)
+  const visitasPorPaginaOrdenadas = Object.entries(visitasPorPagina).sort((a,b)=>b[1]-a[1]).slice(0,8)
+
+  // Visitas por dia ultimos 7 dias para linea
+  const dias = []
+  for(let i=6;i>=0;i--){
+    const d = new Date()
+    d.setDate(d.getDate()-i)
+    const key = d.toISOString().slice(0,10)
+    const count = visitas.filter(v=> v.created_at?.slice(0,10)===key).length
+    dias.push({label: d.toLocaleDateString('es-NI',{weekday:'short'}), count, key})
+  }
+  const maxDia = Math.max(...dias.map(d=>d.count),1)
+
+  const colores = ['#7000FF','#0066FF','#FF6A00','#00C853','#FF3B30','#FFD60A','#111']
 
   if(!auth){
     return (
@@ -369,8 +391,6 @@ export default function SuperAdminConEdicion(){
           .super-tabs button{ padding:10px 14px !important; font-size:11px !important; min-height:40px !important; }
           .super-main{ padding:0 12px 20px !important; }
           .tiendas-grid{ grid-template-columns:1fr !important; gap:12px !important; }
-          .tiendas-col{ display:flex !important; flex-direction:column !important; }
-          .tiendas-card{ padding:12px !important; }
           .crear-grid{ grid-template-columns:1fr !important; gap:12px !important; }
           .productos-grid{ grid-template-columns:1fr !important; gap:12px !important; }
           .productos-form{ position:relative !important; top:0 !important; }
@@ -378,6 +398,7 @@ export default function SuperAdminConEdicion(){
           .form-2col{ grid-template-columns:1fr !important; gap:10px !important; }
           .btn-action{ min-height:44px !important; padding:12px !important; font-size:13px !important; }
           .modal-box{ margin:10px !important; max-width:calc(100vw - 20px) !important; border-radius:20px !important; max-height:90vh !important; }
+          .visitas-premium-grid{ grid-template-columns:1fr !important; }
         }
       `}</style>
 
@@ -387,7 +408,7 @@ export default function SuperAdminConEdicion(){
             <div style={{width:42, height:42, borderRadius:12, background:'linear-gradient(135deg, #111 0%, #333 100%)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:900, fontSize:14}}>TN</div>
             <div>
               <h1 style={{fontWeight:900, fontSize:16, letterSpacing:-0.3, lineHeight:1}}>TiendaNica • Super Admin</h1>
-              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {pendientes.length} por verificar • {stats.vehiculos} vehiculos • {visitas.length} visitas registradas</p>
+              <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>{stats.total} tiendas • {stats.productos} productos • {stats.verificadas} verificadas • {visitas.length} visitas totales</p>
             </div>
           </div>
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
@@ -410,7 +431,7 @@ export default function SuperAdminConEdicion(){
           {k:'Vehiculos', v:stats.vehiculos, c:'#fff', bg:'linear-gradient(135deg, #111, #FF6A00)'},
           {k:'Verificadas', v:stats.verificadas, c:'#fff', bg:'linear-gradient(135deg, #00C853, #00E676)'},
           {k:'Productos', v:stats.productos, c:'#111', bg:'linear-gradient(135deg, #EDE6E3, #F6F1EC)'},
-          {k:'Visitas Hoy', v:visitas.filter(v=> new Date(v.created_at).toDateString() === new Date().toDateString()).length, c:'#fff', bg:'linear-gradient(135deg, #7000FF, #0066FF)'},
+          {k:'Visitas', v:visitasFiltradas.length, c:'#fff', bg:'linear-gradient(135deg, #7000FF, #0066FF)'},
         ].map(s=>(
           <div key={s.k} style={{background:s.bg, color:s.c, borderRadius:16, padding:'14px 16px', position:'relative', overflow:'hidden'}}>
             <p style={{fontSize:10, fontWeight:800, opacity:0.7, textTransform:'uppercase', letterSpacing:0.5}}>{s.k}</p>
@@ -436,76 +457,199 @@ export default function SuperAdminConEdicion(){
       <div className="super-main" style={{maxWidth:1400, margin:'16px auto', padding:'0 20px 40px'}}>
 
         {tab==='visitas' && (
-          <div style={{display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:16, alignItems:'start'}} className="tiendas-grid">
-            <div style={{display:'flex', flexDirection:'column', gap:16}}>
-              <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                  <h3 style={{fontWeight:900, fontSize:15}}>📊 Visitas por Departamento - Nicaragua</h3>
-                  <button onClick={cargarVisitas} style={{background:'#111', color:'#fff', border:'none', padding:'8px 14px', borderRadius:999, fontSize:11, fontWeight:700}}>{visitasLoading?'Cargando...':'↻ Actualizar'}</button>
+          <div style={{display:'flex', flexDirection:'column', gap:16}}>
+            {/* HEADER PREMIUM */}
+            <div style={{background:'linear-gradient(135deg, #0F0F10 0%, #1A1A1E 50%, #252529 100%)', borderRadius:24, padding:22, color:'#fff', position:'relative', overflow:'hidden', border:'1px solid #2A2A2E'}}>
+              <div style={{position:'absolute', top:-40, right:-40, width:200, height:200, background:'radial-gradient(circle, rgba(112,0,255,0.3) 0%, transparent 70%)', borderRadius:'50%'}}/>
+              <div style={{position:'absolute', bottom:-30, left:-30, width:180, height:180, background:'radial-gradient(circle, rgba(0,102,255,0.25) 0%, transparent 70%)', borderRadius:'50%'}}/>
+              <div style={{position:'relative', display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:14}}>
+                <div>
+                  <div style={{display:'flex', alignItems:'center', gap:10}}>
+                    <div style={{width:36, height:36, borderRadius:10, background:'linear-gradient(135deg, #7000FF, #0066FF)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>📊</div>
+                    <h2 style={{fontWeight:900, fontSize:20, letterSpacing:-0.5}}>Analytics Premium • TiendaNica</h2>
+                  </div>
+                  <p style={{fontSize:12, color:'#9A9AA0', marginTop:8, maxWidth:520, lineHeight:1.5}}>Monitoreo en tiempo real de todo Nicaragua. Cada visita cuenta departamento real vía Vercel Geo. Optimizado para 0.2KB por visita.</p>
+                  <div style={{display:'flex', gap:8, marginTop:14}}>
+                    {[
+                      {id:'todo', l:'Todo'},
+                      {id:'7d', l:'Últimos 7 días'},
+                      {id:'hoy', l:'Hoy'},
+                    ].map(f=>(
+                      <button key={f.id} onClick={()=>setFiltroVisitas(f.id)} style={{background: filtroVisitas===f.id ? '#fff' : 'rgba(255,255,255,0.08)', color: filtroVisitas===f.id ? '#111' : '#fff', border:'1px solid', borderColor: filtroVisitas===f.id ? '#fff' : 'rgba(255,255,255,0.12)', padding:'7px 14px', borderRadius:999, fontSize:11, fontWeight:800, cursor:'pointer'}}>{f.l}</button>
+                    ))}
+                  </div>
                 </div>
-                <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Datos reales desde /api/geo (headers de Vercel) - Se actualiza solo</p>
-                <div style={{marginTop:14, display:'grid', gap:8}}>
-                  {visitasPorDeptoOrdenadas.length===0 && <p style={{fontSize:12, color:'#999'}}>Aún no hay visitas registradas. Ejecuta el SQL visitas_market.sql y asegúrate que VisitTracker esté en layout.js</p>}
-                  {visitasPorDeptoOrdenadas.map(([depto,count])=>{
-                    const max = visitasPorDeptoOrdenadas[0]?.[1]||1
-                    const pct = Math.round((count/max)*100)
-                    return (
-                      <div key={depto} style={{display:'flex', alignItems:'center', gap:10}}>
-                        <span style={{fontSize:12, fontWeight:800, minWidth:110}}>{depto}</span>
-                        <div style={{flex:1, height:22, background:'#F5F1EC', borderRadius:999, overflow:'hidden', position:'relative'}}>
-                          <div style={{width:`${pct}%`, height:'100%', background:'linear-gradient(90deg, #7000FF, #0066FF)', borderRadius:999, transition:'width 0.5s'}}/>
-                          <span style={{position:'absolute', left:10, top:2, fontSize:11, fontWeight:800, color: pct>30 ? '#fff' : '#111'}}>{count} visitas - {pct}%</span>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div style={{display:'flex', gap:8}}>
+                  <button onClick={cargarVisitas} style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.15)', color:'#fff', padding:'10px 16px', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer'}}>{visitasLoading?'⏳ Cargando...':'↻ Actualizar en vivo'}</button>
+                  <button onClick={()=>{const csv = 'fecha,departamento,municipio,pagina\n' + visitasFiltradas.map(v=>`${v.created_at},${v.departamento||''},${v.municipio||''},${v.pagina}`).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='visitas-tiendanica.csv'; a.click();}} style={{background:'#7000FF', border:'none', color:'#fff', padding:'10px 16px', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer'}}>⬇ Export CSV</button>
                 </div>
               </div>
-
-              <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
-                <h3 style={{fontWeight:900, fontSize:14}}>📄 Páginas más vistas</h3>
-                <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:6}}>
-                  {visitasPorPaginaOrdenadas.map(([pag,c])=>(
-                    <div key={pag} style={{display:'flex', justifyContent:'space-between', background:'#F9F6F2', padding:'8px 12px', borderRadius:10}}>
-                      <span style={{fontSize:12, fontFamily:'monospace'}}>{pag.slice(0,60)}</span>
-                      <b style={{fontSize:12}}>{c}</b>
-                    </div>
-                  ))}
-                </div>
+              <div style={{position:'relative', marginTop:18, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10}}>
+                {[
+                  {k:'Visitas totales', v:visitasFiltradas.length, sub:`${visitas.length} históricas`},
+                  {k:'Hoy', v:visitas.filter(v=> new Date(v.created_at).toDateString() === ahora.toDateString()).length, sub:'en las últimas 24h'},
+                  {k:'Top Depto', v:visitasPorDeptoOrdenadas[0]?.[0] || '—', sub:`${visitasPorDeptoOrdenadas[0]?.[1]||0} visitas`},
+                  {k:'Municipios', v:Object.keys(visitasFiltradas.reduce((a,v)=>{ if(v.municipio) a[v.municipio]=1; return a },{})).length, sub:'únicos detectados'},
+                ].map(c=>(
+                  <div key={c.k} style={{background:'rgba(255,255,255,0.06)', backdropFilter:'blur(12px)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:14, padding:'12px 14px'}}>
+                    <p style={{fontSize:10, color:'#8A8A90', fontWeight:800, textTransform:'uppercase', letterSpacing:0.5}}>{c.k}</p>
+                    <p style={{fontSize:18, fontWeight:900, marginTop:4}}>{c.v}</p>
+                    <p style={{fontSize:10, color:'#6A6A70', marginTop:2}}>{c.sub}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div style={{display:'flex', flexDirection:'column', gap:16}} className="preview-col">
-              <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
-                <h3 style={{fontWeight:900, fontSize:14}}>⚡ Últimas 20 visitas en vivo</h3>
-                <p style={{fontSize:11, color:'#888', marginTop:4}}>{visitas.length} total registradas • Hoy: {visitas.filter(v=> new Date(v.created_at).toDateString() === new Date().toDateString()).length}</p>
-                <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:6, maxHeight:500, overflowY:'auto'}}>
-                  {visitas.slice(0,20).map(v=>(
-                    <div key={v.id} style={{background:'rgba(255,255,255,0.06)', borderRadius:10, padding:'8px 10px'}}>
-                      <div style={{display:'flex', justifyContent:'space-between'}}>
-                        <b style={{fontSize:11}}>{v.departamento||'Desconocido'} {v.municipio?`• ${v.municipio}`:''}</b>
-                        <span style={{fontSize:10, color:'#888'}}>{new Date(v.created_at).toLocaleTimeString()}</span>
-                      </div>
-                      <p style={{fontSize:10, color:'#aaa', marginTop:2, fontFamily:'monospace'}}>{v.pagina}</p>
-                    </div>
-                  ))}
+            <div className="visitas-premium-grid" style={{display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:16, alignItems:'start'}}>
+              {/* IZQUIERDA - GRAFICOS */}
+              <div style={{display:'flex', flexDirection:'column', gap:16}}>
+                {/* GRAFICO LINEA 7 DIAS */}
+                <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.04)'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h3 style={{fontWeight:900, fontSize:14}}>📈 Tendencia • Últimos 7 días</h3>
+                    <span style={{fontSize:11, background:'#F0F7FF', color:'#0066FF', padding:'4px 10px', borderRadius:999, fontWeight:800}}>{visitas.length} total histórico</span>
+                  </div>
+                  <div style={{marginTop:18, display:'flex', alignItems:'end', gap:6, height:110}}>
+                    {dias.map((d,i)=>{
+                      const h = Math.round((d.count/maxDia)*100)
+                      const isToday = d.key === ahora.toISOString().slice(0,10)
+                      return (
+                        <div key={d.key} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:6}}>
+                          <div style={{width:'100%', background:'#F5F1EC', borderRadius:10, height:90, position:'relative', overflow:'hidden', display:'flex', alignItems:'end'}}>
+                            <div style={{width:'100%', height:`${h}%`, background: isToday ? 'linear-gradient(180deg, #7000FF, #0066FF)' : 'linear-gradient(180deg, #E8E0DC, #D9D0C8)', borderRadius:10, transition:'height 0.6s', minHeight: d.count>0 ? 8 : 0}}/>
+                            {d.count>0 && <span style={{position:'absolute', top:4, left:'50%', transform:'translateX(-50%)', fontSize:10, fontWeight:900, color: isToday ? '#7000FF' : '#6B5E55'}}>{d.count}</span>}
+                          </div>
+                          <span style={{fontSize:10, fontWeight:800, color: isToday ? '#7000FF' : '#8A7F78'}}>{d.label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-                <div style={{marginTop:12, display:'flex', gap:6}}>
-                  <button onClick={async()=>{
-                    if(!confirm('¿Borrar todas las visitas? Solo para reset')) return
-                    const supabase=getSupabase()
-                    await supabase.from('visitas_market').delete().neq('id','00000000-0000-0000-0000-000000000000')
-                    cargarVisitas()
-                  }} style={{flex:1, background:'rgba(255,255,255,0.1)', border:'none', padding:10, borderRadius:10, color:'#fff', fontSize:11, fontWeight:700}}>🗑 Limpiar</button>
-                  <button onClick={()=>{const csv = visitas.map(v=>`${v.created_at},${v.departamento||''},${v.municipio||''},${v.pagina}`).join('\n'); navigator.clipboard.writeText(csv); alert('CSV copiado')}} style={{flex:1, background:'#7000FF', border:'none', padding:10, borderRadius:10, color:'#fff', fontSize:11, fontWeight:800}}>📋 Copiar CSV</button>
+
+                {/* BARRAS DEPARTAMENTOS PREMIUM */}
+                <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.04)'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h3 style={{fontWeight:900, fontSize:14}}>📍 Visitas por Departamento • Nicaragua</h3>
+                    <span style={{fontSize:10, color:'#8A7F78'}}>{filtroVisitas==='todo'?'Histórico':filtroVisitas}</span>
+                  </div>
+                  <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Solo departamentos reales (ignora Desconocido de pruebas antiguas)</p>
+                  <div style={{marginTop:16, display:'flex', flexDirection:'column', gap:10}}>
+                    {visitasPorDeptoOrdenadas.length===0 && <p style={{fontSize:12, color:'#999'}}>No hay visitas con departamento real aún. Verifica que app/api/geo/route.js esté deployado en Vercel.</p>}
+                    {visitasPorDeptoOrdenadas.map(([depto,count],idx)=>{
+                      const max = visitasPorDeptoOrdenadas[0]?.[1]||1
+                      const pct = Math.round((count/max)*100)
+                      const color = colores[idx % colores.length]
+                      return (
+                        <div key={depto} style={{display:'flex', alignItems:'center', gap:12}}>
+                          <span style={{fontSize:12, fontWeight:800, minWidth:100, textAlign:'right'}}>{depto}</span>
+                          <div style={{flex:1, height:26, background:'#F5F1EC', borderRadius:999, overflow:'hidden', position:'relative', display:'flex', alignItems:'center'}}>
+                            <div style={{width:`${pct}%`, height:'100%', background:`linear-gradient(90deg, ${color}, ${color}CC)`, borderRadius:999, transition:'width 0.8s', display:'flex', alignItems:'center', paddingLeft:12}}>
+                              <span style={{fontSize:11, fontWeight:900, color:'#fff', whiteSpace:'nowrap'}}>{count} • {Math.round((count/totalReal)*100)}%</span>
+                            </div>
+                          </div>
+                          <div style={{width:8, height:8, borderRadius:'50%', background:color}}/>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* PAGINAS MAS VISTAS */}
+                <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px solid #EDE6E3'}}>
+                  <h3 style={{fontWeight:900, fontSize:14}}>🔥 Páginas más visitadas</h3>
+                  <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:8}}>
+                    {visitasPorPaginaOrdenadas.map(([pag,c],i)=>{
+                      const max = visitasPorPaginaOrdenadas[0]?.[1]||1
+                      return (
+                        <div key={pag} style={{display:'flex', alignItems:'center', gap:10, background: i===0 ? 'linear-gradient(90deg, #FFF7ED, #fff)' : '#F9F6F2', padding:'10px 12px', borderRadius:12, border: i===0 ? '1px solid #FFD6B0' : '1px solid #EDE6E3'}}>
+                          <span style={{fontSize:11, fontWeight:900, background: i===0 ? '#FF6A00' : '#111', color:'#fff', width:20, height:20, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center'}}>{i+1}</span>
+                          <span style={{flex:1, fontSize:12, fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{pag.slice(0,60)}</span>
+                          <div style={{width:60, height:6, background:'#EDE6E3', borderRadius:999, overflow:'hidden'}}>
+                            <div style={{width:`${Math.round((c/max)*100)}%`, height:'100%', background:'#111', borderRadius:999}}/>
+                          </div>
+                          <b style={{fontSize:12, minWidth:24, textAlign:'right'}}>{c}</b>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
-              <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3'}}>
-                <h3 style={{fontWeight:900, fontSize:13}}>🛠 SQL útil</h3>
-                <div style={{marginTop:10, background:'#F9F6F2', padding:10, borderRadius:10, fontSize:10, fontFamily:'monospace', lineHeight:1.5}}>
-                  -- Visitas por depto hoy<br/>
-                  SELECT departamento, COUNT(*) FROM visitas_market WHERE created_at &gt;= CURRENT_DATE GROUP BY departamento ORDER BY COUNT DESC;
+              {/* DERECHA - DONUT + LIVE */}
+              <div style={{display:'flex', flexDirection:'column', gap:16, position:'sticky', top:84}} className="preview-col">
+                {/* DONUT CHART */}
+                <div style={{background:'#111', color:'#fff', borderRadius:20, padding:20, border:'1px solid #222', position:'relative', overflow:'hidden'}}>
+                  <div style={{position:'absolute', top:-20, right:-20, width:120, height:120, background:'radial-gradient(circle, rgba(112,0,255,0.4), transparent 70%)', borderRadius:'50%'}}/>
+                  <h3 style={{fontWeight:900, fontSize:14, position:'relative'}}>🎯 Distribución Top Departamentos</h3>
+                  <p style={{fontSize:11, color:'#888', marginTop:4, position:'relative'}}>{totalReal} visitas reales con geo</p>
+                  
+                  <div style={{position:'relative', marginTop:16, display:'flex', alignItems:'center', gap:16}}>
+                    {/* Donut visual con conic-gradient */}
+                    <div style={{
+                      width:110, height:110, borderRadius:'50%',
+                      background: `conic-gradient(${topDeptos.map(([_,c],i)=>{
+                        const start = topDeptos.slice(0,i).reduce((s,[_,cc])=>s+cc,0)/totalReal*360
+                        const end = (topDeptos.slice(0,i+1).reduce((s,[_,cc])=>s+cc,0)/totalReal*360)
+                        return `${colores[i]} ${start}deg ${end}deg`
+                      }).join(', ')})`,
+                      position:'relative', display:'flex', alignItems:'center', justifyContent:'center'
+                    }}>
+                      <div style={{width:64, height:64, borderRadius:'50%', background:'#111', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column'}}>
+                        <b style={{fontSize:16}}>{totalReal}</b>
+                        <span style={{fontSize:9, color:'#888'}}>visitas</span>
+                      </div>
+                    </div>
+                    <div style={{flex:1, display:'flex', flexDirection:'column', gap:6}}>
+                      {topDeptos.map(([dep,c],i)=>(
+                        <div key={dep} style={{display:'flex', alignItems:'center', gap:8}}>
+                          <div style={{width:8, height:8, borderRadius:2, background:colores[i]}}/>
+                          <span style={{fontSize:11, flex:1}}>{dep}</span>
+                          <b style={{fontSize:11}}>{c}</b>
+                          <span style={{fontSize:10, color:'#888'}}>{Math.round((c/totalReal)*100)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* LIVE FEED */}
+                <div style={{background:'#fff', borderRadius:20, padding:18, border:'1px solid #EDE6E3', boxShadow:'0 8px 32px rgba(0,0,0,0.04)'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h3 style={{fontWeight:900, fontSize:13}}>⚡ En vivo • Últimas 20</h3>
+                    <span style={{display:'flex', alignItems:'center', gap:6, fontSize:10, background:'#E8FFE8', color:'#00C853', padding:'4px 8px', borderRadius:999, fontWeight:800}}>
+                      <span style={{width:6, height:6, background:'#00C853', borderRadius:'50%', display:'inline-block', animation:'pulse 1.5s infinite'}}/> LIVE
+                    </span>
+                  </div>
+                  <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:8, maxHeight:420, overflowY:'auto'}}>
+                    {visitas.slice(0,20).map(v=>(
+                      <div key={v.id} style={{display:'flex', gap:10, padding:'10px 12px', background:'#F9F6F2', borderRadius:12, border:'1px solid #F0E9E2'}}>
+                        <div style={{width:32, height:32, borderRadius:10, background:`linear-gradient(135deg, ${colores[ (v.departamento?.length||0) % colores.length]}, #111)`, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:900}}>{(v.departamento||'?')[0]}</div>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                            <b style={{fontSize:12}}>{v.departamento||'Desconocido'}</b>
+                            {v.municipio && <span style={{fontSize:10, background:'#fff', border:'1px solid #EDE6E3', padding:'2px 6px', borderRadius:999}}>{v.municipio}</span>}
+                          </div>
+                          <p style={{fontSize:10, color:'#8A7F78', marginTop:2, fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{v.pagina} • {new Date(v.created_at).toLocaleTimeString('es-NI',{hour:'2-digit',minute:'2-digit'})}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                    <button onClick={async()=>{
+                      if(!confirm('¿Borrar Desconocido de prueba?')) return
+                      const supabase=getSupabase()
+                      await supabase.from('visitas_market').delete().eq('departamento','Desconocido')
+                      cargarVisitas()
+                    }} style={{background:'#F5F1EC', border:'1px solid #EDE6E3', padding:10, borderRadius:12, fontSize:11, fontWeight:700, cursor:'pointer'}}>🧹 Limpiar pruebas</button>
+                    <button onClick={cargarVisitas} style={{background:'#111', color:'#fff', border:'none', padding:10, borderRadius:12, fontSize:11, fontWeight:800, cursor:'pointer'}}>↻ Actualizar</button>
+                  </div>
+                </div>
+
+                <div style={{background:'linear-gradient(135deg, #7000FF, #0066FF)', borderRadius:16, padding:14, color:'#fff'}}>
+                  <p style={{fontSize:11, fontWeight:800, opacity:0.8}}>💡 INSIGHT</p>
+                  <p style={{fontSize:12, fontWeight:700, marginTop:6, lineHeight:1.4}}>
+                    {visitasPorDeptoOrdenadas[0] ? `Tu top es ${visitasPorDeptoOrdenadas[0][0]} con ${visitasPorDeptoOrdenadas[0][1]} visitas. Enfócate en tiendas de ${visitasPorDeptoOrdenadas[0][0]} para crecer más rápido.` : 'Aún no hay suficientes datos con geo. Pide a 2 clientes más que entren.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -589,11 +733,6 @@ export default function SuperAdminConEdicion(){
                         <a href={`/${previewStore.slug}`} target="_blank" style={{flex:1, background:'#111', color:'#fff', padding:'8px', borderRadius:10, fontSize:11, textAlign:'center', textDecoration:'none', fontWeight:700}}>Abrir tienda ↗</a>
                         <button onClick={()=>abrirEdicion(previewStore)} style={{flex:1, background:'#F5F1EC', border:'none', padding:'8px', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer'}}>Editar</button>
                       </div>
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10}}>
-                        <button onClick={()=>cambiarVerificacion(previewStore.id,'premium')} style={{background: (previewStore.verification_status==='premium') ? '#FF6A00' : '#F5F1EC', color: (previewStore.verification_status==='premium') ? '#fff' : '#FF6A00', border:'1.5px solid #FF6A00', padding:'8px', borderRadius:10, fontSize:10, fontWeight:900}}>⭐ Premium</button>
-                        <button onClick={()=>cambiarVerificacion(previewStore.id,'verificada')} style={{background: (previewStore.verification_status==='verificada') ? '#0066FF' : '#F5F1EC', color: (previewStore.verification_status==='verificada') ? '#fff' : '#0066FF', border:'1.5px solid #0066FF', padding:'8px', borderRadius:10, fontSize:10, fontWeight:800}}>✓ Verificada</button>
-                        <button onClick={()=>cambiarVerificacion(previewStore.id,'nueva')} style={{background:'#fff', border:'1px solid #ddd', padding:'8px', borderRadius:10, fontSize:10}}>Nueva</button>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -601,7 +740,7 @@ export default function SuperAdminConEdicion(){
                 <div style={{background:'#fff', borderRadius:20, padding:20, border:'1px dashed #E0D5CC', textAlign:'center'}}>
                   <p style={{fontSize:28}}>👁</p>
                   <p style={{fontSize:13, fontWeight:800, marginTop:8}}>Selecciona una tienda</p>
-                  <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Haz click en "Vista previa" para verla aquí en vivo sin salir del admin, como escritorio pro.</p>
+                  <p style={{fontSize:11, color:'#8A7F78', marginTop:4}}>Haz click en "Vista previa" para verla aquí en vivo sin salir del admin.</p>
                 </div>
               )}
             </div>
@@ -644,16 +783,13 @@ export default function SuperAdminConEdicion(){
                     </select>
                   </div>
                 </div>
-
                 <div style={{background:'linear-gradient(135deg, #111, #222)', borderRadius:14, padding:14, border:'1px solid #333'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <label style={{fontSize:11, fontWeight:800, color:'#FFD60A'}}>🔐 PIN DE 6 DÍGITOS DUEÑO * (Contraseña panel dueño)</label>
+                    <label style={{fontSize:11, fontWeight:800, color:'#FFD60A'}}>🔐 PIN DE 6 DÍGITOS DUEÑO *</label>
                     <button type="button" onClick={()=>setFormTienda({...formTienda, admin_password: genPIN()})} style={{background:'#FFD60A', color:'#000', border:'none', padding:'6px 12px', borderRadius:999, fontSize:10, fontWeight:800, cursor:'pointer'}}>🎲 Generar random</button>
                   </div>
                   <input required value={formTienda.admin_password} onChange={e=>setFormTienda({...formTienda, admin_password:e.target.value.replace(/\D/g,'').slice(0,6)})} placeholder="Ej: 123456" maxLength={6} inputMode="numeric" style={{width:'100%', border:'2px solid #FFD60A', borderRadius:12, padding:'12px 14px', marginTop:8, background:'#fff', fontWeight:900, fontSize:16, letterSpacing:4, textAlign:'center'}}/>
-                  <p style={{fontSize:10, color:'#aaa', marginTop:6}}>Este PIN se lo mandas al dueño por WhatsApp. Ej: "Tu panel es tiendanica.store/{formTienda.slug||'slug'}/admin PIN: {formTienda.admin_password}"</p>
                 </div>
-
                 <div style={{background:'#F5F1EC', borderRadius:14, padding:14, border:'1px solid #EDE6E3'}}>
                   <p style={{fontSize:11, fontWeight:800, color:'#6B5E55'}}>UBICACIÓN REAL NICARAGUA</p>
                   <div className="form-2col" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}>
@@ -666,7 +802,6 @@ export default function SuperAdminConEdicion(){
                 </div>
                 <div style={{border:'1.5px dashed #FF6A00', borderRadius:16, padding:14, background:'linear-gradient(135deg, #FFF7ED, #FFFBF8)'}}>
                   <p style={{fontSize:12, fontWeight:800}}>📸 Portada / Logo Premium</p>
-                  <p style={{fontSize:11, color:'#8A7F78', marginTop:2}}>Sube desde tu PC, se comprime automático y queda pro</p>
                   <input ref={fileLogoRef} type="file" accept="image/*" onChange={(e)=>{const f=e.target.files[0]; if(f) setFormTienda({...formTienda, logo_file:f, logo_preview:URL.createObjectURL(f)})}} style={{marginTop:10, fontSize:12, width:'100%'}}/>
                   {formTienda.logo_preview && <img src={formTienda.logo_preview} style={{width:'100%', height:160, objectFit:'cover', borderRadius:12, marginTop:12, border:'1px solid #EDE6E3'}}/>}
                 </div>
@@ -675,17 +810,9 @@ export default function SuperAdminConEdicion(){
             </div>
             <div style={{display:'flex', flexDirection:'column', gap:12}}>
               <div style={{background:'#111', color:'#fff', borderRadius:20, padding:18}}>
-                <h3 style={{fontWeight:800, fontSize:14}}>👑 Link admin dueño - Automático con PIN</h3>
+                <h3 style={{fontWeight:800, fontSize:14}}>👑 Link admin dueño</h3>
                 <div style={{background:'#1E1E1E', borderRadius:12, padding:12, marginTop:12, fontSize:12, fontFamily:'monospace', color:'#00FF88', border:'1px solid #2A2A2A'}}>https://tiendanica.store/{formTienda.slug||'tu-slug'}/admin</div>
                 <div style={{background:'#FFD60A', color:'#000', borderRadius:12, padding:12, marginTop:10, fontSize:14, fontWeight:900, textAlign:'center', letterSpacing:2}}>🔐 PIN DUEÑO: {formTienda.admin_password}</div>
-                <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, marginTop:12, fontSize:11, lineHeight:1.5}}>
-                  <b style={{color:'#FFD60A'}}>Nuevo con PIN seguro:</b><br/>
-                  - Cada tienda nace con PIN de 6 dígitos<br/>
-                  - El dueño entra a /{formTienda.slug||'slug'}/admin + PIN<br/>
-                  - Puede cambiar su PIN adentro<br/>
-                  - Link admin dueño + PIN se manda por WhatsApp<br/>
-                </div>
-                <button onClick={()=>{const msg=`🏪 Tu tienda ${formTienda.name||'TiendaNica'} está lista!\n\n👑 Tu panel de dueño:\nhttps://tiendanica.store/${formTienda.slug||'tu-slug'}/admin\n\n🔐 Tu PIN secreto: ${formTienda.admin_password}\n\nGuárdalo! Con eso entras a editar tus productos.\n\n- TiendaNica.store`; navigator.clipboard.writeText(msg); alert('Mensaje WhatsApp copiado con PIN!')}} style={{width:'100%', marginTop:12, background:'#25D366', color:'#fff', border:'none', padding:'12px', borderRadius:12, fontWeight:800, fontSize:12, cursor:'pointer'}}>📲 Copiar mensaje WhatsApp con PIN</button>
               </div>
             </div>
           </div>
@@ -760,7 +887,7 @@ export default function SuperAdminConEdicion(){
                       {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción (Ej: Año, kilometraje, papeles en regla)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, minHeight:70, fontSize:12}}/>
+                  <textarea value={formProd.descripcion} onChange={e=>setFormProd({...formProd, descripcion:e.target.value})} placeholder="Descripción" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:12, minHeight:70, fontSize:12}}/>
                   <div className="form-2col" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
                     <input value={formProd.video_url} onChange={e=>setFormProd({...formProd, video_url:e.target.value})} placeholder="Video URL (opcional)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
                     <input value={formProd.tallas} onChange={e=>setFormProd({...formProd, tallas:e.target.value})} placeholder="Tallas S,M,L,XL (solo boutique)" style={{border:'1.5px solid #E8E0DC', borderRadius:12, padding:10, fontSize:11}}/>
@@ -877,10 +1004,6 @@ export default function SuperAdminConEdicion(){
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Tiendas activas</span><b>{stats.total}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Productos totales</span><b>{stats.productos}</b></div>
                 <div style={{background:'rgba(255,255,255,0.06)', borderRadius:12, padding:12, display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12, opacity:0.6}}>Visitas registradas</span><b>{visitas.length}</b></div>
-                <button onClick={async()=>{
-                  const sql = `ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_password TEXT;`
-                  alert('Ejecuta esto en Supabase SQL Editor:\n\n'+sql+'\n\nLuego UPDATE stores SET admin_password = RIGHT(whatsapp,6) WHERE admin_password IS NULL;')
-                }} style={{background:'#FFD60A', color:'#000', border:'none', padding:'12px', borderRadius:12, fontWeight:800, fontSize:12, cursor:'pointer', marginTop:8}}>🔧 Ver SQL PIN</button>
               </div>
             </div>
           </div>
