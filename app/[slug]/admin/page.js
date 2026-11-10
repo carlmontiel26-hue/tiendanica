@@ -1,4 +1,3 @@
-
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -21,6 +20,10 @@ function getCategoriasPorTipo(store){
   }
   if(tipo.includes('boutique') || tipo.includes('ropa') || tipo.includes('moda')){
     return ['vestidos','blusas','jeans','faldas','conjuntos','shorts','hombres','niños','niñas','bebes','pantalon','accesorios','zapatos','carteras','belleza','hogar','oferta','nuevo','licras','chaquetas','ropa usada como nueva','sudaderas','mujer','taloneras','calcetines','medias','boxer','lloguer','cárdigans','chaleco','gorras','gorras','gorros','chor','variado','sabanas','colchas','pañuelos','camisas','playeras','camiasetas']
+  }
+  // --- NUEVO: FERRETERIA ---
+  if(tipo.includes('ferreteria') || tipo.includes('ferretería') || tipo.includes('ferre') || tipo.includes('herramienta') || tipo.includes('constru')){
+    return ['herramientas','herramientas electricas','tornilleria','pinturas','electricidad','fontaneria','construccion','madera','cerrajeria','jardineria','soldadura','seguridad','ferreteria','materiales','plomeria','iluminacion','cemento','bloques','varillas','tuberia','sanitarios','otros','oferta','nuevo']
   }
   return ['abarrotes','bebidas','limpieza','hogar','tecnologia','belleza','ropa','zapatos','accesorios','juguetes','ferreteria','medicina natural','otros','oferta','nuevo','servicios','salud']
 }
