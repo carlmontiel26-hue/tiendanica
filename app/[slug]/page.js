@@ -1,4 +1,3 @@
-
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -86,7 +85,14 @@ export default function StorePage(){
   const [talla,setTalla]=useState(null)
   const [cat,setCat]=useState(null)
   const [q,setQ]=useState('')
-  useEffect(()=>{ if(sel){ setTalla(null) } },[sel])
+  // --- FASE 1 PROBADOR SOLO PARA PRUEBA ---
+  const [showProbador,setShowProbador]=useState(false)
+  const [probAltura,setProbAltura]=useState('')
+  const [probPeso,setProbPeso]=useState('')
+  const [probFit,setProbFit]=useState('normal')
+  const [probRecomendada,setProbRecomendada]=useState(null)
+
+  useEffect(()=>{ if(sel){ setTalla(null); setShowProbador(false); setProbRecomendada(null); } },[sel])
 
   useEffect(()=>{
     if(!slug) return
@@ -100,6 +106,58 @@ export default function StorePage(){
   },[slug])
 
   const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique') || (store?.tipo_tienda||'').toLowerCase().includes('ropa') || (store?.tipo_tienda||'').toLowerCase().includes('moda')
+  // Solo activar probador en tienda de prueba para no tocar nada mas
+  const isPruebaProbador = store?.slug === 'boutique-prueba-360' || store?.slug === 'boutique-prueba-3d'
+
+  const calcularTallaRecomendada = ()=>{
+    if(!sel) return
+    const tallas = getTallas(sel)
+    if(tallas.length===0){ setProbRecomendada('ÚNICA'); return }
+    const peso = parseFloat(probPeso) || 0
+    const altura = parseFloat(probAltura) || 0
+    if(!peso){ alert('Pon tu peso'); return }
+    // Orden base
+    const ordenLetras = ['XXS','XS','S','M','L','XL','XXL','XXXL','ÚNICA','UNICA','U']
+    const tallasNorm = tallas.map(t=>t.toUpperCase())
+    // Detectar si son letras
+    const esLetras = tallasNorm.some(t=>ordenLetras.includes(t))
+    let idx = 0
+    if(esLetras){
+      // Peso base
+      if(peso < 55) idx = tallasNorm.indexOf('XS') !== -1 ? tallasNorm.indexOf('XS') : tallasNorm.indexOf('S') !== -1 ? tallasNorm.indexOf('S') : 0
+      else if(peso < 65) idx = tallasNorm.indexOf('S') !== -1 ? tallasNorm.indexOf('S') : 1
+      else if(peso < 75) idx = tallasNorm.indexOf('M') !== -1 ? tallasNorm.indexOf('M') : 2
+      else if(peso < 85) idx = tallasNorm.indexOf('L') !== -1 ? tallasNorm.indexOf('L') : 3
+      else if(peso < 95) idx = tallasNorm.indexOf('XL') !== -1 ? tallasNorm.indexOf('XL') : 4
+      else idx = tallasNorm.indexOf('XXL') !== -1 ? tallasNorm.indexOf('XXL') : tallas.length-1
+      // Ajuste por fit
+      if(probFit==='ajustado' && idx>0) idx = idx-1
+      if(probFit==='suelto' && idx<tallas.length-1) idx = idx+1
+      // Ajuste por altura si muy alto
+      if(altura >= 180 && idx < tallas.length-1) idx = idx+1
+    }else{
+      // Tallas numericas 28,30,32...
+      const nums = tallasNorm.map(t=>parseInt(t)).filter(n=>!isNaN(n)).sort((a,b)=>a-b)
+      if(nums.length===0){ setProbRecomendada(tallas[0]); setTalla(tallas[0]); return }
+      if(peso < 60) idx = 0
+      else if(peso < 70) idx = 1
+      else if(peso < 80) idx = 2
+      else if(peso < 90) idx = 3
+      else idx = nums.length-1
+      if(idx>=nums.length) idx=nums.length-1
+      const recNum = nums[idx]
+      const recStr = tallas.find(t=>t.includes(String(recNum))) || String(recNum)
+      setProbRecomendada(recStr)
+      setTalla(recStr)
+      return
+    }
+    if(idx<0) idx=0
+    if(idx>=tallas.length) idx=tallas.length-1
+    const rec = tallas[idx]
+    setProbRecomendada(rec)
+    setTalla(rec)
+  }
+
   const add=(p,t=null)=>{
     const tallasP = getTallas(p)
     if(isBoutique && tallasP.length>0 && !t) return false
@@ -210,7 +268,47 @@ export default function StorePage(){
             {sel.description&&<p style={{fontSize:13, color:'#333', marginTop:6, lineHeight:1.4, background:'#F7F5F3', padding:'8px 10px', borderRadius:10}}>✓ {sel.description}</p>}
             <div style={{display:'flex', gap:8, marginTop:8, fontSize:11, color:'#666'}}><span>★ 4.8</span><span>•</span><span>1.2k+ vendidos</span><span>•</span><span style={{color:'#00C853', fontWeight:700}}>Envío Gratis</span></div>
             {sel.categoria&&<span style={{display:'inline-block',marginTop:8,background:'#F6F3F0',padding:'4px 10px',borderRadius:999,fontSize:11,textTransform:'capitalize'}}>{sel.categoria}</span>}
+
             {isBoutique && getTallas(sel).length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{getTallas(sel).map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
+
+            {/* ===== FASE 1 PROBADOR - SOLO EN TIENDA DE PRUEBA ===== */}
+            {isPruebaProbador && isBoutique && (
+              <div style={{marginTop:14, background:'linear-gradient(135deg, #F0F7FF, #E8F0FF)', border:'1.5px solid #0066FF', borderRadius:16, padding:14}}>
+                <p style={{fontSize:12, fontWeight:900, color:'#0066FF'}}>👗 PROBADOR: ¿Cuál es mi talla? - BETA</p>
+                <p style={{fontSize:11, color:'#444', marginTop:4, lineHeight:1.3}}>Las tiendas ya no se visitan, se habitan. Encuentra tu talla ideal en 10 segundos.</p>
+                {!showProbador ? (
+                  <button onClick={()=>setShowProbador(true)} style={{marginTop:10, width:'100%', background:'#0066FF', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900, fontSize:13}}>✨ Abrir probador inteligente</button>
+                ) : (
+                  <div style={{marginTop:10, background:'#fff', borderRadius:12, padding:12, border:'1px solid #D0DDF8'}}>
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                      <div><label style={{fontSize:10, fontWeight:800}}>ALTURA (cm)</label><input value={probAltura} onChange={e=>setProbAltura(e.target.value.replace(/\D/g,''))} placeholder="Ej: 165" inputMode="numeric" style={{width:'100%', padding:'10px', borderRadius:10, border:'1px solid #ccc', marginTop:4}}/></div>
+                      <div><label style={{fontSize:10, fontWeight:800}}>PESO (kg)</label><input value={probPeso} onChange={e=>setProbPeso(e.target.value.replace(/\D/g,''))} placeholder="Ej: 70" inputMode="numeric" style={{width:'100%', padding:'10px', borderRadius:10, border:'1px solid #ccc', marginTop:4}}/></div>
+                    </div>
+                    <div style={{marginTop:10}}><label style={{fontSize:10, fontWeight:800}}>¿CÓMO TE GUSTA?</label>
+                      <div style={{display:'flex', gap:6, marginTop:6}}>
+                        {[
+                          {id:'ajustado', label:'Ajustado'},
+                          {id:'normal', label:'Normal'},
+                          {id:'suelto', label:'Suelto'}
+                        ].map(f=>(
+                          <button key={f.id} onClick={()=>setProbFit(f.id)} style={{flex:1, padding:'8px', borderRadius:999, border: probFit===f.id ? '2px solid #0066FF' : '1px solid #ddd', background: probFit===f.id ? '#0066FF' : '#fff', color: probFit===f.id ? '#fff' : '#000', fontWeight:800, fontSize:11}}>{f.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={calcularTallaRecomendada} style={{marginTop:12, width:'100%', background:'#000', color:'#fff', border:'none', padding:'11px', borderRadius:999, fontWeight:900}}>Calcular mi talla recomendada</button>
+                    {probRecomendada && (
+                      <div style={{marginTop:12, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:10, textAlign:'center'}}>
+                        <p style={{fontSize:11, color:'#2E7D32', fontWeight:700}}>Tu talla ideal es:</p>
+                        <p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p>
+                        <p style={{fontSize:10, color:'#555', marginTop:2}}>Seleccionada automáticamente • Puedes cambiarla abajo si quieres</p>
+                      </div>
+                    )}
+                    <button onClick={()=>setShowProbador(false)} style={{marginTop:8, width:'100%', background:'#F0F0F0', border:'none', padding:'8px', borderRadius:999, fontSize:11}}>Cerrar probador</button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{display:'flex',gap:10,marginTop:16}}><button onClick={()=>setSel(null)} style={{flex:1,background:'#F0F0F0',border:'none',padding:12,borderRadius:999,fontWeight:700}}>Cerrar</button><button onClick={waOne} style={{flex:1.5,background:'#25D366',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:900}}>WhatsApp</button></div>
             <button onClick={()=>{ if(add(sel,talla)){ setShowCart(true); } else alert('Elige talla')}} style={{marginTop:8,width:'100%',background:'#000',color:'#fff',border:'none',padding:12,borderRadius:999,fontWeight:800}}>Añadir al carrito {isBoutique && talla?`(${talla})`:''}</button>
           </div>
