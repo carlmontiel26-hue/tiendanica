@@ -85,12 +85,18 @@ export default function StorePage(){
   const [talla,setTalla]=useState(null)
   const [cat,setCat]=useState(null)
   const [q,setQ]=useState('')
-  // --- FASE 1 PROBADOR SOLO PARA PRUEBA ---
+  // FASE 1
   const [showProbador,setShowProbador]=useState(false)
   const [probAltura,setProbAltura]=useState('')
   const [probPeso,setProbPeso]=useState('')
   const [probFit,setProbFit]=useState('normal')
   const [probRecomendada,setProbRecomendada]=useState(null)
+  // FASE 3 - AR
+  const [showAR,setShowAR]=useState(false)
+  const [arError,setArError]=useState('')
+  const [arFacing,setArFacing]=useState('user')
+  const arVideoRef = useRef(null)
+  const arStreamRef = useRef(null)
 
   useEffect(()=>{ if(sel){ setTalla(null); setShowProbador(false); setProbRecomendada(null); } },[sel])
 
@@ -106,7 +112,6 @@ export default function StorePage(){
   },[slug])
 
   const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique') || (store?.tipo_tienda||'').toLowerCase().includes('ropa') || (store?.tipo_tienda||'').toLowerCase().includes('moda')
-  // Solo activar probador en tienda de prueba para no tocar nada mas
   const isPruebaProbador = store?.slug === 'boutique-prueba-360' || store?.slug === 'boutique-prueba-3d'
 
   const calcularTallaRecomendada = ()=>{
@@ -116,27 +121,21 @@ export default function StorePage(){
     const peso = parseFloat(probPeso) || 0
     const altura = parseFloat(probAltura) || 0
     if(!peso){ alert('Pon tu peso'); return }
-    // Orden base
     const ordenLetras = ['XXS','XS','S','M','L','XL','XXL','XXXL','ÚNICA','UNICA','U']
     const tallasNorm = tallas.map(t=>t.toUpperCase())
-    // Detectar si son letras
     const esLetras = tallasNorm.some(t=>ordenLetras.includes(t))
     let idx = 0
     if(esLetras){
-      // Peso base
       if(peso < 55) idx = tallasNorm.indexOf('XS') !== -1 ? tallasNorm.indexOf('XS') : tallasNorm.indexOf('S') !== -1 ? tallasNorm.indexOf('S') : 0
       else if(peso < 65) idx = tallasNorm.indexOf('S') !== -1 ? tallasNorm.indexOf('S') : 1
       else if(peso < 75) idx = tallasNorm.indexOf('M') !== -1 ? tallasNorm.indexOf('M') : 2
       else if(peso < 85) idx = tallasNorm.indexOf('L') !== -1 ? tallasNorm.indexOf('L') : 3
       else if(peso < 95) idx = tallasNorm.indexOf('XL') !== -1 ? tallasNorm.indexOf('XL') : 4
       else idx = tallasNorm.indexOf('XXL') !== -1 ? tallasNorm.indexOf('XXL') : tallas.length-1
-      // Ajuste por fit
       if(probFit==='ajustado' && idx>0) idx = idx-1
       if(probFit==='suelto' && idx<tallas.length-1) idx = idx+1
-      // Ajuste por altura si muy alto
       if(altura >= 180 && idx < tallas.length-1) idx = idx+1
     }else{
-      // Tallas numericas 28,30,32...
       const nums = tallasNorm.map(t=>parseInt(t)).filter(n=>!isNaN(n)).sort((a,b)=>a-b)
       if(nums.length===0){ setProbRecomendada(tallas[0]); setTalla(tallas[0]); return }
       if(peso < 60) idx = 0
@@ -157,6 +156,42 @@ export default function StorePage(){
     setProbRecomendada(rec)
     setTalla(rec)
   }
+
+  // --- FASE 3 AR LOGIC ---
+  const startAR = async (facing = arFacing) => {
+    setArError('')
+    try{
+      if(arStreamRef.current){
+        arStreamRef.current.getTracks().forEach(t=>t.stop())
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width:{ideal:1280}, height:{ideal:720} }, audio:false })
+      arStreamRef.current = stream
+      if(arVideoRef.current){
+        arVideoRef.current.srcObject = stream
+        await arVideoRef.current.play()
+      }
+      setShowAR(true)
+    }catch(e){
+      console.error(e)
+      setArError('No se pudo abrir la cámara. Asegúrate de dar permiso. En iPhone usa Safari. Error: ' + e.message)
+    }
+  }
+
+  const stopAR = ()=>{
+    if(arStreamRef.current){
+      arStreamRef.current.getTracks().forEach(t=>t.stop())
+      arStreamRef.current = null
+    }
+    setShowAR(false)
+  }
+
+  useEffect(()=>{
+    return ()=>{
+      if(arStreamRef.current){
+        arStreamRef.current.getTracks().forEach(t=>t.stop())
+      }
+    }
+  },[])
 
   const add=(p,t=null)=>{
     const tallasP = getTallas(p)
@@ -195,14 +230,13 @@ export default function StorePage(){
         }
       `}</style>
 
-      {/* ===== PORTADA RESTAURADA - SIN CORTARSE EN MOVIL ===== */}
       <div className="banner-wrap">
         <div style={{position:'absolute', inset:0, background: 'linear-gradient(180deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%)', zIndex:0}}/>
         <img src={getOptimizedImage(cover, 800)} alt="portada" className="banner-img" style={{zIndex:1, opacity:0.95}}/>
         <div style={{position:'absolute', inset:0, zIndex:2, background: 'linear-gradient(to top, #0A0A0A 0%, transparent 70%)', pointerEvents:'none'}}/>
         <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: 'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
         <div style={{position:'absolute',top:10,left:10,right:10, display:'flex', justifyContent:'space-between', zIndex:4}}>
-          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{(store.tipo_tienda||'TIENDA').toUpperCase()}</div>
+          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{(store.tipo_tienda||'TIENDA').toUpperCase()} {isPruebaProbador ? '• LAB 2036' : ''}</div>
           <a href={`https://tiendanica.store`} style={{background:'rgba(255,255,255,0.9)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>tiendanica.store</a>
         </div>
         <div className="info-card">
@@ -271,13 +305,16 @@ export default function StorePage(){
 
             {isBoutique && getTallas(sel).length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{getTallas(sel).map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
 
-            {/* ===== FASE 1 PROBADOR - SOLO EN TIENDA DE PRUEBA ===== */}
+            {/* FASE 1 + FASE 3 - SOLO EN TIENDA DE PRUEBA */}
             {isPruebaProbador && isBoutique && (
               <div style={{marginTop:14, background:'linear-gradient(135deg, #F0F7FF, #E8F0FF)', border:'1.5px solid #0066FF', borderRadius:16, padding:14}}>
-                <p style={{fontSize:12, fontWeight:900, color:'#0066FF'}}>👗 PROBADOR: ¿Cuál es mi talla? - BETA</p>
-                <p style={{fontSize:11, color:'#444', marginTop:4, lineHeight:1.3}}>Las tiendas ya no se visitan, se habitan. Encuentra tu talla ideal en 10 segundos.</p>
+                <p style={{fontSize:12, fontWeight:900, color:'#0066FF'}}>👗 PROBADOR 2036: Las tiendas ya no se visitan, se habitan</p>
+                <p style={{fontSize:11, color:'#444', marginTop:4, lineHeight:1.3}}>Encuentra tu talla y pruébalo en AR con tu cámara.</p>
                 {!showProbador ? (
-                  <button onClick={()=>setShowProbador(true)} style={{marginTop:10, width:'100%', background:'#0066FF', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900, fontSize:13}}>✨ Abrir probador inteligente</button>
+                  <div style={{display:'flex', gap:8, marginTop:10}}>
+                    <button onClick={()=>setShowProbador(true)} style={{flex:1, background:'#0066FF', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900, fontSize:12}}>✨ Mi talla</button>
+                    <button onClick={()=>startAR()} style={{flex:1, background:'#000', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900, fontSize:12}}>📱 Ver en AR</button>
+                  </div>
                 ) : (
                   <div style={{marginTop:10, background:'#fff', borderRadius:12, padding:12, border:'1px solid #D0DDF8'}}>
                     <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
@@ -300,12 +337,16 @@ export default function StorePage(){
                       <div style={{marginTop:12, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:10, textAlign:'center'}}>
                         <p style={{fontSize:11, color:'#2E7D32', fontWeight:700}}>Tu talla ideal es:</p>
                         <p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p>
-                        <p style={{fontSize:10, color:'#555', marginTop:2}}>Seleccionada automáticamente • Puedes cambiarla abajo si quieres</p>
+                        <button onClick={()=>startAR()} style={{marginTop:8, width:'100%', background:'#0066FF', color:'#fff', border:'none', padding:'10px', borderRadius:999, fontWeight:800, fontSize:12}}>📱 Ahora ver en AR con talla {probRecomendada}</button>
                       </div>
                     )}
-                    <button onClick={()=>setShowProbador(false)} style={{marginTop:8, width:'100%', background:'#F0F0F0', border:'none', padding:'8px', borderRadius:999, fontSize:11}}>Cerrar probador</button>
+                    <div style={{display:'flex', gap:6, marginTop:8}}>
+                      <button onClick={()=>setShowProbador(false)} style={{flex:1, background:'#F0F0F0', border:'none', padding:'8px', borderRadius:999, fontSize:11}}>Cerrar</button>
+                      <button onClick={()=>startAR()} style={{flex:1, background:'#000', color:'#fff', border:'none', padding:'8px', borderRadius:999, fontSize:11, fontWeight:800}}>📱 AR</button>
+                    </div>
                   </div>
                 )}
+                {arError && <p style={{fontSize:11, color:'#FF3B30', background:'#FFF0F0', padding:8, borderRadius:8, marginTop:8}}>{arError}</p>}
               </div>
             )}
 
@@ -314,6 +355,32 @@ export default function StorePage(){
           </div>
         </div>
       </div>}
+
+      {/* FASE 3 - AR OVERLAY FULLSCREEN */}
+      {showAR && sel && (
+        <div style={{position:'fixed', inset:0, zIndex:200, background:'#000', display:'flex', flexDirection:'column'}}>
+          <video ref={arVideoRef} autoPlay playsInline muted style={{position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover'}}/>
+          <div style={{position:'absolute', inset:0, background:'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.5) 100%)', pointerEvents:'none'}}/>
+          {/* Producto overlay AR simulado */}
+          <div style={{position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -50%)', width:'70vw', maxWidth:380, aspectRatio:'1/1', pointerEvents:'none'}}>
+            <img src={getOptimizedImage(sel.image_url, 800)} style={{width:'100%', height:'100%', objectFit:'contain', filter:'drop-shadow(0 20px 30px rgba(0,0,0,0.5))', opacity:0.92}}/>
+            <div style={{position:'absolute', bottom:-10, left:'50%', transform:'translateX(-50%)', width:'60%', height:20, background:'radial-gradient(ellipse, rgba(0,0,0,0.4) 0%, transparent 70%)', borderRadius:'50%'}}/>
+          </div>
+          {/* UI AR */}
+          <div style={{position:'absolute', top:0, left:0, right:0, padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', zIndex:2}}>
+            <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(10px)', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:800, border:'1px solid rgba(255,255,255,0.2)'}}>📱 AR • {sel.name} {talla? `• ${talla}` : probRecomendada? `• ${probRecomendada}` : ''}</div>
+            <button onClick={stopAR} style={{background:'rgba(255,255,255,0.9)', color:'#000', border:'none', width:36, height:36, borderRadius:999, fontWeight:900}}>✕</button>
+          </div>
+          <div style={{position:'absolute', bottom:0, left:0, right:0, padding:'16px', background:'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', zIndex:2}}>
+            <p style={{color:'#fff', fontSize:12, fontWeight:800, textAlign:'center', marginBottom:12}}>Las tiendas ya no se visitan, se habitan • Mueve tu cámara para ver la prenda</p>
+            <div style={{display:'flex', gap:8}}>
+              <button onClick={()=>{ setArFacing(f=>{ const nf = f==='user'?'environment':'user'; startAR(nf); return nf }) }} style={{flex:1, background:'rgba(255,255,255,0.15)', backdropFilter:'blur(10px)', color:'#fff', border:'1px solid rgba(255,255,255,0.3)', padding:'12px', borderRadius:999, fontWeight:700, fontSize:12}}>🔄 Cambiar cámara</button>
+              <button onClick={stopAR} style={{flex:1, background:'#fff', color:'#000', border:'none', padding:'12px', borderRadius:999, fontWeight:900, fontSize:12}}>Cerrar AR</button>
+            </div>
+            <button onClick={()=>{ stopAR(); setShowCart(true); add(sel, talla || probRecomendada); waOne(); }} style={{marginTop:8, width:'100%', background:'#25D366', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900}}>Comprar esta talla por WhatsApp</button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
