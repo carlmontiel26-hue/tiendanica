@@ -85,26 +85,14 @@ export default function StorePage(){
   const [talla,setTalla]=useState(null)
   const [cat,setCat]=useState(null)
   const [q,setQ]=useState('')
+  // Solo Mi Talla - Fase 1
   const [showProbador,setShowProbador]=useState(false)
   const [probAltura,setProbAltura]=useState('')
   const [probPeso,setProbPeso]=useState('')
   const [probFit,setProbFit]=useState('normal')
   const [probRecomendada,setProbRecomendada]=useState(null)
-  // FASE 3 AR
-  const [showAR,setShowAR]=useState(false)
-  const [arError,setArError]=useState('')
-  const [arFacing,setArFacing]=useState('user')
-  const arVideoRef = useRef(null)
-  const arStreamRef = useRef(null)
-  // FASE 3B FOTO
-  const [showFotoProbador,setShowFotoProbador]=useState(false)
-  const [userFoto,setUserFoto]=useState(null)
-  const [userFotoUrl,setUserFotoUrl]=useState('')
-  const [fotoGenerando,setFotoGenerando]=useState(false)
-  const [fotoResultado,setFotoResultado]=useState(null)
-  const [fotoPrivacidad,setFotoPrivacidad]=useState(false)
 
-  useEffect(()=>{ if(sel){ setTalla(null); setShowProbador(false); setProbRecomendada(null); setShowFotoProbador(false); setUserFoto(null); setUserFotoUrl(''); setFotoResultado(null) } },[sel])
+  useEffect(()=>{ if(sel){ setTalla(null); setShowProbador(false); setProbRecomendada(null) } },[sel])
 
   useEffect(()=>{
     if(!slug) return
@@ -118,7 +106,6 @@ export default function StorePage(){
   },[slug])
 
   const isBoutique = (store?.tipo_tienda||'').toLowerCase().includes('boutique') || (store?.tipo_tienda||'').toLowerCase().includes('ropa') || (store?.tipo_tienda||'').toLowerCase().includes('moda')
-  const isPruebaProbador = store?.slug === 'boutique-prueba-360' || store?.slug === 'boutique-prueba-3d'
 
   const calcularTallaRecomendada = ()=>{
     if(!sel) return
@@ -163,66 +150,6 @@ export default function StorePage(){
     setTalla(rec)
   }
 
-  const startAR = async (facing = arFacing) => {
-    setArError('')
-    try{
-      if(arStreamRef.current){
-        arStreamRef.current.getTracks().forEach(t=>t.stop())
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width:{ideal:1280}, height:{ideal:720} }, audio:false })
-      arStreamRef.current = stream
-      if(arVideoRef.current){
-        arVideoRef.current.srcObject = stream
-        await arVideoRef.current.play()
-      }
-      setShowAR(true)
-    }catch(e){
-      setArError('No se pudo abrir la cámara. Asegúrate de dar permiso. Error: ' + e.message)
-    }
-  }
-
-  const stopAR = ()=>{
-    if(arStreamRef.current){
-      arStreamRef.current.getTracks().forEach(t=>t.stop())
-      arStreamRef.current = null
-    }
-    setShowAR(false)
-  }
-
-  // FOTO PROBADOR
-  const handleFotoUpload = (e)=>{
-    const file = e.target.files[0]
-    if(!file) return
-    if(file.size > 8*1024*1024){ alert('Foto máximo 8MB'); return }
-    setUserFoto(file)
-    const url = URL.createObjectURL(file)
-    setUserFotoUrl(url)
-    setFotoResultado(null)
-  }
-
-  const generarFotoProbador = async ()=>{
-    if(!userFotoUrl){ alert('Sube tu foto primero'); return }
-    if(!fotoPrivacidad){ alert('Acepta la privacidad para continuar'); return }
-    setFotoGenerando(true)
-    // Simulación de generación IA - en producción aquí llamarías a tu API de try-on
-    // Por ahora hacemos un composite realista con canvas para demo
-    setTimeout(()=>{
-      // Creamos una imagen de resultado simulada: usamos la foto del usuario + overlay inteligente
-      // En tu versión final, aquí harías fetch a /api/try-on
-      setFotoResultado('GENERADO')
-      setFotoGenerando(false)
-    }, 1800)
-  }
-
-  useEffect(()=>{
-    return ()=>{
-      if(arStreamRef.current){
-        arStreamRef.current.getTracks().forEach(t=>t.stop())
-      }
-      if(userFotoUrl) URL.revokeObjectURL(userFotoUrl)
-    }
-  },[userFotoUrl])
-
   const add=(p,t=null)=>{
     const tallasP = getTallas(p)
     if(isBoutique && tallasP.length>0 && !t) return false
@@ -233,7 +160,7 @@ export default function StorePage(){
   const count=cart.reduce((a,b)=>a+b.qty,0)
   const wa=(msg)=> window.open(`https://api.whatsapp.com/send?phone=${store.whatsapp}&text=${encodeURIComponent(msg)}`,'_blank')
   const waCart=()=>{ let m=`Hola ${store.name}! Quiero:\n`; cart.forEach(i=>m+=`• ${i.qty}x ${i.name}${isBoutique && i.tallaSel?' Talla '+i.tallaSel:''} - C$ ${i.price*i.qty}\n`); m+=`\nTotal C$ ${total}\nhttps://tiendanica.store/${slug}`; wa(m) }
-  const waOne=()=>{ let desc = sel.description ? ` - ${sel.description}` : ''; let m=`Hola ${store.name}! Quiero: ${sel.name}${isBoutique && talla? ' Talla '+talla:''}${fotoResultado ? ' (probado con mi foto)' : ''} - C$ ${sel.price}${desc} https://tiendanica.store/${slug}`; wa(m) }
+  const waOne=()=>{ let desc = sel.description ? ` - ${sel.description}` : ''; let m=`Hola ${store.name}! Quiero: ${sel.name}${isBoutique && talla? ' Talla '+talla:''} - C$ ${sel.price}${desc} https://tiendanica.store/${slug}`; wa(m) }
   const getProductImages = (p)=>{ if(p.images && p.images.length>0) return p.images.filter(Boolean); return [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6) }
 
   if(!store) return <div style={{padding:40, background:'#0A0A0A', color:'#fff', minHeight:'100vh'}}>Cargando {slug}...</div>
@@ -266,7 +193,7 @@ export default function StorePage(){
         <div style={{position:'absolute', inset:0, zIndex:2, background: 'linear-gradient(to top, #0A0A0A 0%, transparent 70%)', pointerEvents:'none'}}/>
         <div style={{position:'absolute',top:0,left:0,right:0,height:3, background: 'linear-gradient(90deg, #00E676, #00C853)', zIndex:3}}/>
         <div style={{position:'absolute',top:10,left:10,right:10, display:'flex', justifyContent:'space-between', zIndex:4}}>
-          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{(store.tipo_tienda||'TIENDA').toUpperCase()} {isPruebaProbador ? '• LAB 2036 FOTO' : ''}</div>
+          <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(12px)', color:'#fff', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, border:'1px solid rgba(255,255,255,0.15)'}}>{(store.tipo_tienda||'TIENDA').toUpperCase()}</div>
           <a href={`https://tiendanica.store`} style={{background:'rgba(255,255,255,0.9)', color:'#000', padding:'5px 10px', borderRadius:999, fontSize:10, fontWeight:800, textDecoration:'none'}}>tiendanica.store</a>
         </div>
         <div className="info-card">
@@ -335,17 +262,10 @@ export default function StorePage(){
 
             {isBoutique && getTallas(sel).length>0&&<div style={{marginTop:14}}><p style={{fontSize:12,fontWeight:800}}>Talla {talla&&<span style={{color:'#00C853'}}>• {talla}</span>}</p><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{getTallas(sel).map(t=><button key={t} onClick={()=>setTalla(t)} style={{minWidth:44,height:44,borderRadius:999,border:talla===t?'2px solid #000':'1px solid #ddd',background:talla===t?'#000':'#fff',color:talla===t?'#fff':'#000',fontWeight:800}}>{t}</button>)}</div></div>}
 
-            {/* FASE 1 + 3 + 3B - SOLO PRUEBA */}
-            {isPruebaProbador && isBoutique && (
+            {isBoutique && getTallas(sel).length>0 && (
               <div style={{marginTop:14, background:'linear-gradient(135deg, #F0F7FF, #E8F0FF)', border:'1.5px solid #0066FF', borderRadius:16, padding:14}}>
-                <p style={{fontSize:12, fontWeight:900, color:'#0066FF'}}>👗 PROBADOR 2036: Las tiendas ya no se visitan, se habitan</p>
-                
-                <div style={{display:'flex', gap:8, marginTop:10}}>
-                  <button onClick={()=>{ setShowProbador(!showProbador); setShowFotoProbador(false) }} style={{flex:1, background: showProbador ? '#000' : '#0066FF', color:'#fff', border:'none', padding:'10px', borderRadius:999, fontWeight:800, fontSize:11}}>✨ Mi talla</button>
-                  <button onClick={()=>{ setShowFotoProbador(!showFotoProbador); setShowProbador(false) }} style={{flex:1, background: showFotoProbador ? '#000' : '#111', color:'#fff', border:'none', padding:'10px', borderRadius:999, fontWeight:800, fontSize:11}}>📸 Probarme con foto</button>
-                  <button onClick={()=>startAR()} style={{flex:0.7, background:'#fff', color:'#000', border:'1.5px solid #000', padding:'10px', borderRadius:999, fontWeight:800, fontSize:11}}>📱 AR</button>
-                </div>
-
+                <p style={{fontSize:12, fontWeight:900, color:'#0066FF'}}>✨ ¿No sabes tu talla? Te ayudo</p>
+                <button onClick={()=>setShowProbador(!showProbador)} style={{marginTop:8, width:'100%', background: showProbador ? '#000' : '#0066FF', color:'#fff', border:'none', padding:'10px', borderRadius:999, fontWeight:800, fontSize:12}}>{showProbador ? 'Cerrar' : '✨ Encontrar mi talla ideal'}</button>
                 {showProbador && (
                   <div style={{marginTop:10, background:'#fff', borderRadius:12, padding:12, border:'1px solid #D0DDF8'}}>
                     <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
@@ -360,63 +280,9 @@ export default function StorePage(){
                       </div>
                     </div>
                     <button onClick={calcularTallaRecomendada} style={{marginTop:12, width:'100%', background:'#000', color:'#fff', border:'none', padding:'11px', borderRadius:999, fontWeight:900}}>Calcular mi talla</button>
-                    {probRecomendada && (
-                      <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:10, textAlign:'center'}}>
-                        <p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p>
-                      </div>
-                    )}
+                    {probRecomendada && <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:10, textAlign:'center'}}><p style={{fontSize:11, fontWeight:700, color:'#00C853'}}>TU TALLA IDEAL</p><p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p><p style={{fontSize:11, color:'#333'}}>Seleccionada automáticamente ✓</p></div>}
                   </div>
                 )}
-
-                {showFotoProbador && (
-                  <div style={{marginTop:10, background:'#fff', borderRadius:12, padding:12, border:'1.5px dashed #0066FF'}}>
-                    <p style={{fontSize:11, fontWeight:900}}>📸 Súbete una foto y te pongo la prenda</p>
-                    <p style={{fontSize:10, color:'#666', marginTop:4, lineHeight:1.3}}>Foto de cuerpo completo, de frente, con buena luz. Tu foto solo se usa para esta prueba y se borra automáticamente. No se guarda en la tienda.</p>
-                    
-                    <div style={{marginTop:10, border:'1.5px dashed #ccc', borderRadius:12, padding:12, textAlign:'center', background:'#FAFAFA'}}>
-                      {userFotoUrl ? (
-                        <div style={{position:'relative'}}>
-                          <img src={userFotoUrl} style={{width:'100%', maxHeight:260, objectFit:'contain', borderRadius:10}}/>
-                          {fotoResultado && (
-                            <div style={{position:'absolute', inset:0, background:'rgba(255,255,255,0.92)', borderRadius:10, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:10}}>
-                              <div style={{position:'relative', width:'100%', height:'100%'}}>
-                                <img src={userFotoUrl} style={{width:'100%', height:'100%', objectFit:'contain', borderRadius:10}}/>
-                                <img src={getOptimizedImage(sel.image_url, 600)} style={{position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -45%)', width:'58%', height:'58%', objectFit:'contain', filter:'drop-shadow(0 10px 20px rgba(0,0,0,0.3))'}}/>
-                                <div style={{position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', background:'#000', color:'#fff', fontSize:10, padding:'4px 8px', borderRadius:999, fontWeight:800}}>Vista previa IA - Demo</div>
-                              </div>
-                              <p style={{fontSize:11, fontWeight:800, marginTop:8, color:'#0066FF'}}>¡Así te quedaría! {probRecomendada || talla ? `Talla ${probRecomendada || talla}` : ''}</p>
-                              <p style={{fontSize:9, color:'#666', marginTop:2}}>En la versión final la IA fusiona la tela con tu cuerpo, sin recorte</p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <p style={{fontSize:28}}>📷</p>
-                          <p style={{fontSize:11, color:'#999'}}>No has subido foto</p>
-                        </div>
-                      )}
-                      <input type="file" accept="image/*" onChange={handleFotoUpload} style={{marginTop:10, width:'100%', fontSize:12}}/>
-                    </div>
-
-                    <label style={{display:'flex', gap:8, alignItems:'flex-start', marginTop:10, background:'#F0F7FF', padding:'8px', borderRadius:8}}>
-                      <input type="checkbox" checked={fotoPrivacidad} onChange={e=>setFotoPrivacidad(e.target.checked)} style={{marginTop:2}}/>
-                      <span style={{fontSize:10, lineHeight:1.3}}>Acepto que mi foto se use solo para probarme esta prenda ({sel.name}) y se borre automáticamente. No se comparte con terceros ni se guarda en la tienda.</span>
-                    </label>
-
-                    <button onClick={generarFotoProbador} disabled={fotoGenerando || !userFotoUrl} style={{marginTop:10, width:'100%', background: fotoGenerando ? '#999' : '#0066FF', color:'#fff', border:'none', padding:'12px', borderRadius:999, fontWeight:900, opacity: !userFotoUrl ? 0.5 : 1}}>
-                      {fotoGenerando ? 'Generando tu foto...' : fotoResultado ? '✅ Generado - Ver resultado' : '✨ Generar cómo me queda'}
-                    </button>
-
-                    {fotoResultado && (
-                      <div style={{marginTop:10, display:'flex', gap:8}}>
-                        <button onClick={()=>{ setUserFoto(null); setUserFotoUrl(''); setFotoResultado(null) }} style={{flex:1, background:'#F0F0F0', border:'none', padding:'10px', borderRadius:999, fontSize:11}}>Otra foto</button>
-                        <button onClick={waOne} style={{flex:1, background:'#25D366', color:'#fff', border:'none', padding:'10px', borderRadius:999, fontWeight:800, fontSize:11}}>Comprar por WhatsApp</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {arError && <p style={{fontSize:11, color:'#FF3B30', background:'#FFF0F0', padding:8, borderRadius:8, marginTop:8}}>{arError}</p>}
               </div>
             )}
 
@@ -425,26 +291,6 @@ export default function StorePage(){
           </div>
         </div>
       </div>}
-
-      {showAR && sel && (
-        <div style={{position:'fixed', inset:0, zIndex:200, background:'#000', display:'flex', flexDirection:'column'}}>
-          <video ref={arVideoRef} autoPlay playsInline muted style={{position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover'}}/>
-          <div style={{position:'absolute', inset:0, background:'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.5) 100%)', pointerEvents:'none'}}/>
-          <div style={{position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -50%)', width:'70vw', maxWidth:380, aspectRatio:'1/1', pointerEvents:'none'}}>
-            <img src={getOptimizedImage(sel.image_url, 800)} style={{width:'100%', height:'100%', objectFit:'contain', filter:'drop-shadow(0 20px 30px rgba(0,0,0,0.5))', opacity:0.92}}/>
-          </div>
-          <div style={{position:'absolute', top:0, left:0, right:0, padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', zIndex:2}}>
-            <div style={{background:'rgba(0,0,0,0.5)', backdropFilter:'blur(10px)', color:'#fff', padding:'6px 12px', borderRadius:999, fontSize:11, fontWeight:800, border:'1px solid rgba(255,255,255,0.2)'}}>📱 AR • {sel.name} {talla? `• ${talla}` : probRecomendada? `• ${probRecomendada}` : ''}</div>
-            <button onClick={stopAR} style={{background:'rgba(255,255,255,0.9)', color:'#000', border:'none', width:36, height:36, borderRadius:999, fontWeight:900}}>✕</button>
-          </div>
-          <div style={{position:'absolute', bottom:0, left:0, right:0, padding:'16px', background:'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', zIndex:2}}>
-            <div style={{display:'flex', gap:8}}>
-              <button onClick={()=>{ setArFacing(f=>{ const nf = f==='user'?'environment':'user'; startAR(nf); return nf }) }} style={{flex:1, background:'rgba(255,255,255,0.15)', backdropFilter:'blur(10px)', color:'#fff', border:'1px solid rgba(255,255,255,0.3)', padding:'12px', borderRadius:999, fontWeight:700, fontSize:12}}>🔄 Cambiar cámara</button>
-              <button onClick={stopAR} style={{flex:1, background:'#fff', color:'#000', border:'none', padding:'12px', borderRadius:999, fontWeight:900, fontSize:12}}>Cerrar AR</button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }
