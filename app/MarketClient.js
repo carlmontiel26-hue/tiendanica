@@ -533,9 +533,9 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
             <div style={{textAlign:'left', lineHeight:1.1}}>
               <div style={{display:'flex', alignItems:'center', gap:8}}>
                 <span>Explorar Ciudad de Tiendas</span>
-                <span className="ciudad-btn-badge">NUEVO • EUROPEA</span>
+                <span className="ciudad-btn-badge">NUEVO • Nicaragua</span>
               </div>
-              <span style={{fontSize:11, opacity:0.9, fontWeight:600, marginTop:2, display:'block'}}>{stores.length} edificios • Calle real con tus tiendas • Estilo España</span>
+              <span style={{fontSize:11, opacity:0.9, fontWeight:600, marginTop:2, display:'block'}}>{stores.length} edificios • Calle real con tus tiendas • Estilo Nicaragua</span>
             </div>
           </div>
           <span style={{background:'rgba(255,255,255,0.22)', width:32, height:32, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16}}>→</span>

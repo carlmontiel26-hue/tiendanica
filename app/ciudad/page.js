@@ -78,7 +78,7 @@ export default function CiudadPage(){
       </div>
 
       <div style={{textAlign:'center', padding:'20px 20px 0'}}>
-        <p style={{fontSize:13, color:'#5A4A3A', background:'rgba(255,255,255,0.8)', display:'inline-block', padding:'8px 16px', borderRadius:999, fontWeight:700}}>🏗️ Ciudad crece sola • Cada tienda nueva = un edificio nuevo • Europea estilo España</p>
+        <p style={{fontSize:13, color:'#5A4A3A', background:'rgba(255,255,255,0.8)', display:'inline-block', padding:'8px 16px', borderRadius:999, fontWeight:700}}>🏗️ Ciudad • tienda nueva = un edificio nuevo • Nicaragua</p>
       </div>
 
       {/* CALLE */}
@@ -129,7 +129,7 @@ export default function CiudadPage(){
       </div>
 
       <div style={{textAlign:'center', padding:'20px'}}>
-        <p style={{fontSize:11, color:'#8B7355'}}>← Desliza la calle → • {stores.length} edificios hoy • Mañana más • Estilo europeo como en España</p>
+        <p style={{fontSize:11, color:'#8B7355'}}>← Desliza la calle → • {stores.length} edificios hoy • Mañana más • Estilo</p>
       </div>
 
       {/* MODAL PRODUCTOS REALES */}
