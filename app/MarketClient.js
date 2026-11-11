@@ -79,11 +79,6 @@ function getOptimizedImage(url, width=400){
   }catch{}
   return url
 }
-function getOriginalImage(url){ return url }
-
-function getDireccion(store){
-  return store.direccion || store.dirección || store.address || store.barrio || store.comunidad || store.zona || store.referencia || store.direccion_exacta || ''
-}
 
 export default function MarketClient({ initialProducts = [], initialStores = [] }){
   const [stores,setStores]=useState(initialStores)
@@ -118,7 +113,13 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   const handleConfigPressEnd = ()=>{ if(longPressRef.current){ clearTimeout(longPressRef.current); longPressRef.current=null } }
   const handleSuperAccess = ()=>{ if(superPinInput === MASTER_PIN){ window.location.href = '/admin' } else { alert('PIN incorrecto'); setSuperPinInput('') } }
 
-  // ===== MARKET DIRECTO - PORTADA SIN CODIGO - SOLO ESTO AGREGADO =====
+  // SOLO MI TALLA - AGREGADO SIN QUITAR NADA
+  const [showProbador,setShowProbador]=useState(false)
+  const [probAltura,setProbAltura]=useState('')
+  const [probPeso,setProbPeso]=useState('')
+  const [probFit,setProbFit]=useState('normal')
+  const [probRecomendada,setProbRecomendada]=useState(null)
+
   const [marketConfig,setMarketConfig]=useState(null)
   useEffect(()=>{
     const supabase=getSupabase()
@@ -165,14 +166,16 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
   useEffect(()=>{
     if(sel){
       history.pushState({modal:true}, '', window.location.href)
-      const onPop = ()=> setSel(null)
+      const onPop = ()=> { setSel(null); setShowProbador(false); setProbRecomendada(null) }
       window.addEventListener('popstate', onPop)
       setSelectedTalla(null)
+      setShowProbador(false)
+      setProbRecomendada(null)
       return ()=> window.removeEventListener('popstate', onPop)
     }
   },[sel])
 
-  const closeModal = ()=>{ setSel(null); if(history.state && history.state.modal){ history.back() } }
+  const closeModal = ()=>{ setSel(null); setShowProbador(false); setProbRecomendada(null); if(history.state && history.state.modal){ history.back() } }
   const getImages = (p)=> p.images?.length>0 ? p.images.filter(Boolean) : [p.image_url, ...(p.extra_images||[])].filter(Boolean).slice(0,6)
   const getTallas = (p)=>{
     const keys = ['tallas','sizes','tallas_disponibles','sizes_available','tallasDisponibles','sizesAvailable','talla','size']
@@ -188,6 +191,50 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
     return []
   }
 
+  const calcularTallaRecomendada = ()=>{
+    if(!sel) return
+    const tallas = getTallas(sel)
+    if(tallas.length===0){ setProbRecomendada('ÚNICA'); return }
+    const peso = parseFloat(probPeso) || 0
+    const altura = parseFloat(probAltura) || 0
+    if(!peso){ alert('Pon tu peso'); return }
+    const ordenLetras = ['XXS','XS','S','M','L','XL','XXL','XXXL','ÚNICA','UNICA','U']
+    const tallasNorm = tallas.map(t=>t.toUpperCase())
+    const esLetras = tallasNorm.some(t=>ordenLetras.includes(t))
+    let idx = 0
+    if(esLetras){
+      if(peso < 55) idx = tallasNorm.indexOf('XS') !== -1 ? tallasNorm.indexOf('XS') : tallasNorm.indexOf('S') !== -1 ? tallasNorm.indexOf('S') : 0
+      else if(peso < 65) idx = tallasNorm.indexOf('S') !== -1 ? tallasNorm.indexOf('S') : 1
+      else if(peso < 75) idx = tallasNorm.indexOf('M') !== -1 ? tallasNorm.indexOf('M') : 2
+      else if(peso < 85) idx = tallasNorm.indexOf('L') !== -1 ? tallasNorm.indexOf('L') : 3
+      else if(peso < 95) idx = tallasNorm.indexOf('XL') !== -1 ? tallasNorm.indexOf('XL') : 4
+      else idx = tallasNorm.indexOf('XXL') !== -1 ? tallasNorm.indexOf('XXL') : tallas.length-1
+      if(probFit==='ajustado' && idx>0) idx = idx-1
+      if(probFit==='suelto' && idx<tallas.length-1) idx = idx+1
+      if(altura >= 180 && idx < tallas.length-1) idx = idx+1
+    }else{
+      const nums = tallasNorm.map(t=>parseInt(t)).filter(n=>!isNaN(n)).sort((a,b)=>a-b)
+      if(nums.length===0){ setProbRecomendada(tallas[0]); setSelectedTalla(tallas[0]); return }
+      if(peso < 60) idx = 0
+      else if(peso < 70) idx = 1
+      else if(peso < 80) idx = 2
+      else if(peso < 90) idx = 3
+      else idx = nums.length-1
+      if(idx>=nums.length) idx=nums.length-1
+      const recNum = nums[idx]
+      const recStr = tallas.find(t=>t.includes(String(recNum))) || String(recNum)
+      setProbRecomendada(recStr)
+      setSelectedTalla(recStr)
+      return
+    }
+    if(idx<0) idx=0
+    if(idx>=tallas.length) idx=tallas.length-1
+    const rec = tallas[idx]
+    setProbRecomendada(rec)
+    setSelectedTalla(rec)
+  }
+
+  const getDireccion = (store)=> store.direccion || store.dirección || store.address || store.barrio || store.comunidad || store.zona || store.referencia || store.direccion_exacta || ''
   const isFoodStore = (s)=> (s?.tipo_tienda||'').toLowerCase().includes('comida')
   const isFoodProduct = (p)=> (p.stores?.tipo_tienda||'').toLowerCase().includes('comida') || (p.categoria||'').toLowerCase()==='comida'
   const foodStores = stores.filter(isFoodStore)
@@ -448,7 +495,6 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .btn-config-dueno{ width:38px; height:38px; bottom:10px; right:10px; border-radius:10px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
       `}</style>
 
-      {/* ===== PORTADA MARKET DIRECTO - AHORA EDITABLE DESDE ADMIN ===== */}
       <div className="portada-wrap">
         <img 
           src={marketConfig?.banner_url ? getOptimizedImage(marketConfig.banner_url, 1200) : "/opengraph-image.png"} 
@@ -669,6 +715,30 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                 <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
                   {getTallas(sel).length>0 ? getTallas(sel).map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>) : (<>{['XS','S','M','L','XL','XXL'].map(t=><button key={t} onClick={()=>setSelectedTalla(t)} className={`talla-chip ${selectedTalla===t ? 'active' : ''}`}>{t}</button>)}</>)}
                 </div>
+
+                {getTallas(sel).length>0 && (
+                  <div style={{marginTop:12, background:'linear-gradient(135deg, #F0F7FF, #E8F0FF)', border:'1.5px solid #0066FF', borderRadius:14, padding:12}}>
+                    <p style={{fontSize:12, fontWeight:900, color:'#0066FF'}}>✨ ¿No sabes tu talla?</p>
+                    <button onClick={()=>setShowProbador(!showProbador)} style={{marginTop:8, width:'100%', background: showProbador ? '#000' : '#0066FF', color:'#fff', border:'none', padding:'10px', borderRadius:999, fontWeight:800, fontSize:12}}>{showProbador ? 'Cerrar' : '✨ Encontrar mi talla ideal'}</button>
+                    {showProbador && (
+                      <div style={{marginTop:10, background:'#fff', borderRadius:12, padding:12, border:'1px solid #D0DDF8'}}>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                          <div><label style={{fontSize:10, fontWeight:800}}>ALTURA (cm)</label><input value={probAltura} onChange={e=>setProbAltura(e.target.value.replace(/\D/g,''))} placeholder="165" inputMode="numeric" style={{width:'100%', padding:'10px', borderRadius:10, border:'1px solid #ccc', marginTop:4}}/></div>
+                          <div><label style={{fontSize:10, fontWeight:800}}>PESO (kg)</label><input value={probPeso} onChange={e=>setProbPeso(e.target.value.replace(/\D/g,''))} placeholder="70" inputMode="numeric" style={{width:'100%', padding:'10px', borderRadius:10, border:'1px solid #ccc', marginTop:4}}/></div>
+                        </div>
+                        <div style={{marginTop:10}}><label style={{fontSize:10, fontWeight:800}}>¿CÓMO TE GUSTA?</label>
+                          <div style={{display:'flex', gap:6, marginTop:6}}>
+                            {[{id:'ajustado', label:'Ajustado'},{id:'normal', label:'Normal'},{id:'suelto', label:'Suelto'}].map(f=>(
+                              <button key={f.id} onClick={()=>setProbFit(f.id)} style={{flex:1, padding:'8px', borderRadius:999, border: probFit===f.id ? '2px solid #0066FF' : '1px solid #ddd', background: probFit===f.id ? '#0066FF' : '#fff', color: probFit===f.id ? '#fff' : '#000', fontWeight:800, fontSize:11}}>{f.label}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <button onClick={calcularTallaRecomendada} style={{marginTop:12, width:'100%', background:'#000', color:'#fff', border:'none', padding:'11px', borderRadius:999, fontWeight:900}}>Calcular mi talla</button>
+                        {probRecomendada && <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:12, textAlign:'center'}}><p style={{fontSize:11, fontWeight:700, color:'#00C853'}}>TU TALLA IDEAL</p><p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p><p style={{fontSize:11, color:'#333'}}>Seleccionada automáticamente ✓</p><p style={{fontSize:9, color:'#666', marginTop:8, lineHeight:1.3, background:'#fff', padding:'6px 8px', borderRadius:8, border:'1px solid #D0E8D0'}}>⚠️ Es de referencia. Las medidas pueden variar por marca y modelo. Consulte las tallas con el proveedor antes de comprar.</p></div>}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             <div style={{display:'flex', gap:8, marginTop:14}}>
