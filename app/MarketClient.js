@@ -465,7 +465,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .portada-img{ width:100%; height:auto; display:block; }
         .portada-overlay{ position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding:20px 14px 56px; color:#fff; z-index:2; }
         .cinta-degradada{ background: linear-gradient(90deg, #FF8A00 0%, #FF3B30 50%, #2962FF 100%); color:#fff; padding:11px 14px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:800; letter-spacing:0.3px; text-shadow:0 1px 2px rgba(0,0,0,0.2); }
-        .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
+        .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justifyContent:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
         .btn-vender-azul{ position:absolute; bottom:14px; left:14px; background:#0066FF; color:#fff; border:2px solid #fff; padding:0; border-radius:14px; font-weight:900; font-size:10px; letter-spacing:0.5px; text-transform:lowercase; box-shadow:0 6px 20px rgba(0,102,255,0.45), 0 2px 8px rgba(0,0,0,0.25); cursor:pointer; z-index:5; width:72px; height:62px; display:flex; flex-direction:column; alignItems:center; justifyContent:center; gap:2px; }
         .cat-scroll{ display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; padding:2px 0 6px; -webkit-overflow-scrolling:touch; }
         .cat-scroll::-webkit-scrollbar{ display:none; }
@@ -481,6 +481,11 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         .card-img img{ width:100%; height:100%; object-fit:contain; background:#fff; }
         .talla-chip{ padding:8px 14px; border-radius:999px; border:1.5px solid #E0D6CF; background:#fff; font-size:13px; font-weight:800; cursor:pointer; }
         .talla-chip.active{ background:#111; color:#fff; border-color:#111; }
+        .ciudad-btn-wrap{ max-width:1180px; margin:0 auto; padding:0 12px; margin-top:10px; }
+        .ciudad-btn{ width:100%; background:linear-gradient(100deg, #FF8A00 0%, #FF3B30 50%, #8B5CF6 100%); color:#fff; border:none; padding:14px 18px; border-radius:18px; font-weight:900; font-size:14px; display:flex; align-items:center; justifyContent:space-between; cursor:pointer; box-shadow:0 10px 24px rgba(255,106,0,0.3), 0 2px 8px rgba(0,0,0,0.08); position:relative; overflow:hidden; transition:transform 0.15s; }
+        .ciudad-btn:active{ transform:scale(0.98) }
+        .ciudad-btn::before{ content:''; position:absolute; inset:0; background:linear-gradient(100deg, rgba(255,255,255,0.18), transparent 40%); pointer-events:none; }
+        .ciudad-btn-badge{ background:#fff; color:#FF3B30; font-size:9px; font-weight:900; padding:3px 7px; border-radius:999px; letter-spacing:0.5px; }
         @media(min-width:1024px){
           .portada-wrap{ width:100%; max-width:100%; margin:0; border-radius:0; overflow:hidden; max-height:320px; background:#000; }
           .portada-img{ width:100%; height:320px; object-fit:cover; object-position:center; display:block; }
@@ -491,8 +496,8 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
         }
         @media(min-width:1280px){ .portada-wrap{ max-height:360px; } .portada-img{ height:360px; } }
         @media(max-width:1024px){ .grid{ grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
-        .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .btn-config-dueno{ width:38px; height:38px; bottom:10px; right:10px; border-radius:10px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } }
+        @media(max-width:768px){ .grid{ grid-template-columns:repeat(2,1fr); gap:10px; } .card{ border-radius:14px; } .btn-config-dueno{ position:absolute; bottom:14px; right:14px; background:rgba(0,0,0,0.55); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1.5px solid rgba(255,255,255,0.6); width:42px; height:42px; border-radius:12px; display:flex; alignItems:center; justifyContent:center; cursor:pointer; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
+        .btn-vender-azul{ width:62px; height:54px; bottom:10px; left:10px; border-radius:12px; font-size:9px; } .btn-config-dueno{ width:38px; height:38px; bottom:10px; right:10px; border-radius:10px; } .portada-wrap{ border-radius:0; margin:0; max-height:none; width:100%; } .portada-img{ height:auto; object-fit:cover; } .cinta-degradada{ border-radius:0; max-width:100%; margin:0; } .cat-scroll{ flex-wrap:nowrap; overflow-x:auto; } .ciudad-btn{ font-size:13px; padding:13px 14px; border-radius:16px; } }
       `}</style>
 
       <div className="portada-wrap">
@@ -518,6 +523,23 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
 
       <div className="cinta-degradada">
         <span>🛡 Tiendas verificadas con video y cédula</span><span style={{opacity:0.6}}>•</span><span>📦 Envío a toda Nicaragua</span><span style={{opacity:0.6}}>•</span><span>⚖ Reporte antifraude 24h</span>
+      </div>
+
+      {/* BOTON BONITO CIUDAD DE TIENDAS - SOLO AGREGADO, NO TOCA NADA MAS */}
+      <div className="ciudad-btn-wrap">
+        <button className="ciudad-btn" onClick={()=>window.location.href='/ciudad'}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <span style={{background:'rgba(0,0,0,0.18)', width:36, height:36, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18}}>🏙️</span>
+            <div style={{textAlign:'left', lineHeight:1.1}}>
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <span>Explorar Ciudad de Tiendas</span>
+                <span className="ciudad-btn-badge">NUEVO • EUROPEA</span>
+              </div>
+              <span style={{fontSize:11, opacity:0.9, fontWeight:600, marginTop:2, display:'block'}}>{stores.length} edificios • Calle real con tus tiendas • Estilo España</span>
+            </div>
+          </div>
+          <span style={{background:'rgba(255,255,255,0.22)', width:32, height:32, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16}}>→</span>
+        </button>
       </div>
 
       <div style={{maxWidth:1180, margin:'0 auto', padding:'12px'}}>
@@ -734,7 +756,7 @@ export default function MarketClient({ initialProducts = [], initialStores = [] 
                           </div>
                         </div>
                         <button onClick={calcularTallaRecomendada} style={{marginTop:12, width:'100%', background:'#000', color:'#fff', border:'none', padding:'11px', borderRadius:999, fontWeight:900}}>Calcular mi talla</button>
-                        {probRecomendada && <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:12, textAlign:'center'}}><p style={{fontSize:11, fontWeight:700, color:'#00C853'}}>TU TALLA IDEAL</p><p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p><p style={{fontSize:11, color:'#333'}}>Seleccionada automáticamente ✓</p><p style={{fontSize:9, color:'#666', marginTop:8, lineHeight:1.3, background:'#fff', padding:'6px 8px', borderRadius:8, border:'1px solid #D0E8D0'}}>⚠️ Es de referencia. Las medidas pueden variar por marca y modelo. Consulte las tallas con el proveedor antes de comprar.</p></div>}
+                        {probRecomendada && <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:12, textAlign:'center'}}><p style={{fontSize:11, fontWeight:700, color:'#00C853'}}>TU TALLA IDEAL</p><p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p><p style={{fontSize:11, color:'#333'}}>Seleccionada automáticamente ✓</p><p style={{fontSize:9, color:'#666', marginTop:8, lineHeight:1.3, background:'#fff', padding:'6px 8px', borderRadius:8, border:'1px solid #D0E8D0'}}>⚠ Es de referencia. Las medidas pueden variar por marca y modelo. Consulte las tallas con el proveedor antes de comprar.</p></div>}
                       </div>
                     )}
                   </div>
