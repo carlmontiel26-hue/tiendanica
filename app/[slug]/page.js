@@ -280,7 +280,7 @@ export default function StorePage(){
                       </div>
                     </div>
                     <button onClick={calcularTallaRecomendada} style={{marginTop:12, width:'100%', background:'#000', color:'#fff', border:'none', padding:'11px', borderRadius:999, fontWeight:900}}>Calcular mi talla</button>
-                    {probRecomendada && <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:10, textAlign:'center'}}><p style={{fontSize:11, fontWeight:700, color:'#00C853'}}>TU TALLA IDEAL</p><p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p><p style={{fontSize:11, color:'#333'}}>Seleccionada automáticamente ✓</p></div>}
+                    {probRecomendada && <div style={{marginTop:10, background:'#E8F5E9', border:'1px solid #00C853', borderRadius:12, padding:12, textAlign:'center'}}><p style={{fontSize:11, fontWeight:700, color:'#00C853'}}>TU TALLA IDEAL</p><p style={{fontSize:28, fontWeight:900, color:'#00C853'}}>{probRecomendada}</p><p style={{fontSize:11, color:'#333'}}>Seleccionada automáticamente ✓</p><p style={{fontSize:9, color:'#666', marginTop:8, lineHeight:1.3, background:'#fff', padding:'6px 8px', borderRadius:8, border:'1px solid #D0E8D0'}}>⚠️ Es de referencia. Las medidas pueden variar por marca y modelo. Consulte las tallas con el proveedor antes de comprar.</p></div>}
                   </div>
                 )}
               </div>
